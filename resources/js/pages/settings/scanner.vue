@@ -3,6 +3,7 @@
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import AppSidebar from '@/components/AppSidebar.vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import WapitiTab from '@/pages/settings/WapitiTab.vue';
 
 
 
@@ -26,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
                         <TabsTrigger value="Arachni">Arachni</TabsTrigger>
                     </TabsList>
                     <TabsContent value="Wapiti">
-                        Wapiti Tab
+                        <WapitiTab/>
                     </TabsContent>
                     <TabsContent value="ZAP">
                         ZAP Tab
