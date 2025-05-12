@@ -9,12 +9,16 @@ Route::get('/', function () {
         'base_uri' => '192.168.100.99:5000'
     ]);
     $response = $client->get('/v1/wapiti/report');
-    return Inertia::render('test', ["vulnerabilities" => $response->getBody()->getContents()]);
+    return Inertia::render('test', ["vulnerabilities" => $response->getBody()->getContents(), "sidebar" => 1]);
 //    return Inertia::render('Welcome');
 })->name('home');
 
 Route::get('/test', function(){
     return Inertia::render('ui');
+});
+
+Route::get('/settings/scanner', function(){
+    return Inertia::render('settings/scanner');
 });
 
 Route::get('dashboard', function () {

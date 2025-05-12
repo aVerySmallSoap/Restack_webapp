@@ -5,9 +5,7 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
 import { useSidebar } from '@/components/ui/sidebar/utils';
-
 import { BookOpen, Settings2, SquareTerminal } from 'lucide-vue-next';
-
 const {state} = useSidebar();
 
 const props = withDefaults(defineProps<SidebarProps>(), {
@@ -25,7 +23,6 @@ const data = {
             title: 'Dashboard',
             url: '#',
             icon: SquareTerminal,
-            isActive: true,
             items: [
                 {
                     title: 'Metrics',
@@ -43,19 +40,11 @@ const data = {
             icon: Settings2,
             items: [
                 {
-                    title: 'General',
-                    url: '#',
+                    title: 'Scanners',
+                    url: '/settings/scanner',
                 },
                 {
-                    title: 'Team',
-                    url: '#',
-                },
-                {
-                    title: 'Billing',
-                    url: '#',
-                },
-                {
-                    title: 'Limits',
+                    title: 'Export',
                     url: '#',
                 },
             ],
