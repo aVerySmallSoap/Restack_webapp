@@ -12,12 +12,11 @@ defineProps<{
 <template>
     <Card>
         <card-title class="flex">
-            <span class="grow self-center">{{title}}</span>
+            <span class="grow font-bold text-2xl">{{title}}</span>
             <component style="color: #363636" :is="icon"/>
-            <slot></slot>
         </card-title>
         <CardContent>
-            <slot></slot>
+            <slot name="card-content"></slot>
         </CardContent>
     </Card>
 </template>
