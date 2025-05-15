@@ -4,14 +4,14 @@ use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    $client = new Client([
-        'base_uri' => '192.168.100.99:5000'
-    ]);
-    $response = $client->get('/v1/wapiti/report');
-    return Inertia::render('test', ["vulnerabilities" => $response->getBody()->getContents(), "sidebar" => 1]);
-//    return Inertia::render('Welcome');
-})->name('home');
+//Route::get('/', function () {
+//    $client = new Client([
+//        'base_uri' => '192.168.100.99:5000'
+//    ]);
+//    $response = $client->get('/v1/wapiti/report');
+//    return Inertia::render('test', ["vulnerabilities" => $response->getBody()->getContents(), "sidebar" => 1]);
+////    return Inertia::render('Welcome');
+//})->name('home');
 
 Route::get('/test', function(){
     return Inertia::render('ui');
