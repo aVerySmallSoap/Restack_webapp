@@ -21,16 +21,16 @@ const data = {
     navMain: [
         {
             title: 'Dashboard',
-            url: '/test',
+            url: '/dashboard',
             icon: SquareTerminal,
             items: [
                 {
                     title: 'Metrics',
-                    url: '/test',
+                    url: '/dashboard',
                 },
                 {
                     title: 'History',
-                    url: '#',
+                    url: '/history',
                 },
             ],
         },
@@ -45,21 +45,21 @@ const data = {
                 },
                 {
                     title: 'Export',
-                    url: '#',
+                    url: '/settings/export',
                 },
             ],
         },
         {
             title: 'Documentation',
-            url: '#',
+            url: '/docs',
             icon: BookOpen,
             items: [
                 {
-                    title: 'Introduction',
-                    url: '#',
+                    title: 'Get Started',
+                    url: '/docs',
                 },
                 {
-                    title: 'Get Started',
+                    title: 'Introduction',
                     url: '#',
                 },
                 {

@@ -1,4 +1,5 @@
 <?php
+/** @noinspection PhpMultipleClassDeclarationsInspection */
 
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Route;
@@ -13,17 +14,28 @@ use Inertia\Inertia;
 ////    return Inertia::render('Welcome');
 //})->name('home');
 
-Route::get('/test', function(){
+// -- Metrics --
+Route::get('/dashboard', function(){
     return Inertia::render('ui');
 });
 
+Route::get('/history', function(){
+    abort(404);
+});
+
+// -- Settings --
 Route::get('/settings/scanner', function(){
     return Inertia::render('settings/scanner');
 });
 
-Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/settings/export', function(){
+    abort(404);
+});
+
+// -- Documentation --
+Route::get('/docs', function(){
+    abort(404);
+});
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

@@ -15,9 +15,19 @@ import * as z from 'zod'
 import { Separator } from '@/components/ui/separator';
 
 const formSchema = toTypedSchema(z.object({
-    http: z.boolean().default(true),
-    xxe: z.boolean().default(true),
-    bruteLogin: z.boolean().default(true),
+    cookieFlags: z.boolean().default(true),
+    csp: z.boolean().default(true),
+    exec: z.boolean().default(true),
+    file: z.boolean().default(true),
+    httpHeaders: z.boolean().default(true),
+    permanentXss: z.boolean().default(true),
+    redirect: z.boolean().default(true),
+    sql: z.boolean().default(true),
+    ssl: z.boolean().default(true),
+    ssrf: z.boolean().default(true),
+    upload: z.boolean().default(true),
+    xss: z.boolean().default(true),
+    exMode: z.boolean().default(false),
 }))
 
 const { handleSubmit } = useForm({
@@ -27,6 +37,7 @@ const { handleSubmit } = useForm({
 const onSubmit = handleSubmit((values) => {
     console.log(values)
 })
+
 </script>
 
 <template>
@@ -38,14 +49,14 @@ const onSubmit = handleSubmit((values) => {
             <span class="pt-4 text-muted">scans common vulnerabilities</span>
             <Separator/>
             <div class="grid grid-cols-2 gap-4 p-4">
-                <FormField v-slot="{ value, handleChange }" name="http">
+                <FormField v-slot="{ value, handleChange }" name="cookieFlags">
                     <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div class="space-y-0.5">
                             <FormLabel class="text-base">
-                                Http
+                                Cookie Flags
                             </FormLabel>
                             <FormDescription>
-                                Allow wapiti to use its HTTP module to detect missing HTTP headers
+                                Allow wapiti to evaluate the security of cookies
                             </FormDescription>
                         </div>
                         <FormControl>
@@ -56,14 +67,14 @@ const onSubmit = handleSubmit((values) => {
                         </FormControl>
                     </FormItem>
                 </FormField>
-                <FormField v-slot="{ value, handleChange }" name="xxe">
+                <FormField v-slot="{ value, handleChange }" name="csp">
                     <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div class="space-y-0.5">
                             <FormLabel class="text-base">
-                                CrossSite Scripting Execution
+                                Content Security Policies
                             </FormLabel>
                             <FormDescription>
-                                Allow wapiti to use its CrossSite Scripting Execution module to detect endpoints that are vulnerable to XXS
+                                Allow wapiti to evaluate the security level of Content Security Policies of the web server.
                             </FormDescription>
                         </div>
                         <FormControl>
@@ -74,14 +85,176 @@ const onSubmit = handleSubmit((values) => {
                         </FormControl>
                     </FormItem>
                 </FormField>
-                <FormField v-slot="{ value, handleChange }" name="bruteLogin">
+                <FormField v-slot="{ value, handleChange }" name="exec">
                     <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div class="space-y-0.5">
                             <FormLabel class="text-base">
-                                Brute Login
+                                Exec
                             </FormLabel>
                             <FormDescription>
-                                Allow wapiti to use its bruteLogin module to detect brute force login pages
+                                Allow wapiti to detect scripts vulnerable to command and/or code execution
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+                <FormField v-slot="{ value, handleChange }" name="file">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                File
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to detect file-related vulnerabilities such as directory traversal and include() vulnerabilities
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+                <FormField v-slot="{ value, handleChange }" name="httpHeaders">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                HTTP Headers
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to evaluate the security of HTTP headers
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+                <FormField v-slot="{ value, handleChange }" name="permanentXss">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                Permanent CrossSite Scripting
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to detect stored (aka permanent) Cross-Site Scripting vulnerabilities on the web server
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+                <FormField v-slot="{ value, handleChange }" name="redirect">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                Redirect
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to detect Open Redirect vulnerabilities
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+                <FormField v-slot="{ value, handleChange }" name="sql">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                SQL
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to detect SQL (also XPath) injection vulnerabilities using error-based or boolean-based (blind) techniques
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+                <FormField v-slot="{ value, handleChange }" name="ssl">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                SSL
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to evaluate the security of SSL/TLS certificate configuration
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+                <FormField v-slot="{ value, handleChange }" name="ssrf">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                Server-Side Request Forgery
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to detect Server-Side Request Forgery vulnerabilities
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+                <FormField v-slot="{ value, handleChange }" name="upload">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                Upload
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to detect unrestricted file upload vulnerabilities
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+                <FormField v-slot="{ value, handleChange }" name="xss">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                CrossSite Scripting
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to detect scripts vulnerable to XML external entity injection (also known as XXE)
                             </FormDescription>
                         </div>
                         <FormControl>
@@ -98,9 +271,28 @@ const onSubmit = handleSubmit((values) => {
             <span class="text-yellow-500 italic">Warning: These modules are expensive to run, therefore, take more time.</span>
         </span>
             <Separator/>
-            <div></div>
+            <div class="grid grid-cols-2 gap-4 p-4">
+                <FormField v-slot="{ value, handleChange }" name="exMode">
+                    <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                Expensive Module #1
+                            </FormLabel>
+                            <FormDescription>
+                                Allow wapiti to execute expensive module #1
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                                :model-value="value"
+                                @update:model-value="handleChange"
+                            />
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+            </div>
             <Button class="my-4" type="submit">
-                Save changes
+                Save Changes
             </Button>
         </form>
     </div>
