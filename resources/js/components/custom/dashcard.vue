@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { Card, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { type LucideIcon } from 'lucide-vue-next'
 
 defineProps<{
@@ -16,6 +16,9 @@ defineProps<{
             <component style="color: #363636" :is="icon"/>
             <slot></slot>
         </card-title>
+        <CardContent>
+            <slot></slot>
+        </CardContent>
     </Card>
 </template>
 
