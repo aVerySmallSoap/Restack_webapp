@@ -5,8 +5,6 @@ import AppSidebar from '@/components/AppSidebar.vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WapitiTab from '@/pages/settings/WapitiTab.vue';
 
-
-
 </script>
 
 <template>
@@ -20,19 +18,19 @@ import WapitiTab from '@/pages/settings/WapitiTab.vue';
                 </div>
             </header>
             <div class="px-6">
-                <Tabs>
+                <Tabs :default-value="'wapiti'">
                     <TabsList>
-                        <TabsTrigger value="Wapiti">Wapiti</TabsTrigger>
-                        <TabsTrigger value="ZAP">ZAP</TabsTrigger>
-                        <TabsTrigger value="Arachni">Arachni</TabsTrigger>
+                        <TabsTrigger value="wapiti">Wapiti</TabsTrigger>
+                        <TabsTrigger value="zap">ZAP</TabsTrigger>
+                        <TabsTrigger value="arachni">Arachni</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="Wapiti">
+                    <TabsContent value="wapiti">
                         <WapitiTab/>
                     </TabsContent>
-                    <TabsContent value="ZAP">
+                    <TabsContent value="zap">
                         ZAP Tab
                     </TabsContent>
-                    <TabsContent value="Arachni">
+                    <TabsContent value="arachni">
                         Arachni Tab
                     </TabsContent>
                 </Tabs>

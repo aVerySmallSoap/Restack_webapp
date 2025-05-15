@@ -13,6 +13,7 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
 import { Separator } from '@/components/ui/separator';
+import ModuleContextHover from '@/components/custom/ModuleContextHover.vue';
 
 const formSchema = toTypedSchema(z.object({
     cookieFlags: z.boolean().default(true),
@@ -55,8 +56,10 @@ const onSubmit = handleSubmit((values) => {
                             <FormLabel class="text-base">
                                 Cookie Flags
                             </FormLabel>
-                            <FormDescription>
-                                Allow wapiti to evaluate the security of cookies
+                            <FormDescription class="flex">
+                                <span class="self-center">
+                                    Allow wapiti to evaluate the security of cookies
+                                </span>
                             </FormDescription>
                         </div>
                         <FormControl>
@@ -73,8 +76,10 @@ const onSubmit = handleSubmit((values) => {
                             <FormLabel class="text-base">
                                 Content Security Policies
                             </FormLabel>
-                            <FormDescription>
-                                Allow wapiti to evaluate the security level of Content Security Policies of the web server.
+                            <FormDescription class="flex">
+                                <span class="self-center">
+                                    Allow wapiti to evaluate the security level of Content Security Policies of the web server
+                                </span>
                             </FormDescription>
                         </div>
                         <FormControl>
@@ -91,8 +96,10 @@ const onSubmit = handleSubmit((values) => {
                             <FormLabel class="text-base">
                                 Exec
                             </FormLabel>
-                            <FormDescription>
-                                Allow wapiti to detect scripts vulnerable to command and/or code execution
+                            <FormDescription class="flex">
+                                <span class="self-center">
+                                    Allow wapiti to detect scripts vulnerable to command and/or code execution
+                                </span>
                             </FormDescription>
                         </div>
                         <FormControl>
@@ -109,8 +116,10 @@ const onSubmit = handleSubmit((values) => {
                             <FormLabel class="text-base">
                                 File
                             </FormLabel>
-                            <FormDescription>
-                                Allow wapiti to detect file-related vulnerabilities such as directory traversal and include() vulnerabilities
+                            <FormDescription class="flex">
+                                <span class="self-center">
+                                    Allow wapiti to detect file-related vulnerabilities such as directory traversal and include() vulnerabilities
+                                </span>
                             </FormDescription>
                         </div>
                         <FormControl>
