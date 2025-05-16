@@ -5,6 +5,8 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import DashCard from '@/components/custom/DashCard.vue';
 import { LucideBug, LucideScanQrCode, LucideScroll } from 'lucide-vue-next';
 import { ref } from 'vue';
+import VulnerabilityCategoryChart from '@/components/custom/VulnerabilityCategoryChart.vue'
+import SeverityDistributionChart from '@/components/custom/SeverityDistributionChart.vue'
 
 const vuln = ref(0);
 const reports = ref(0);
@@ -50,10 +52,16 @@ const scanners = ref(3);
                         </template>
                     </DashCard>
                     <div class="grid gap-4 md:grid-cols-2 col-span-4">
-                        <div class="flex-1 aspect-video rounded-xl bg-muted/50" />
-                        <div class="flex-1 aspect-video rounded-xl bg-muted/50" />
-                        <div class="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" />
-                        <div class="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" />
+                        <DashCard title="Vulnerabilities by Categories">
+                            <template #card-content>
+                                <VulnerabilityCategoryChart />
+                            </template>
+                        </DashCard>
+                        <DashCard title="Vulnerability Severity Distribution">
+                            <template #card-content>
+                                <SeverityDistributionChart />
+                            </template>
+                        </DashCard>
                     </div>
                 </div>
             </div>
