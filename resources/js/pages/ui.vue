@@ -7,11 +7,11 @@ import { LucideBug, LucideScanQrCode, LucideScroll } from 'lucide-vue-next';
 import { ref } from 'vue';
 import VulnerabilityCategoryChart from '@/components/custom/VulnerabilityCategoryChart.vue'
 import SeverityDistributionChart from '@/components/custom/SeverityDistributionChart.vue'
+import DashCardChart from '@/components/custom/DashCardChart.vue';
 
 const vuln = ref(0);
 const reports = ref(0);
 const scanners = ref(3);
-
 </script>
 
 <template>
@@ -21,7 +21,6 @@ const scanners = ref(3);
             <header class="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
                 <div class="flex items-center gap-2 px-4">
                     <SidebarTrigger class="-ml-1" />
-                    <Separator orientation="vertical" class="mr-2 h-4" />
                 </div>
             </header>
             <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -52,16 +51,16 @@ const scanners = ref(3);
                         </template>
                     </DashCard>
                     <div class="grid gap-4 md:grid-cols-2 col-span-4">
-                        <DashCard title="Vulnerabilities by Categories">
+                        <DashCardChart title="Vulnerabilities by Categories">
                             <template #card-content>
                                 <VulnerabilityCategoryChart />
                             </template>
-                        </DashCard>
-                        <DashCard title="Vulnerability Severity Distribution">
+                        </DashCardChart>
+                        <DashCardChart title="Vulnerability Severity Distribution">
                             <template #card-content>
                                 <SeverityDistributionChart />
                             </template>
-                        </DashCard>
+                        </DashCardChart>
                     </div>
                 </div>
             </div>
