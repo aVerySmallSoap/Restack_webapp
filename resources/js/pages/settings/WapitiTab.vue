@@ -13,9 +13,10 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
 import { Separator } from '@/components/ui/separator';
-import ModuleContextHover from '@/components/custom/ModuleContextHover.vue';
+import { Input } from '@/components/ui/input';
 
 const formSchema = toTypedSchema(z.object({
+    timeout: z.onumber().default(30),
     cookieFlags: z.boolean().default(true),
     csp: z.boolean().default(true),
     exec: z.boolean().default(true),
@@ -43,12 +44,41 @@ const onSubmit = handleSubmit((values) => {
 
 <template>
     <div class="p-4">
-        <h3>Modules</h3>
-        <Separator/>
         <form @submit="onSubmit" class="mt-4">
-            <h2 class="font-bold">Common Modules</h2>
-            <span class="pt-4 text-muted">scans common vulnerabilities</span>
-            <Separator/>
+            <div>
+                <h2 class="font-bold text-2xl">Flags</h2>
+                <span class="pt-4 text-muted">Control how wapiti behaves</span>
+                <Separator/>
+            </div>
+            <div class="grid grid-cols-3 gap-4 p-4">
+                <FormField v-slot="{ value, handleChange }" name="timeout">
+                    <FormItem class="flex flex-col justify-between rounded-lg border p-4">
+                        <div class="space-y-0.5">
+                            <FormLabel class="text-base">
+                                Timeout
+                            </FormLabel>
+                            <FormDescription class="flex">
+                                <span class="self-center">
+                                    Sets how long wapiti will scan (in seconds)
+                                </span>
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Input type="number" :default-value="30" :model-value="value" @update:model-value="handleChange"/>
+                        </FormControl>
+                    </FormItem>
+                </FormField>
+            </div>
+            <div class="py-4">
+                <h2 class="font-bold text-2xl">Modules</h2>
+                <span class="text-muted">Modules determine what payloads wapiti will execute</span>
+                <Separator/>
+            </div>
+            <div class="pl-4">
+                <h2 class="font-bold">Common Modules</h2>
+                <span class="pt-4 text-muted">Common vulnerabilities</span>
+                <Separator/>
+            </div>
             <div class="grid grid-cols-2 gap-4 p-4">
                 <FormField v-slot="{ value, handleChange }" name="cookieFlags">
                     <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -275,11 +305,16 @@ const onSubmit = handleSubmit((values) => {
                     </FormItem>
                 </FormField>
             </div>
-            <h2 class="font-bold">Expensive Modules</h2>
-            <span class="pt-4 text-muted">scans uncommon vulnerabilities.
-            <span class="text-yellow-500 italic">Warning: These modules are expensive to run, therefore, take more time.</span>
-        </span>
-            <Separator/>
+            <div class="pl-4">
+                <h2 class="font-bold">Expensive Modules</h2>
+                <span class="pt-4 text-muted">
+                    Scans uncommon vulnerabilities.
+                    <span class="text-yellow-500 italic">
+                        Warning: These modules are expensive to run, therefore, take more time.
+                    </span>
+                </span>
+                <Separator/>
+            </div>
             <div class="grid grid-cols-2 gap-4 p-4">
                 <FormField v-slot="{ value, handleChange }" name="exMode">
                     <FormItem class="flex flex-row items-center justify-between rounded-lg border p-4">
