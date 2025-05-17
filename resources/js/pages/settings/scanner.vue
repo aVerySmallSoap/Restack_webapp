@@ -28,10 +28,14 @@ import WapitiTab from '@/pages/settings/WapitiTab.vue';
                         <WapitiTab/>
                     </TabsContent>
                     <TabsContent value="zap">
-                        ZAP Tab
+                        <div class="flex justify-center">
+                            <span class="text-muted">No content yet</span>
+                        </div>
                     </TabsContent>
                     <TabsContent value="arachni">
-                        Arachni Tab
+                        <div class="flex justify-center">
+                            <span class="text-muted">No content yet</span>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>
