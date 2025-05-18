@@ -1,36 +1,59 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/vue3';
-import PlaceholderPattern from '../components/PlaceholderPattern.vue';
+import DashCard from '@/components/custom/DashCard.vue';
+import { LucideBug, LucideScanQrCode, LucideScroll } from 'lucide-vue-next';
+import { ref } from 'vue';
+import VulnerabilityCategoryChart from '@/components/custom/VulnerabilityCategoryChart.vue'
+import SeverityDistributionChart from '@/components/custom/SeverityDistributionChart.vue'
+import DashCardChart from '@/components/custom/DashCardChart.vue';
+import Navigation from '@/components/custom/Navigation.vue';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-];
+const vuln = ref(0);
+const reports = ref(0);
+const scanners = ref(3);
 </script>
 
 <template>
-    <Head title="Dashboard" />
-
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+    <Navigation>
+        <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <span class="font-bold font-mono px-2 text-4xl">Metrics</span>
             <div class="grid auto-rows-min gap-4 md:grid-cols-3">
-                <div class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <PlaceholderPattern />
+                <DashCard title="Vulnerabilities" :icon="LucideBug">
+                    <template #card-content>
+                        <span class="">{{vuln}}</span>
+                    </template>
+                    <template #card-footer>
+                        Changes since last update: 0%
+                    </template>
+                </DashCard>
+                <DashCard title="Reports" :icon="LucideScroll">
+                    <template #card-content>
+                        <span>{{reports}}</span>
+                    </template>
+                    <template #card-footer>
+                        Changes since last update: 0%
+                    </template>
+                </DashCard>
+                <DashCard title="Scanners" :icon="LucideScanQrCode">
+                    <template #card-content>
+                        <span>{{scanners}}</span>
+                    </template>
+                    <template #card-footer>
+                        Constant Value
+                    </template>
+                </DashCard>
+                <div class="grid gap-4 md:grid-cols-2 col-span-4">
+                    <DashCardChart title="Vulnerabilities by Categories">
+                        <template #card-content>
+                            <VulnerabilityCategoryChart />
+                        </template>
+                    </DashCardChart>
+                    <DashCardChart title="Vulnerability Severity Distribution">
+                        <template #card-content>
+                            <SeverityDistributionChart />
+                        </template>
+                    </DashCardChart>
                 </div>
-                <div class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <PlaceholderPattern />
-                </div>
-                <div class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <PlaceholderPattern />
-                </div>
-            </div>
-            <div class="relative min-h-[100vh] flex-1 rounded-xl border border-sidebar-border/70 dark:border-sidebar-border md:min-h-min">
-                <PlaceholderPattern />
             </div>
         </div>
-    </AppLayout>
+    </Navigation>
 </template>
