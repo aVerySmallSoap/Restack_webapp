@@ -14,9 +14,18 @@ use Inertia\Inertia;
 ////    return Inertia::render('Welcome');
 //})->name('home');
 
+// -- Scanning --
+Route::get('/quickscan', function () {
+    return Inertia::render('QuickScan');
+});
+
+Route::get('/fullscan', function () {
+    abort(404);
+});
+
 // -- Metrics --
 Route::get('/dashboard', function(){
-    return Inertia::render('ui');
+    return Inertia::render('Dashboard');
 });
 
 Route::get('/history', function(){
