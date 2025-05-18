@@ -5,7 +5,7 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
 import { useSidebar } from '@/components/ui/sidebar/utils';
-import { BookOpen, Settings2, SquareTerminal, Search, Zap } from 'lucide-vue-next';
+import { BookOpen, Settings2, SquareTerminal, Search, Zap} from 'lucide-vue-next';
 import NavScan from '@/components/custom/NavScan.vue';
 import { useDark } from '@vueuse/core';
 const {state} = useSidebar();
@@ -20,7 +20,7 @@ const data = {
     user: {
         name: 'aVerySmallSoap',
         email: 'sample@mail.com',
-        avatar: '/avatars/shadcn.jpg',
+        avatar: '',
     },
     navScan: [
         {
