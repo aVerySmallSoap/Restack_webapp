@@ -5,7 +5,8 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
 import { useSidebar } from '@/components/ui/sidebar/utils';
-import { BookOpen, Settings2, SquareTerminal } from 'lucide-vue-next';
+import { BookOpen, Settings2, SquareTerminal, Search, Zap } from 'lucide-vue-next';
+import NavScan from '@/components/custom/NavScan.vue';
 const {state} = useSidebar();
 
 const props = withDefaults(defineProps<SidebarProps>(), {
@@ -18,6 +19,18 @@ const data = {
         email: 'sample@mail.com',
         avatar: '/avatars/shadcn.jpg',
     },
+    navScan: [
+        {
+            title: 'Quick Scan',
+            url: '/quickscan',
+            icon: Zap
+        },
+        {
+            title: 'Full Scan',
+            url: '/fullscan',
+            icon: Search
+        }
+        ],
     navMain: [
         {
             title: 'Dashboard',
@@ -75,11 +88,17 @@ const data = {
 <template>
     <Sidebar v-bind="props">
         <SidebarHeader>
-            <div style="text-align: center; font-size: 32px" v-if="state != 'collapsed'">Restack</div>
-            <div style="text-align: center; font-size: 32px" v-if="state == 'collapsed'">R</div>
+            <div class="text-center self-center items-center text-3xl flex flex-row" v-if="state != 'collapsed'">
+                <img src="/ico_white.svg" alt="icon" width="60" height="60">
+                Restack
+            </div>
+            <div class="text-center self-center items-center text-3xl flex flex-row" v-if="state == 'collapsed'">
+                <img src="/ico_white.svg" alt="icon" width="60" height="60">
+            </div>
         </SidebarHeader>
         <SidebarContent>
-            <NavMain :items="data.navMain" />
+            <NavScan :items="data.navScan"/>
+            <NavMain :items="data.navMain"/>
         </SidebarContent>
         <SidebarFooter>
             <NavUser :user="data.user" />
