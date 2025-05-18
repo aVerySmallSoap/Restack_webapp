@@ -34,7 +34,7 @@ Route::get('/history', function(){
 
 // -- Settings --
 Route::get('/settings/scanner', function(){
-    return Inertia::render('settings/scanner');
+    return Inertia::render('settings/Scanner');
 });
 
 Route::get('/settings/export', function(){
