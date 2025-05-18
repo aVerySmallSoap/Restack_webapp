@@ -14,6 +14,16 @@ use Inertia\Inertia;
 ////    return Inertia::render('Welcome');
 //})->name('home');
 
+// -- Login --
+Route::get('/signin', function () {
+    return Inertia::render('LoginForm');
+});
+
+Route::get('/reg', function () {
+    return Inertia::render('RegisterForm');
+});
+
+
 // -- Scanning --
 Route::get('/quickscan', function () {
     return Inertia::render('QuickScan');
