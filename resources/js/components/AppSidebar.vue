@@ -7,11 +7,14 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/compone
 import { useSidebar } from '@/components/ui/sidebar/utils';
 import { BookOpen, Settings2, SquareTerminal, Search, Zap } from 'lucide-vue-next';
 import NavScan from '@/components/custom/NavScan.vue';
+import { useDark } from '@vueuse/core';
 const {state} = useSidebar();
 
 const props = withDefaults(defineProps<SidebarProps>(), {
     collapsible: 'icon',
 });
+
+const isDark = useDark()
 
 const data = {
     user: {
@@ -89,11 +92,13 @@ const data = {
     <Sidebar v-bind="props">
         <SidebarHeader>
             <div class="text-center self-center items-center text-3xl flex flex-row" v-if="state != 'collapsed'">
-                <img src="/ico_white.svg" alt="icon" width="60" height="60">
+                <img  v-if="isDark" src="/ico_white.svg" alt="icon" width="32" height="32">
+                <img  v-if="!isDark" src="/ico.svg" alt="icon" width="32" height="32">
                 Restack
             </div>
             <div class="text-center self-center items-center text-3xl flex flex-row" v-if="state == 'collapsed'">
-                <img src="/ico_white.svg" alt="icon" width="60" height="60">
+                <img v-if="isDark" src="/ico_white.svg" alt="icon" width="60" height="60">
+                <img v-if="!isDark" src="/ico.svg" alt="icon" width="60" height="60">
             </div>
         </SidebarHeader>
         <SidebarContent>
