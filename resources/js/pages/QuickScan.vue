@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Button } from '@/components/ui/button';
 import Navigation from '@/components/custom/Navigation.vue';
 import Spinner from '@/components/custom/Spinner.vue';
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { FormControl, FormItem, FormLabel, FormField, FormDescription, FormMessage } from '@/components/ui/form';
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useForm } from 'vee-validate';
+import { Separator } from '@/components/ui/separator';
 import { toTypedSchema } from '@vee-validate/zod';
+import { useForm } from 'vee-validate';
+import { ref } from 'vue';
 import { z } from 'zod';
 
 const Result = ref();
@@ -21,25 +21,27 @@ const showFeedback = ref(false);
 const feedbackMsg = ref('');
 const feedbackType = ref<'success' | 'error' | 'info'>('info');
 
-const formSchema = toTypedSchema(z.object({
-   url: z.string().url(),
-}));
+const formSchema = toTypedSchema(
+    z.object({
+        url: z.string().url(),
+    }),
+);
 
 const form = useForm({
-    validationSchema: formSchema
+    validationSchema: formSchema,
 });
 
 const onScan = form.handleSubmit((value) => {
     Status.value = 'Scanning...';
     fetch('http://127.0.0.1:5000/v1/wapiti/scan', {
-        method: "POST",
+        method: 'POST',
         headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url: value.url }),
     })
-        .then(response => response.json())
-        .then(data => {
+        .then((response) => response.json())
+        .then((data) => {
             const group = new Map();
             Result.value = data;
             for (let i = 0; i < data['categories'].length; i++) {
@@ -54,15 +56,15 @@ const onScan = form.handleSubmit((value) => {
             feedbackMsg.value = 'Scan completed successfully!';
             feedbackType.value = 'success';
             showFeedback.value = true;
-            setTimeout(() => showFeedback.value = false, 2000);
+            setTimeout(() => (showFeedback.value = false), 2000);
         })
-        .catch(err => {
+        .catch((err) => {
             Status.value = 'Scan failed';
 
             feedbackMsg.value = 'Scan failed. Please try again.';
             feedbackType.value = 'error';
             showFeedback.value = true;
-            setTimeout(() => showFeedback.value = false, 2000);
+            setTimeout(() => (showFeedback.value = false), 2000);
         });
 });
 
@@ -78,7 +80,7 @@ const onClear = () => {
         feedbackMsg.value = 'Results have been cleared.';
         feedbackType.value = 'info';
         showFeedback.value = true;
-        setTimeout(() => showFeedback.value = false, 2000);
+        setTimeout(() => (showFeedback.value = false), 2000);
     }
     showClearConfirm.value = false;
 };
@@ -86,39 +88,34 @@ const onClear = () => {
 
 <template>
     <Navigation>
-        <div class="relative px-2 md:px-12 py-4 h-full max-w-full overflow-x-hidden">
+        <div class="relative h-full max-w-full overflow-x-hidden px-2 py-4 md:px-12">
             <!-- Toast -->
             <transition name="fade">
                 <div
                     v-if="showFeedback"
                     :class="[
-                        'fixed left-1/2 -translate-x-1/2 top-8 z-50 px-5 py-3 rounded shadow-lg',
-                        feedbackType === 'success' ? 'bg-green-600 text-white' :
-                        feedbackType === 'error' ? 'bg-red-600 text-white' :
-                        'bg-neutral-600 text-white'
+                        'fixed top-8 left-1/2 z-50 -translate-x-1/2 rounded px-5 py-3 shadow-lg',
+                        feedbackType === 'success'
+                            ? 'bg-green-600 text-white'
+                            : feedbackType === 'error'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-neutral-600 text-white',
                     ]"
-                    style="min-width: 240px; text-align: center;"
+                    style="min-width: 240px; text-align: center"
                 >
                     {{ feedbackMsg }}
                 </div>
             </transition>
 
             <!-- Loader Overlay -->
-            <div
-                v-if="Status === 'Scanning...'"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-                aria-busy="true"
-            >
+            <div v-if="Status === 'Scanning...'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" aria-busy="true">
                 <Spinner message="Scanning... Please wait" />
             </div>
 
             <!-- Clear Confirmation Modal -->
-            <div
-                v-if="showClearConfirm"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-            >
-                <div class="bg-white dark:bg-neutral-800 p-6 rounded-lg shadow-lg min-w-[300px]">
-                    <h2 class="text-lg font-semibold mb-4">Confirm Clear</h2>
+            <div v-if="showClearConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+                <div class="min-w-[300px] rounded-lg bg-white p-6 shadow-lg dark:bg-neutral-800">
+                    <h2 class="mb-4 text-lg font-semibold">Confirm Clear</h2>
                     <p class="mb-6">Are you sure you want to clear the results?</p>
                     <div class="flex justify-end gap-3">
                         <Button variant="secondary" @click="showClearConfirm = false">Cancel</Button>
@@ -127,34 +124,29 @@ const onClear = () => {
                 </div>
             </div>
 
-            <!-- Top Row: Input + Buttons -->
-            <form @submit="onScan" class="flex flex-col md:flex-row items-end gap-2 md:gap-4 mb-4">
+            <!-- Input + Buttons -->
+            <form class="w-full max-w-lg space-y-4" @submit="onScan">
                 <FormField v-slot="{ componentField }" name="url">
-                    <FormItem class="w-full md:w-80">
+                    <FormItem>
                         <FormLabel>URL</FormLabel>
                         <FormDescription>Web app address to probe</FormDescription>
                         <FormControl>
-                            <Input type="url" v-bind="componentField" placeholder="https://example.com"/>
+                            <Input type="url" v-bind="componentField" placeholder="https://example.com" />
                         </FormControl>
-                        <FormMessage class="text-red-500"/>
+                        <FormMessage class="text-red-500" />
                     </FormItem>
                 </FormField>
-                <Button type="submit" :disabled="Status === 'Scanning...'">Quick Scan</Button>
-                <Button
-                    variant="secondary"
-                    type="button"
-                    @click="confirmClear"
-                    :disabled="Status === 'Scanning...' || !Result"
-                >
-                    Clear
-                </Button>
+                <div class="flex gap-2">
+                    <Button type="submit" :disabled="Status === 'Scanning...'">Quick Scan</Button>
+                    <Button variant="secondary" type="button" @click="confirmClear" :disabled="Status === 'Scanning...' || !Result"> Clear </Button>
+                </div>
             </form>
 
             <div>
                 <span v-if="Result == null && Status" class="text-muted">
                     {{ Status }}
                 </span>
-                <div id="Results" class="p-2 md:p-4 max-w-full overflow-x-hidden" v-if="Result != null">
+                <div id="Results" class="max-w-full overflow-x-hidden p-2 md:p-4" v-if="Result != null">
                     <Accordion type="multiple">
                         <template v-for="[item, value] in report" :key="item">
                             <AccordionItem :value="item">
@@ -163,12 +155,12 @@ const onClear = () => {
                                 </AccordionTrigger>
                                 <AccordionContent>
                                     <div class="mb-2">
-                                        <h1 class="text-xl font-bold mb-1">{{item}}</h1>
-                                        <Separator/>
+                                        <h1 class="mb-1 text-xl font-bold">{{ item }}</h1>
+                                        <Separator />
                                     </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
+                                    <div class="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4">
                                         <!-- Left: Description & Solution -->
-                                        <div class="flex flex-col pt-4 min-w-0">
+                                        <div class="flex min-w-0 flex-col pt-4">
                                             <span class="py-4">
                                                 {{ value.desc.desc }}
                                             </span>
@@ -177,29 +169,27 @@ const onClear = () => {
                                                     <CardTitle>Solution</CardTitle>
                                                 </CardHeader>
                                                 <CardContent>
-                                                    {{value.desc.sol}}
+                                                    {{ value.desc.sol }}
                                                 </CardContent>
                                                 <CardFooter>
                                                     References:
-                                                    <span class="px-2 flex gap-1 flex-wrap">
+                                                    <span class="flex flex-wrap gap-1 px-2">
                                                         <template v-for="(link, index, number) in value.desc.ref" :key="link">
-                                                            <a :href="link" target="_blank" class="text-green-300">
-                                                                [{{number}}]
-                                                            </a>
+                                                            <a :href="link" target="_blank" class="text-green-300"> [{{ number }}] </a>
                                                         </template>
                                                     </span>
                                                 </CardFooter>
                                             </Card>
                                         </div>
                                         <!-- Right: Vulnerability Details -->
-                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 min-w-0">
+                                        <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 md:gap-4">
                                             <div>
                                                 <Card>
                                                     <CardHeader>
                                                         <CardTitle>Severity</CardTitle>
                                                     </CardHeader>
                                                     <CardContent>
-                                                        {{value.vuln.level}}
+                                                        {{ value.vuln.level }}
                                                     </CardContent>
                                                 </Card>
                                             </div>
@@ -209,7 +199,7 @@ const onClear = () => {
                                                         <CardTitle>Module</CardTitle>
                                                     </CardHeader>
                                                     <CardContent>
-                                                        {{value.vuln.method}}
+                                                        {{ value.vuln.method }}
                                                     </CardContent>
                                                 </Card>
                                             </div>
@@ -219,17 +209,17 @@ const onClear = () => {
                                                         <CardTitle>Method</CardTitle>
                                                     </CardHeader>
                                                     <CardContent>
-                                                        {{value.vuln.module}}
+                                                        {{ value.vuln.module }}
                                                     </CardContent>
                                                 </Card>
                                             </div>
-                                            <div class="grid grid-cols-1 row-start-2 col-span-3 gap-2 md:gap-4 auto-cols-min auto-rows-max">
+                                            <div class="col-span-3 row-start-2 grid auto-cols-min auto-rows-max grid-cols-1 gap-2 md:gap-4">
                                                 <Card>
                                                     <CardHeader>
                                                         <CardTitle>Additional Info</CardTitle>
                                                     </CardHeader>
                                                     <CardContent>
-                                                        {{value.vuln.info}}
+                                                        {{ value.vuln.info }}
                                                     </CardContent>
                                                 </Card>
                                                 <Card>
@@ -237,7 +227,7 @@ const onClear = () => {
                                                         <CardTitle>Curl Command</CardTitle>
                                                     </CardHeader>
                                                     <CardContent class="break-all">
-                                                        {{value.vuln.curl_command}}
+                                                        {{ value.vuln.curl_command }}
                                                     </CardContent>
                                                 </Card>
                                                 <Card>
@@ -245,7 +235,7 @@ const onClear = () => {
                                                         <CardTitle>Path</CardTitle>
                                                     </CardHeader>
                                                     <CardContent class="break-all">
-                                                        {{value.vuln.path}}
+                                                        {{ value.vuln.path }}
                                                     </CardContent>
                                                 </Card>
                                                 <Card>
@@ -253,11 +243,9 @@ const onClear = () => {
                                                         <CardTitle>Referer</CardTitle>
                                                     </CardHeader>
                                                     <CardContent>
-                                                        <span v-if="value.vuln.referer == ''" class="text-muted">
-                                                            There is no referer
-                                                        </span>
+                                                        <span v-if="value.vuln.referer == ''" class="text-muted"> There is no referer </span>
                                                         <span v-else>
-                                                            {{value.vuln.referer}}
+                                                            {{ value.vuln.referer }}
                                                         </span>
                                                     </CardContent>
                                                 </Card>
@@ -266,7 +254,7 @@ const onClear = () => {
                                                         <CardTitle>HTTP Request</CardTitle>
                                                     </CardHeader>
                                                     <CardContent class="break-all">
-                                                        {{value.vuln.http_request}}
+                                                        {{ value.vuln.http_request }}
                                                     </CardContent>
                                                 </Card>
                                             </div>
@@ -283,13 +271,16 @@ const onClear = () => {
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.4s;
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.4s;
 }
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
 }
-.fade-enter-to, .fade-leave-from {
-  opacity: 1;
+.fade-enter-to,
+.fade-leave-from {
+    opacity: 1;
 }
 </style>
