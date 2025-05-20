@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import Navigation from '@/components/custom/Navigation.vue';
 import Spinner from '@/components/custom/Spinner.vue';
@@ -29,6 +29,13 @@ const form = useForm({
     validationSchema: formSchema
 });
 
+const hasErrored = ref(form.errors);
+const elevate = ref(false);
+
+watch(hasErrored, (value) => {
+    elevate.value = !(value.url == undefined);
+})
+
 const onScan = form.handleSubmit((value) => {
     Status.value = 'Scanning...';
     fetch('http://127.0.0.1:5000/v1/wapiti/scan', {
@@ -56,7 +63,7 @@ const onScan = form.handleSubmit((value) => {
             showFeedback.value = true;
             setTimeout(() => showFeedback.value = false, 2000);
         })
-        .catch(err => {
+        .catch((err) => {
             Status.value = 'Scan failed';
 
             feedbackMsg.value = 'Scan failed. Please try again.';
@@ -128,7 +135,7 @@ const onClear = () => {
             </div>
 
             <!-- Top Row: Input + Buttons -->
-            <form @submit="onScan" class="flex flex-col md:flex-row items-end gap-2 md:gap-4 mb-4">
+            <form @submit="onScan" class="flex flex-col md:flex-row gap-2 md:gap-4 mb-4">
                 <FormField v-slot="{ componentField }" name="url">
                     <FormItem class="w-full md:w-80">
                         <FormLabel>URL</FormLabel>
@@ -139,15 +146,20 @@ const onClear = () => {
                         <FormMessage class="text-red-500"/>
                     </FormItem>
                 </FormField>
-                <Button type="submit" :disabled="Status === 'Scanning...'">Quick Scan</Button>
-                <Button
-                    variant="secondary"
-                    type="button"
-                    @click="confirmClear"
-                    :disabled="Status === 'Scanning...' || !Result"
-                >
-                    Clear
-                </Button>
+                <div class="flex flex-col gap-2">
+                    <div class="flex flex-col flex-1 md:flex-row gap-2 md:gap-4 items-end">
+                        <Button type="submit" :disabled="Status === 'Scanning...'">Quick Scan</Button>
+                        <Button
+                            variant="secondary"
+                            type="button"
+                            @click="confirmClear"
+                            :disabled="Status === 'Scanning...' || !Result"
+                        >
+                            Clear
+                        </Button>
+                    </div>
+                    <div class="h-[20px]" v-if="elevate"></div>
+                </div>
             </form>
 
             <div>
