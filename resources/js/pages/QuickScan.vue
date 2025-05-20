@@ -5,14 +5,34 @@ import Navigation from '@/components/custom/Navigation.vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormControl, FormItem, FormLabel, FormField, FormDescription, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useForm } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/zod';
+import { z } from 'zod';
 
 const Result = ref();
 const Status = ref();
 const report = ref();
 
-const onScan = () => {
+const formSchema = toTypedSchema(z.object({
+   url: z.string().url(),
+}))
+
+const form = useForm({
+    validationSchema: formSchema
+})
+
+const onScan = form.handleSubmit((value) => {
     Status.value = 'Scanning...';
-    fetch('http://127.0.0.1:5000/v1/wapiti/scan')
+    fetch('http://127.0.0.1:5000/v1/wapiti/scan',
+        {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({url: value.url}),
+    })
         .then(function (response) {
             return response.json();
         })
@@ -27,7 +47,7 @@ const onScan = () => {
             }
             report.value = group;
         });
-}
+})
 
 const onClear = () => {
     if (Result.value != null) {
@@ -40,10 +60,27 @@ const onClear = () => {
 <template>
     <Navigation>
         <div class="px-12 py-4 h-full">
+            <div>
+                <form @submit="onScan">
+                    <FormField v-slot="{ componentField }" name="url">
+                        <FormItem>
+                            <FormLabel>URL</FormLabel>
+                            <FormDescription>web app address to probe</FormDescription>
+                            <FormControl>
+                                <Input type="url" v-bind="componentField"/>
+                            </FormControl>
+                            <FormMessage class="text-red-500"/>
+                        </FormItem>
+                    </FormField>
+                    <Button type="submit">
+                        Quick Scan
+                    </Button>
+                </form>
+            </div>
             <div class="grid grid-cols-3 gap-4">
-                <Button @click="onScan"> Quick Scan</Button>
                 <Button @click="onClear"> Clear </Button>
             </div>
+
             <div>
                 <span v-if="Result == null" class="text-muted">
                     {{ Status }}
