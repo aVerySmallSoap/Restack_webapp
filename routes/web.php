@@ -39,7 +39,7 @@ Route::get('/dashboard', function(){
 });
 
 Route::get('/history', function(){
-    abort(404);
+    return Inertia::render('History');
 });
 
 // -- Settings --
