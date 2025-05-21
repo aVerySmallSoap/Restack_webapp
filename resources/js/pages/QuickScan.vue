@@ -50,12 +50,19 @@ const onScan = form.handleSubmit((value) => {
             const group = new Map();
             Result.value = data;
             for (let i = 0; i < data['categories'].length; i++) {
+                let temp = []
+                //vulnerabilities
+                for (let j = 0; j < data['vulnerabilities'][i].length; j++) {
+                    temp[j] = data['vulnerabilities'][i][j]
+                }
                 group.set(data['categories'][i], {
                     desc: data['descriptions'][i],
-                    vuln: data['vulnerabilities'][i],
+                    vuln: temp,
                 });
+                temp = []
             }
             report.value = group;
+            console.log(group)
             Status.value = 'Scan complete';
 
             feedbackMsg.value = 'Scan completed successfully!';
@@ -204,84 +211,91 @@ const onClear = () => {
                                             </Card>
                                         </div>
                                         <!-- Right: Vulnerability Details -->
-                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 min-w-0">
-                                            <div>
-                                                <Card>
-                                                    <CardHeader>
-                                                        <CardTitle>Severity</CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent>
-                                                        {{value.vuln.level}}
-                                                    </CardContent>
-                                                </Card>
-                                            </div>
-                                            <div>
-                                                <Card>
-                                                    <CardHeader>
-                                                        <CardTitle>Module</CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent>
-                                                        {{value.vuln.method}}
-                                                    </CardContent>
-                                                </Card>
-                                            </div>
-                                            <div>
-                                                <Card>
-                                                    <CardHeader>
-                                                        <CardTitle>Method</CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent>
-                                                        {{value.vuln.module}}
-                                                    </CardContent>
-                                                </Card>
-                                            </div>
-                                            <div class="grid grid-cols-1 row-start-2 col-span-3 gap-2 md:gap-4 auto-cols-min auto-rows-max">
-                                                <Card>
-                                                    <CardHeader>
-                                                        <CardTitle>Additional Info</CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent>
-                                                        {{value.vuln.info}}
-                                                    </CardContent>
-                                                </Card>
-                                                <Card>
-                                                    <CardHeader>
-                                                        <CardTitle>Curl Command</CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent class="break-all">
-                                                        {{value.vuln.curl_command}}
-                                                    </CardContent>
-                                                </Card>
-                                                <Card>
-                                                    <CardHeader>
-                                                        <CardTitle>Path</CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent class="break-all">
-                                                        {{value.vuln.path}}
-                                                    </CardContent>
-                                                </Card>
-                                                <Card>
-                                                    <CardHeader>
-                                                        <CardTitle>Referer</CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent>
-                                                        <span v-if="value.vuln.referer == ''" class="text-muted">
+                                        <div class="flex flex-col gap-4">
+                                            <template v-for="data in value.vuln" :key="data">
+                                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 min-w-0">
+                                                    <div>
+                                                        <Card>
+                                                            <CardHeader>
+                                                                <CardTitle>Severity</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent>
+                                                                {{data.level}}
+                                                            </CardContent>
+                                                        </Card>
+                                                    </div>
+                                                    <div>
+                                                        <Card>
+                                                            <CardHeader>
+                                                                <CardTitle>Module</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent>
+                                                                {{data.method}}
+                                                            </CardContent>
+                                                        </Card>
+                                                    </div>
+                                                    <div>
+                                                        <Card>
+                                                            <CardHeader>
+                                                                <CardTitle>Method</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent>
+                                                                {{data.module}}
+                                                            </CardContent>
+                                                        </Card>
+                                                    </div>
+                                                    <div class="grid grid-cols-1 row-start-2 col-span-3 gap-2 md:gap-4 auto-cols-min auto-rows-max">
+                                                        <Card>
+                                                            <CardHeader>
+                                                                <CardTitle>Additional Info</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent>
+                                                                {{data.info}}
+                                                            </CardContent>
+                                                        </Card>
+                                                        <Card>
+                                                            <CardHeader>
+                                                                <CardTitle>Curl Command</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent class="break-all">
+                                                                {{data.curl_command}}
+                                                            </CardContent>
+                                                        </Card>
+                                                        <Card>
+                                                            <CardHeader>
+                                                                <CardTitle>Path</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent class="break-all">
+                                                                {{data.path}}
+                                                            </CardContent>
+                                                        </Card>
+                                                        <Card>
+                                                            <CardHeader>
+                                                                <CardTitle>Referer</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent>
+                                                        <span v-if="data.referer == ''" class="text-muted">
                                                             There is no referer
                                                         </span>
-                                                        <span v-else>
-                                                            {{value.vuln.referer}}
+                                                                <span v-else>
+                                                            {{data.referer}}
                                                         </span>
-                                                    </CardContent>
-                                                </Card>
-                                                <Card>
-                                                    <CardHeader>
-                                                        <CardTitle>HTTP Request</CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent class="break-all">
-                                                        {{value.vuln.http_request}}
-                                                    </CardContent>
-                                                </Card>
-                                            </div>
+                                                            </CardContent>
+                                                        </Card>
+                                                        <Card>
+                                                            <CardHeader>
+                                                                <CardTitle>HTTP Request</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent class="break-all">
+                                                                {{data.http_request}}
+                                                            </CardContent>
+                                                        </Card>
+                                                    </div>
+                                                </div>
+                                                <div v-if="value.vuln.length > 1">
+                                                    <Separator/>
+                                                </div>
+                                            </template>
                                         </div>
                                     </div>
                                 </AccordionContent>
