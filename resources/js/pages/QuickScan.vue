@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import Navigation from '@/components/custom/Navigation.vue';
 import Spinner from '@/components/custom/Spinner.vue';
@@ -96,6 +96,21 @@ const onClear = () => {
     }
     showClearConfirm.value = false;
 };
+
+function colorize(severity:string){
+    switch (severity) {
+        case 'Low':
+            return 'text-green-700';
+        case 'Medium':
+            return 'text-yellow-700';
+        case 'High':
+            return 'text-red-700';
+        case 'Critical':
+            return 'text-red-900';
+        default:
+            return 'text-muted';
+    }
+}
 </script>
 
 <template>
@@ -141,38 +156,52 @@ const onClear = () => {
                 </div>
             </div>
 
+            <!-- Page description -->
+            <div class="mb-8">
+                <h1 class="text-2xl">Quick Scan</h1>
+                <div class="p-1.5">
+                    <span>
+                    Run a preconfigured Wapiti scan to quickly probe websites. <br>
+                    <span class="text-red-600 italic text-sm">
+                        WARNING: This scan tries to probe websites as quickly as possible,
+                        therefore, it may not produce accurate results.
+                    </span>
+                </span>
+                </div>
+            </div>
+
             <!-- Top Row: Input + Buttons -->
-            <form @submit="onScan" class="flex flex-col md:flex-row gap-2 md:gap-4 mb-4">
-                <FormField v-slot="{ componentField }" name="url">
-                    <FormItem class="w-full md:w-80">
-                        <FormLabel>URL</FormLabel>
-                        <FormDescription>Web app address to probe</FormDescription>
-                        <FormControl>
-                            <Input type="url" v-bind="componentField" placeholder="https://example.com"/>
-                        </FormControl>
-                        <FormMessage class="text-red-500"/>
-                    </FormItem>
-                </FormField>
-                <div class="flex flex-col gap-2">
-                    <div class="flex flex-col flex-1 md:flex-row gap-2 md:gap-4 items-end">
-                        <Button type="submit" :disabled="Status === 'Scanning...'">Quick Scan</Button>
-                        <Button
-                            variant="secondary"
-                            type="button"
-                            @click="confirmClear"
-                            :disabled="Status === 'Scanning...' || !Result"
-                        >
-                            Clear
-                        </Button>
+            <form @submit="onScan">
+                <div class="flex flex-col md:flex-row gap-2 md:gap-4 mb-4 p-1.5">
+                    <FormField v-slot="{ componentField }" name="url">
+                        <FormItem class="w-full md:w-80">
+                            <FormLabel>URL</FormLabel>
+                            <FormDescription>Web app address to probe</FormDescription>
+                            <FormControl>
+                                <Input type="url" v-bind="componentField" placeholder="https://example.com"/>
+                            </FormControl>
+                            <FormMessage class="text-red-500"/>
+                        </FormItem>
+                    </FormField>
+                    <div class="flex flex-col gap-2">
+                        <div class="flex flex-col flex-1 md:flex-row gap-2 md:gap-4 items-end">
+                            <Button type="submit" :disabled="Status === 'Scanning...'">Quick Scan</Button>
+                            <Button
+                                variant="secondary"
+                                type="button"
+                                @click="confirmClear"
+                                :disabled="Status === 'Scanning...' || !Result"
+                            >
+                                Clear
+                            </Button>
+                        </div>
+                        <div class="h-[20px]" v-if="elevate"></div>
                     </div>
-                    <div class="h-[20px]" v-if="elevate"></div>
                 </div>
             </form>
 
+            <!-- Results -->
             <div>
-                <span v-if="Result == null && Status" class="text-muted">
-                    {{ Status }}
-                </span>
                 <div id="Results" class="p-2 md:p-4 max-w-full overflow-x-hidden" v-if="Result != null">
                     <Accordion type="multiple">
                         <template v-for="[item, value] in report" :key="item">
@@ -187,7 +216,7 @@ const onClear = () => {
                                     </div>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
                                         <!-- Left: Description & Solution -->
-                                        <div class="flex flex-col pt-4 min-w-0">
+                                        <div class="flex flex-col pt-4 min-w-0 gap-8">
                                             <span class="py-4">
                                                 {{ value.desc.desc }}
                                             </span>
@@ -209,6 +238,14 @@ const onClear = () => {
                                                     </span>
                                                 </CardFooter>
                                             </Card>
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle>Additional Info</CardTitle>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    {{value.vuln[0].info}}
+                                                </CardContent>
+                                            </Card>
                                         </div>
                                         <!-- Right: Vulnerability Details -->
                                         <div class="flex flex-col gap-4">
@@ -219,7 +256,7 @@ const onClear = () => {
                                                             <CardHeader>
                                                                 <CardTitle>Severity</CardTitle>
                                                             </CardHeader>
-                                                            <CardContent>
+                                                            <CardContent :class="colorize(data.level)" class="">
                                                                 {{data.level}}
                                                             </CardContent>
                                                         </Card>
@@ -245,14 +282,6 @@ const onClear = () => {
                                                         </Card>
                                                     </div>
                                                     <div class="grid grid-cols-1 row-start-2 col-span-3 gap-2 md:gap-4 auto-cols-min auto-rows-max">
-                                                        <Card>
-                                                            <CardHeader>
-                                                                <CardTitle>Additional Info</CardTitle>
-                                                            </CardHeader>
-                                                            <CardContent>
-                                                                {{data.info}}
-                                                            </CardContent>
-                                                        </Card>
                                                         <Card>
                                                             <CardHeader>
                                                                 <CardTitle>Curl Command</CardTitle>
