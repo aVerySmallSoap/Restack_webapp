@@ -227,25 +227,21 @@ function colorize(severity:string){
                                                 <CardContent>
                                                     {{value.desc.sol}}
                                                 </CardContent>
-                                                <CardFooter>
+                                                <CardFooter class="grid grid-rows-[min-content]">
                                                     References:
-                                                    <span class="px-2 flex gap-1 flex-wrap">
-                                                        <template v-for="(link, index, number) in value.desc.ref" :key="link">
+                                                    <span class="px-2 flex flex-col flex-wrap gap-1">
+                                                        <template v-for="(link, site) in value.desc.ref" :key="link">
                                                             <a :href="link" target="_blank" class="text-green-300">
-                                                                [{{number}}]
+                                                                {{site}}
                                                             </a>
                                                         </template>
                                                     </span>
                                                 </CardFooter>
                                             </Card>
-                                            <Card>
-                                                <CardHeader>
-                                                    <CardTitle>Additional Info</CardTitle>
-                                                </CardHeader>
-                                                <CardContent>
-                                                    {{value.vuln[0].info}}
-                                                </CardContent>
-                                            </Card>
+                                            <!-- Left-lower: How to fix-->
+                                            <span class="text-muted">
+                                                No content on how to fix it for now!
+                                            </span>
                                         </div>
                                         <!-- Right: Vulnerability Details -->
                                         <div class="flex flex-col gap-4">
@@ -282,6 +278,14 @@ function colorize(severity:string){
                                                         </Card>
                                                     </div>
                                                     <div class="grid grid-cols-1 row-start-2 col-span-3 gap-2 md:gap-4 auto-cols-min auto-rows-max">
+                                                        <Card>
+                                                            <CardHeader>
+                                                                <CardTitle>Additional Info</CardTitle>
+                                                            </CardHeader>
+                                                            <CardContent>
+                                                                {{data.info}}
+                                                            </CardContent>
+                                                        </Card>
                                                         <Card>
                                                             <CardHeader>
                                                                 <CardTitle>Curl Command</CardTitle>
