@@ -118,7 +118,7 @@ function colorize(severity: string) {
 
 <template>
     <Navigation>
-        <div class="relative h-full max-w-full overflow-x-hidden px-2 py-4 md:px-12">
+        <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
             <!-- Toast -->
             <transition name="fade">
                 <div
@@ -153,8 +153,8 @@ function colorize(severity: string) {
             </div>
 
             <!-- Page description -->
-            <div class="mb-8">
-                <h1 class="text-2xl">Quick Scan</h1>
+            <div class="">
+                <h1 class="font-bold px-2 text-4xl">Quick Scan</h1>
                 <div class="p-1.5">
                     <span>
                         Run a preconfigured Wapiti scan to quickly probe websites. <br />
@@ -326,20 +326,3 @@ function colorize(severity: string) {
         </div>
     </Navigation>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.4s;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-
-.fade-enter-to,
-.fade-leave-from {
-    opacity: 1;
-}
-</style>
