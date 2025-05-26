@@ -48,7 +48,8 @@ Route::get('/history/{id}', function($id){
         'base_uri' => 'localhost:5000'
     ]);
     $response = $client->get('/v1/wapiti/report/'.$id);
-    return Inertia::render('HistoryItemCards', ["report" => $response->getBody()->getContents()]);
+    $details = $client->get('/v1/report/fetch/'.$id);
+    return Inertia::render('HistoryItemCards', ["report" => $response->getBody()->getContents(), "details" => $details->getBody()->getContents()]);
 });
 
 // -- Settings --
