@@ -15,7 +15,7 @@ const scanners = ref(3);
 <template>
     <Navigation>
         <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
-            <span class="font-bold font-mono px-2 text-4xl">Metrics</span>
+            <span class="font-bold px-2 text-4xl">Metrics</span>
             <div class="grid auto-rows-min gap-4 md:grid-cols-3">
                 <DashCard title="Vulnerabilities" :icon="LucideBug">
                     <template #card-content>
