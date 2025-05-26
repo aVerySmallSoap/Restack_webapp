@@ -43,6 +43,10 @@ Route::get('/history', function(){
     return Inertia::render('History');
 });
 
+Route::get('/history-item', function(){
+    return Inertia::render('HistoryItemCards');
+});
+
 // -- Settings --
 Route::get('/settings/scanner', function(){
     return Inertia::render('settings/Scanner');
@@ -62,6 +66,7 @@ Route::get('/docs/introduction', function(){
 Route::get('/docs/changelog', function(){
     return Inertia::render('docs/Changelog');
 });
+
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
