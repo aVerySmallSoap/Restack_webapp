@@ -13,7 +13,7 @@ defineProps<{
 
 <template>
     <div>
-        <a :href="'http://localhost:5000/v1/report/'+TableReport.id" target="_blank">
+        <a :href="'/history/'+TableReport.id" target="_blank">
             <Button variant="ghost" size="icon">
                 <Eye/>
             </Button>

@@ -12,6 +12,7 @@ import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import { z } from 'zod';
 import SeverityBadge from '@/components/custom/SeverityBadge.vue';
+import { parseFromAPI } from '@/lib/restack/parse';
 
 const Result = ref();
 const Status = ref();
@@ -50,22 +51,8 @@ const onScan = form.handleSubmit((value) => {
     })
         .then((response) => response.json())
         .then((data) => {
-            const group = new Map();
             Result.value = data;
-            for (let i = 0; i < data['categories'].length; i++) {
-                let temp = [];
-                //vulnerabilities
-                for (let j = 0; j < data['vulnerabilities'][i].length; j++) {
-                    temp[j] = data['vulnerabilities'][i][j];
-                }
-                group.set(data['categories'][i], {
-                    desc: data['descriptions'][i],
-                    vuln: temp,
-                });
-                temp = [];
-            }
-            report.value = group;
-            console.log(group);
+            report.value = parseFromAPI(data);
             Status.value = 'Scan complete';
 
             feedbackMsg.value = 'Scan completed successfully!';
