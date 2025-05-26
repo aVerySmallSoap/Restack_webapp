@@ -1,16 +1,16 @@
 <template>
-  <Doughnut :data="chartData" :options="chartOptions" />
+    <Doughnut :data="chartData" :options="chartOptions" />
 </template>
 
 <script>
 import { Doughnut } from 'vue-chartjs'
 import {
-  Chart as ChartJS,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  CategoryScale
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    CategoryScale
 } from 'chart.js'
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
@@ -39,73 +39,73 @@ const vulnerabilities = [
 ];
 
 export default {
-  name: 'VulnerabilitySeverityDoughnutChart',
-  components: { Doughnut },
-  data() {
-    return {
-      chartData: {
-        labels: [],
-        datasets: [
-          {
-            label: 'Vulnerabilities by Severity',
-            backgroundColor: [],
-            data: [],
-            borderWidth: 0
-          }
-        ]
-      },
-      chartOptions: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                let label = context.label || '';
-                if (label) {
-                  label += ': ';
+    name: 'VulnerabilitySeverityDoughnutChart',
+    components: { Doughnut },
+    data() {
+        return {
+            chartData: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Vulnerabilities by Severity',
+                        backgroundColor: [],
+                        data: [],
+                        borderWidth: 0
+                    }
+                ]
+            },
+            chartOptions: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                const total = context.dataset.data.reduce((sum, current) => sum + current, 0);
+                                const value = context.parsed;
+                                const percentage = ((value / total) * 100).toFixed(2);
+                                return label + value + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
                 }
-                const total = context.dataset.data.reduce((sum, current) => sum + current, 0);
-                const value = context.parsed;
-                const percentage = ((value / total) * 100).toFixed(2);
-                return label + value + ' (' + percentage + '%)';
-              }
             }
-          }
         }
-      }
-    }
-  },
-  created() {
-    this.processVulnerabilitySeverityData();
-  },
-  methods: {
-    processVulnerabilitySeverityData() {
-      const severityCounts = {
-        'Critical': 0,
-        'High': 0,
-        'Medium': 0,
-        'Low': 0,
-      };
+    },
+    created() {
+        this.processVulnerabilitySeverityData();
+    },
+    methods: {
+        processVulnerabilitySeverityData() {
+            const severityCounts = {
+                'Critical': 0,
+                'High': 0,
+                'Medium': 0,
+                'Low': 0,
+            };
 
-      const severityLevels = [
-        { label: 'Critical', color: '#DC143C' }, // Crimson Red
-        { label: 'High', color: '#FF4500' },    // Orange Red
-        { label: 'Medium', color: '#FFD700' },   // Gold
-        { label: 'Low', color: '#ADD8E6' }      // Light Blue
-      ];
+            const severityLevels = [
+                { label: 'Critical', color: '#1e40af' }, // blue-800
+                { label: 'High',     color: '#2563eb' }, // blue-600
+                { label: 'Medium',   color: '#3b82f6' }, // blue-500
+                { label: 'Low',      color: '#93c5fd' }  // blue-300
+            ];
 
-      vulnerabilities.forEach(vulnerability => {
-        const severity = vulnerability.severity;
-        if (severityCounts.hasOwnProperty(severity)) {
-          severityCounts[severity]++;
+            vulnerabilities.forEach(vulnerability => {
+                const severity = vulnerability.severity;
+                if (severityCounts.hasOwnProperty(severity)) {
+                    severityCounts[severity]++;
+                }
+            });
+
+            this.chartData.labels = severityLevels.map(s => s.label);
+            this.chartData.datasets[0].data = severityLevels.map(s => severityCounts[s.label]);
+            this.chartData.datasets[0].backgroundColor = severityLevels.map(s => s.color);
         }
-      });
-
-      this.chartData.labels = severityLevels.map(s => s.label);
-      this.chartData.datasets[0].data = severityLevels.map(s => severityCounts[s.label]);
-      this.chartData.datasets[0].backgroundColor = severityLevels.map(s => s.color);
     }
-  }
 }
 </script>
