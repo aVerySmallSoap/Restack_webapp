@@ -102,6 +102,7 @@ function downloadRow(row: ScanHistory) {
 const columnHelper = createColumnHelper<ScanHistory>();
 
 const columns = [
+
     columnHelper.accessor('date', {
         header: ({ column }) =>
             h(
@@ -123,6 +124,11 @@ const columns = [
         enableSorting: true,
         cell: ({ row }) => h('span', row.original.date),
     }),
+    columnHelper.accessor('scanner', {
+        header: 'Scanner',
+        enableSorting: true,
+        cell: ({ row }) => h('span', row.original.scanner),
+    }),
     columnHelper.accessor('target', {
         header: 'Target URL',
         enableSorting: true,
@@ -136,35 +142,11 @@ const columns = [
                 row.original.target,
             ),
     }),
-    columnHelper.accessor('scanner', {
-        header: 'Scanner',
-        enableSorting: true,
-        cell: ({ row }) => h('span', row.original.scanner),
-    }),
+
     columnHelper.accessor('severity', {
-        header: 'Severity',
+        header: 'Average Severity',
         enableSorting: true,
         cell: ({ row }) => h(SeverityBadge, { severity: row.original.severity }),
-    }),
-    columnHelper.accessor('status', {
-        header: 'Status',
-        enableSorting: true,
-        cell: ({ row }) =>
-            h(
-                'span',
-                {
-                    class: [
-                        'font-semibold',
-                        row.original.status === 'Completed' ? 'text-green-600' : row.original.status === 'In Progress' ? 'text-yellow-500' : '',
-                    ],
-                },
-                row.original.status,
-            ),
-    }),
-    columnHelper.accessor('vulnCount', {
-        header: 'Vulnerability Count',
-        enableSorting: true,
-        cell: ({ row }) => h('span', row.original.vulnCount),
     }),
     columnHelper.display({
         id: 'actions',
