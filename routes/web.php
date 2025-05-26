@@ -48,7 +48,7 @@ Route::get('/settings/scanner', function(){
 });
 
 Route::get('/settings/export', function(){
-    abort(404);
+    return Inertia::render('settings/Export');
 });
 
 // -- Documentation --
