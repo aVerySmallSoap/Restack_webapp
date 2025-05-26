@@ -4,6 +4,7 @@
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use function Termwind\render;
 
 //Route::get('/', function () {
 //    $client = new Client([
@@ -52,8 +53,14 @@ Route::get('/settings/export', function(){
 });
 
 // -- Documentation --
-Route::get('/docs', function(){
-    abort(404);
+Route::get('/docs/get-started', function(){
+    return Inertia::render('docs/GetStarted');
+});
+Route::get('/docs/introduction', function(){
+    return Inertia::render('docs/Introduction');
+});
+Route::get('/docs/changelog', function(){
+    return Inertia::render('docs/Changelog');
 });
 
 require __DIR__.'/settings.php';
