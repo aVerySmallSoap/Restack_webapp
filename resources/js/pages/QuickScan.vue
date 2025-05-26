@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import { z } from 'zod';
+import SeverityBadge from '@/components/custom/SeverityBadge.vue';
 
 const Result = ref();
 const Status = ref();
@@ -21,12 +22,14 @@ const showFeedback = ref(false);
 const feedbackMsg = ref('');
 const feedbackType = ref<'success' | 'error' | 'info'>('info');
 
-const formSchema = toTypedSchema(z.object({
-   url: z.string().url(),
-}));
+const formSchema = toTypedSchema(
+    z.object({
+        url: z.string().url(),
+    }),
+);
 
 const form = useForm({
-    validationSchema: formSchema
+    validationSchema: formSchema,
 });
 
 const hasErrored = ref(form.errors);
@@ -34,41 +37,41 @@ const elevate = ref(false);
 
 watch(hasErrored, (value) => {
     elevate.value = !(value.url == undefined);
-})
+});
 
 const onScan = form.handleSubmit((value) => {
     Status.value = 'Scanning...';
     fetch('http://127.0.0.1:5000/v1/wapiti/scan', {
-        method: "POST",
+        method: 'POST',
         headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url: value.url }),
     })
-        .then(response => response.json())
-        .then(data => {
+        .then((response) => response.json())
+        .then((data) => {
             const group = new Map();
             Result.value = data;
             for (let i = 0; i < data['categories'].length; i++) {
-                let temp = []
+                let temp = [];
                 //vulnerabilities
                 for (let j = 0; j < data['vulnerabilities'][i].length; j++) {
-                    temp[j] = data['vulnerabilities'][i][j]
+                    temp[j] = data['vulnerabilities'][i][j];
                 }
                 group.set(data['categories'][i], {
                     desc: data['descriptions'][i],
                     vuln: temp,
                 });
-                temp = []
+                temp = [];
             }
             report.value = group;
-            console.log(group)
+            console.log(group);
             Status.value = 'Scan complete';
 
             feedbackMsg.value = 'Scan completed successfully!';
             feedbackType.value = 'success';
             showFeedback.value = true;
-            setTimeout(() => showFeedback.value = false, 2000);
+            setTimeout(() => (showFeedback.value = false), 2000);
         })
         .catch((err) => {
             Status.value = 'Scan failed';
@@ -76,7 +79,7 @@ const onScan = form.handleSubmit((value) => {
             feedbackMsg.value = 'Scan failed. Please try again.';
             feedbackType.value = 'error';
             showFeedback.value = true;
-            setTimeout(() => showFeedback.value = false, 2000);
+            setTimeout(() => (showFeedback.value = false), 2000);
         });
 });
 
@@ -92,12 +95,12 @@ const onClear = () => {
         feedbackMsg.value = 'Results have been cleared.';
         feedbackType.value = 'info';
         showFeedback.value = true;
-        setTimeout(() => showFeedback.value = false, 2000);
+        setTimeout(() => (showFeedback.value = false), 2000);
     }
     showClearConfirm.value = false;
 };
 
-function colorize(severity:string){
+function colorize(severity: string) {
     switch (severity) {
         case 'Low':
             return 'text-green-700';
@@ -115,39 +118,32 @@ function colorize(severity:string){
 
 <template>
     <Navigation>
-        <div class="relative px-2 md:px-12 py-4 h-full max-w-full overflow-x-hidden">
+        <div class="relative h-full max-w-full overflow-x-hidden px-2 py-4 md:px-12">
             <!-- Toast -->
             <transition name="fade">
                 <div
                     v-if="showFeedback"
-                    :class="[
-                        'fixed left-1/2 -translate-x-1/2 top-8 z-50 px-5 py-3 rounded shadow-lg',
-                        feedbackType === 'success' ? 'bg-green-600 text-white' :
-                        feedbackType === 'error' ? 'bg-red-600 text-white' :
-                        'bg-neutral-600 text-white'
-                    ]"
-                    style="min-width: 240px; text-align: center;"
+                    class="bg-background fixed top-6 right-6 z-50 rounded border px-4 py-2 text-sm shadow"
+                    :class="{
+                        'border-green-600 bg-green-50 text-green-700': feedbackType === 'success',
+                        'border-red-600 bg-red-50 text-red-700': feedbackType === 'error',
+                        'border-neutral-400 bg-neutral-50 text-neutral-700': feedbackType === 'info',
+                    }"
+                    style="min-width: 240px; text-align: center"
                 >
                     {{ feedbackMsg }}
                 </div>
             </transition>
 
             <!-- Loader Overlay -->
-            <div
-                v-if="Status === 'Scanning...'"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-                aria-busy="true"
-            >
+            <div v-if="Status === 'Scanning...'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" aria-busy="true">
                 <Spinner message="Scanning... Please wait" />
             </div>
 
             <!-- Clear Confirmation Modal -->
-            <div
-                v-if="showClearConfirm"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-            >
-                <div class="bg-white dark:bg-neutral-800 p-6 rounded-lg shadow-lg min-w-[300px]">
-                    <h2 class="text-lg font-semibold mb-4">Confirm Clear</h2>
+            <div v-if="showClearConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+                <div class="min-w-[300px] rounded-lg bg-white p-6 shadow-lg dark:bg-neutral-800">
+                    <h2 class="mb-4 text-lg font-semibold">Confirm Clear</h2>
                     <p class="mb-6">Are you sure you want to clear the results?</p>
                     <div class="flex justify-end gap-3">
                         <Button variant="secondary" @click="showClearConfirm = false">Cancel</Button>
@@ -161,37 +157,31 @@ function colorize(severity:string){
                 <h1 class="text-2xl">Quick Scan</h1>
                 <div class="p-1.5">
                     <span>
-                    Run a preconfigured Wapiti scan to quickly probe websites. <br>
-                    <span class="text-red-600 italic text-sm">
-                        WARNING: This scan tries to probe websites as quickly as possible,
-                        therefore, it may not produce accurate results.
+                        Run a preconfigured Wapiti scan to quickly probe websites. <br />
+                        <span class="text-sm text-red-600 italic">
+                            WARNING: This scan tries to probe websites as quickly as possible, therefore, it may not produce accurate results.
+                        </span>
                     </span>
-                </span>
                 </div>
             </div>
 
             <!-- Top Row: Input + Buttons -->
             <form @submit="onScan">
-                <div class="flex flex-col md:flex-row gap-2 md:gap-4 mb-4 p-1.5">
+                <div class="mb-4 flex flex-col gap-2 p-1.5 md:flex-row md:gap-4">
                     <FormField v-slot="{ componentField }" name="url">
                         <FormItem class="w-full md:w-80">
                             <FormLabel>URL</FormLabel>
                             <FormDescription>Web app address to probe</FormDescription>
                             <FormControl>
-                                <Input type="url" v-bind="componentField" placeholder="https://example.com"/>
+                                <Input type="url" v-bind="componentField" placeholder="https://example.com" />
                             </FormControl>
-                            <FormMessage class="text-red-500"/>
+                            <FormMessage class="text-red-500" />
                         </FormItem>
                     </FormField>
                     <div class="flex flex-col gap-2">
-                        <div class="flex flex-col flex-1 md:flex-row gap-2 md:gap-4 items-end">
+                        <div class="flex flex-1 flex-col items-end gap-2 md:flex-row md:gap-4">
                             <Button type="submit" :disabled="Status === 'Scanning...'">Quick Scan</Button>
-                            <Button
-                                variant="secondary"
-                                type="button"
-                                @click="confirmClear"
-                                :disabled="Status === 'Scanning...' || !Result"
-                            >
+                            <Button variant="secondary" type="button" @click="confirmClear" :disabled="Status === 'Scanning...' || !Result">
                                 Clear
                             </Button>
                         </div>
@@ -202,7 +192,7 @@ function colorize(severity:string){
 
             <!-- Results -->
             <div>
-                <div id="Results" class="p-2 md:p-4 max-w-full overflow-x-hidden" v-if="Result != null">
+                <div id="Results" class="max-w-full overflow-x-hidden p-2 md:p-4" v-if="Result != null">
                     <Accordion type="multiple">
                         <template v-for="[item, value] in report" :key="item">
                             <AccordionItem :value="item">
@@ -210,13 +200,13 @@ function colorize(severity:string){
                                     <span class="font-semibold">{{ item }}</span>
                                 </AccordionTrigger>
                                 <AccordionContent>
-                                    <div class="mb-2">
-                                        <h1 class="text-xl font-bold mb-1">{{item}}</h1>
-                                        <Separator/>
-                                    </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
+<!--                                    <div class="mb-2">-->
+<!--                                        <h1 class="mb-1 text-xl font-bold">{{ item }}</h1>-->
+<!--                                        <Separator />-->
+<!--                                    </div>-->
+                                    <div class="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4">
                                         <!-- Left: Description & Solution -->
-                                        <div class="flex flex-col pt-4 min-w-0 gap-8">
+                                        <div class="flex min-w-0 flex-col gap-8 pt-4">
                                             <span class="py-4">
                                                 {{ value.desc.desc }}
                                             </span>
@@ -225,35 +215,33 @@ function colorize(severity:string){
                                                     <CardTitle>Solution</CardTitle>
                                                 </CardHeader>
                                                 <CardContent>
-                                                    {{value.desc.sol}}
+                                                    {{ value.desc.sol }}
                                                 </CardContent>
                                                 <CardFooter class="grid grid-rows-[min-content]">
                                                     References:
-                                                    <span class="px-2 flex flex-col flex-wrap gap-1">
+                                                    <span class="flex flex-col flex-wrap gap-1 px-2">
                                                         <template v-for="(link, site) in value.desc.ref" :key="link">
-                                                            <a :href="link" target="_blank" class="text-green-300">
-                                                                {{site}}
+                                                            <a :href="link" target="_blank" class="text-green-500">
+                                                                {{ site }}
                                                             </a>
                                                         </template>
                                                     </span>
                                                 </CardFooter>
                                             </Card>
                                             <!-- Left-lower: How to fix-->
-                                            <span class="text-muted">
-                                                No content on how to fix it for now!
-                                            </span>
+                                            <span class="text-muted"> No content on how to fix it for now! </span>
                                         </div>
                                         <!-- Right: Vulnerability Details -->
                                         <div class="flex flex-col gap-4">
                                             <template v-for="data in value.vuln" :key="data">
-                                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 min-w-0">
+                                                <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 md:gap-4">
                                                     <div>
                                                         <Card>
                                                             <CardHeader>
                                                                 <CardTitle>Severity</CardTitle>
                                                             </CardHeader>
                                                             <CardContent :class="colorize(data.level)" class="">
-                                                                {{data.level}}
+                                                                <SeverityBadge :severity="data.level"/>
                                                             </CardContent>
                                                         </Card>
                                                     </div>
@@ -263,7 +251,7 @@ function colorize(severity:string){
                                                                 <CardTitle>Module</CardTitle>
                                                             </CardHeader>
                                                             <CardContent>
-                                                                {{data.method}}
+                                                                {{ data.method }}
                                                             </CardContent>
                                                         </Card>
                                                     </div>
@@ -273,17 +261,17 @@ function colorize(severity:string){
                                                                 <CardTitle>Method</CardTitle>
                                                             </CardHeader>
                                                             <CardContent>
-                                                                {{data.module}}
+                                                                {{ data.module }}
                                                             </CardContent>
                                                         </Card>
                                                     </div>
-                                                    <div class="grid grid-cols-1 row-start-2 col-span-3 gap-2 md:gap-4 auto-cols-min auto-rows-max">
+                                                    <div class="col-span-3 row-start-2 grid auto-cols-min auto-rows-max grid-cols-1 gap-2 md:gap-4">
                                                         <Card>
                                                             <CardHeader>
                                                                 <CardTitle>Additional Info</CardTitle>
                                                             </CardHeader>
                                                             <CardContent>
-                                                                {{data.info}}
+                                                                {{ data.info }}
                                                             </CardContent>
                                                         </Card>
                                                         <Card>
@@ -291,7 +279,7 @@ function colorize(severity:string){
                                                                 <CardTitle>Curl Command</CardTitle>
                                                             </CardHeader>
                                                             <CardContent class="break-all">
-                                                                {{data.curl_command}}
+                                                                {{ data.curl_command }}
                                                             </CardContent>
                                                         </Card>
                                                         <Card>
@@ -299,7 +287,7 @@ function colorize(severity:string){
                                                                 <CardTitle>Path</CardTitle>
                                                             </CardHeader>
                                                             <CardContent class="break-all">
-                                                                {{data.path}}
+                                                                {{ data.path }}
                                                             </CardContent>
                                                         </Card>
                                                         <Card>
@@ -307,12 +295,10 @@ function colorize(severity:string){
                                                                 <CardTitle>Referer</CardTitle>
                                                             </CardHeader>
                                                             <CardContent>
-                                                        <span v-if="data.referer == ''" class="text-muted">
-                                                            There is no referer
-                                                        </span>
+                                                                <span v-if="data.referer == ''" class="text-muted"> There is no referer </span>
                                                                 <span v-else>
-                                                            {{data.referer}}
-                                                        </span>
+                                                                    {{ data.referer }}
+                                                                </span>
                                                             </CardContent>
                                                         </Card>
                                                         <Card>
@@ -320,13 +306,13 @@ function colorize(severity:string){
                                                                 <CardTitle>HTTP Request</CardTitle>
                                                             </CardHeader>
                                                             <CardContent class="break-all">
-                                                                {{data.http_request}}
+                                                                {{ data.http_request }}
                                                             </CardContent>
                                                         </Card>
                                                     </div>
                                                 </div>
                                                 <div v-if="value.vuln.length > 1">
-                                                    <Separator/>
+                                                    <Separator />
                                                 </div>
                                             </template>
                                         </div>
@@ -342,13 +328,18 @@ function colorize(severity:string){
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.4s;
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.4s;
 }
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
 }
-.fade-enter-to, .fade-leave-from {
-  opacity: 1;
+
+.fade-enter-to,
+.fade-leave-from {
+    opacity: 1;
 }
 </style>
