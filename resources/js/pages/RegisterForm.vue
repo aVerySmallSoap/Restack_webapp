@@ -38,7 +38,7 @@
           required
         />
 
-        <Link href="/dashboard" as="button" class="w-full">
+        <Link href="/signin" as="button" class="w-full">
           <Button type="button" class="w-full">
             Register
           </Button>
