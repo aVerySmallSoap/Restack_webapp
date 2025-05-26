@@ -26,20 +26,18 @@ async function getData(): Promise<TableReport[]>{
             }
            return list;
         });
-    console.log(reportItems);
     return reportItems;
 }
 
 onMounted(async () => {
     data.value = await getData()
-    console.log(data.value);
 })
 
 </script>
 
 <template>
     <Navigation>
-        <div class="container py-10 mx-auto">
+        <div class="container p-10 mx-auto">
             <HistoryTable :columns="columns" :data="data" />
         </div>
     </Navigation>
