@@ -72,15 +72,15 @@ const data = {
             items: [
                 {
                     title: 'Get Started',
-                    url: '/docs',
+                    url: '/docs/get-started',
                 },
                 {
                     title: 'Introduction',
-                    url: '#',
+                    url: '/docs/introduction',
                 },
                 {
                     title: 'Changelog',
-                    url: '#',
+                    url: '/docs/changelog',
                 },
             ],
         },
