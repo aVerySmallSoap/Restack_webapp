@@ -265,8 +265,8 @@ const table = useVueTable({
 
 <template>
     <Navigation>
-        <div class="p-6">
-            <h1 class="mb-6 text-2xl font-bold">Scan History</h1>
+        <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <h1 class="font-bold px-2 text-4xl">Scan History</h1>
             <div class="w-full">
                 <div class="flex items-center gap-2 py-4">
                     <Input
