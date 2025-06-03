@@ -4,39 +4,178 @@ import { columns } from '@/components/custom/History/TableReport';
 
 import HistoryTable from '@/components/custom/History/HistoryTable.vue';
 import Navigation from '@/components/custom/Navigation.vue';
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 
-const data = ref<TableReport[]>([]);
+/* const data = ref<TableReport[]>([]); */
 
-async function getData(): Promise<TableReport[]> {
-    const reportItems = await fetch('http://localhost:5000/v1/history/load')
-        .then((res) => res.json())
-        .then((res) => {
-            const list = [];
-            for (let i = 0; i < res.length; i++) {
-                const temp = res[i];
-                list[i] = {
-                    id: temp['id'],
-                    date: temp['date'],
-                    scanner: temp['scanner'],
-                    type: temp['type'],
-                    target: temp['target'],
-                };
-            }
-            return list;
-        });
-    return reportItems;
-}
+const data = ref<TableReport[]>([
+    {
+        id: '1',
+        date: '2024-05-01 10:30:00',
+        scanner: 'Scanner A',
+        type: 'Network Scan',
+        target: '192.168.1.1',
+    },
+    {
+        id: '2',
+        date: '2024-05-01 11:00:00',
+        scanner: 'Scanner B',
+        type: 'Vulnerability Scan',
+        target: 'example.com',
+    },
+    {
+        id: '3',
+        date: '2024-05-02 09:15:00',
+        scanner: 'Scanner A',
+        type: 'Web Application Scan',
+        target: 'app.example.com',
+    },
+    {
+        id: '4',
+        date: '2024-05-02 14:45:00',
+        scanner: 'Scanner C',
+        type: 'Compliance Check',
+        target: 'Internal Server',
+    },
+    {
+        id: '5',
+        date: '2024-05-03 08:00:00',
+        scanner: 'Scanner B',
+        type: 'Port Scan',
+        target: '10.0.0.5',
+    },
+    {
+        id: '6',
+        date: '2024-05-03 16:20:00',
+        scanner: 'Scanner A',
+        type: 'Network Scan',
+        target: '192.168.1.10',
+    },
+    {
+        id: '7',
+        date: '2024-05-04 09:00:00',
+        scanner: 'Scanner D',
+        type: 'Vulnerability Scan',
+        target: 'test.example.com',
+    },
+    {
+        id: '8',
+        date: '2024-05-04 11:30:00',
+        scanner: 'Scanner C',
+        type: 'Web Application Scan',
+        target: 'portal.example.com',
+    },
+    {
+        id: '9',
+        date: '2024-05-05 10:00:00',
+        scanner: 'Scanner B',
+        type: 'Compliance Check',
+        target: 'Database Server',
+    },
+    {
+        id: '10',
+        date: '2024-05-05 13:00:00',
+        scanner: 'Scanner A',
+        type: 'Port Scan',
+        target: '172.16.0.1',
+    },
+    {
+        id: '1',
+        date: '2024-05-01 10:30:00',
+        scanner: 'Scanner A',
+        type: 'Network Scan',
+        target: '192.168.1.1',
+    },
+    {
+        id: '7',
+        date: '2024-05-04 09:00:00',
+        scanner: 'Scanner D',
+        type: 'Vulnerability Scan',
+        target: 'test.example.com',
+    },
 
-onMounted(async () => {
-    data.value = await getData();
-});
+    {
+        id: '2',
+        date: '2024-05-01 11:00:00',
+        scanner: 'Scanner B',
+        type: 'Vulnerability Scan',
+        target: 'example.com',
+    },
+    {
+        id: '3',
+        date: '2024-05-02 09:15:00',
+        scanner: 'Scanner A',
+        type: 'Web Application Scan',
+        target: 'app.example.com',
+    },
+    {
+        id: '4',
+        date: '2024-05-02 14:45:00',
+        scanner: 'Scanner C',
+        type: 'Compliance Check',
+        target: 'Internal Server',
+    },
+    {
+        id: '5',
+        date: '2024-05-03 08:00:00',
+        scanner: 'Scanner B',
+        type: 'Port Scan',
+        target: '10.0.0.5',
+    },
+    {
+        id: '6',
+        date: '2024-05-03 16:20:00',
+        scanner: 'Scanner A',
+        type: 'Network Scan',
+        target: '192.168.1.10',
+    },
+    {
+        id: '9',
+        date: '2024-05-05 10:00:00',
+        scanner: 'Scanner B',
+        type: 'Compliance Check',
+        target: 'Database Server',
+    },
+
+    {
+        id: '8',
+        date: '2024-05-04 11:30:00',
+        scanner: 'Scanner C',
+        type: 'Web Application Scan',
+        target: 'portal.example.com',
+    },
+]);
+
+// async function getData(): Promise<TableReport[]> {
+//     const reportItems = await fetch('http://localhost:5000/v1/history/load')
+//         .then((res) => res.json())
+//         .then((res) => {
+//             const list = [];
+//             for (let i = 0; i < res.length; i++) {
+//                 const temp = res[i];
+//                 list[i] = {
+//                     id: temp['id'],
+//                     date: temp['date'],
+//                     scanner: temp['scanner'],
+//                     type: temp['type'],
+//                     target: temp['target'],
+//                 };
+//             }
+//             return list;
+//         });
+//     return reportItems;
+// }
+//
+// onMounted(async () => {
+//     data.value = await getData();
+// });
 </script>
 
 <template>
     <Navigation>
-        <div class="container mx-auto p-10">
-            <HistoryTable :columns="columns" :data="data" />
+        <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <div><h1 class="px-2 text-4xl font-bold">History</h1></div>
+            <div><HistoryTable :columns="columns" :data="data" /></div>
         </div>
     </Navigation>
 </template>
