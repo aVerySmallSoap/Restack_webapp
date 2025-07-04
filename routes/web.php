@@ -45,10 +45,10 @@ Route::get('/history', function(){
 
 Route::get('/history/{id}', function($id){
     $client = new Client([
-        'base_uri' => 'localhost:5000'
+        'base_uri' => 'localhost:25565'
     ]);
-    $response = $client->get('/v1/wapiti/report/'.$id);
-    $details = $client->get('/v1/report/fetch/'.$id);
+    $response = $client->get('/api/v1/wapiti/report/'.$id);
+    $details = $client->get('/api/v1/report/'.$id);
     return Inertia::render('HistoryItemCards', ["report" => $response->getBody()->getContents(), "details" => $details->getBody()->getContents()]);
 });
 

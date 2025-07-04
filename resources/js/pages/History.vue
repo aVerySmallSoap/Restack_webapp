@@ -4,7 +4,7 @@ import { columns } from '@/components/custom/History/TableReport';
 
 import HistoryTable from '@/components/custom/History/HistoryTable.vue';
 import Navigation from '@/components/custom/Navigation.vue';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 
 /* const data = ref<TableReport[]>([]); */
 
@@ -146,29 +146,29 @@ const data = ref<TableReport[]>([
     },
 ]);
 
-// async function getData(): Promise<TableReport[]> {
-//     const reportItems = await fetch('http://localhost:5000/v1/history/load')
-//         .then((res) => res.json())
-//         .then((res) => {
-//             const list = [];
-//             for (let i = 0; i < res.length; i++) {
-//                 const temp = res[i];
-//                 list[i] = {
-//                     id: temp['id'],
-//                     date: temp['date'],
-//                     scanner: temp['scanner'],
-//                     type: temp['type'],
-//                     target: temp['target'],
-//                 };
-//             }
-//             return list;
-//         });
-//     return reportItems;
-// }
-//
-// onMounted(async () => {
-//     data.value = await getData();
-// });
+async function getData(): Promise<TableReport[]> {
+    const reportItems = await fetch('http://localhost:25565/api/v1/history/fetch')
+        .then((res) => res.json())
+        .then((res) => {
+            const list = [];
+            for (let i = 0; i < res.length; i++) {
+                const temp = res[i];
+                list[i] = {
+                    id: temp['id'],
+                    date: temp['date'],
+                    scanner: temp['scanner'],
+                    type: temp['type'],
+                    target: temp['target'],
+                };
+            }
+            return list;
+        });
+    return reportItems;
+}
+
+onMounted(async () => {
+    data.value = await getData();
+});
 </script>
 
 <template>
