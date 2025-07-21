@@ -38,6 +38,20 @@ const vulnerabilities = [
     { scanner: 'ZAP', category: 'Clickjacking', severity: 'Low' },
 ];
 
+// Utility for generating visually distinct pastel colors
+function getColorPalette(n) {
+    const pastelColors = [
+        '#1e40af', '#2563eb', '#3b82f6', '#93c5fd', '#fbbf24', '#f87171', '#34d399', '#f472b6', '#60a5fa',
+        '#a78bfa', '#fdba74', '#6ee7b7', '#fca5a5', '#fcd34d', '#f9fafb', '#818cf8'
+    ];
+    // If more categories than colors, repeat colors
+    if (n <= pastelColors.length) return pastelColors.slice(0, n);
+    else {
+        // Simple hue rotation for more colors (fallback)
+        return Array.from({ length: n }, (_, i) => `hsl(${(i * 360 / n) % 360}, 60%, 70%)`);
+    }
+}
+
 export default {
     name: 'VulnerabilityCategoryDoughnutChart',
     components: { Doughnut },
@@ -47,7 +61,7 @@ export default {
                 labels: [],
                 datasets: [
                     {
-                        label: 'Vulnerabilities by Severity',
+                        label: 'Vulnerabilities by Category',
                         backgroundColor: [],
                         data: [],
                         borderWidth: 0
@@ -77,34 +91,23 @@ export default {
         }
     },
     created() {
-        this.processVulnerabilitySeverityData();
+        this.processVulnerabilityCategoryData();
     },
     methods: {
-        processVulnerabilitySeverityData() {
-            const severityCounts = {
-                'Critical': 0,
-                'High': 0,
-                'Medium': 0,
-                'Low': 0,
-            };
-
-            const severityLevels = [
-                { label: 'Critical', color: '#1e40af' }, // blue-800
-                { label: 'High',     color: '#2563eb' }, // blue-600
-                { label: 'Medium',   color: '#3b82f6' }, // blue-500
-                { label: 'Low',      color: '#93c5fd' }  // blue-300
-            ];
-
-            vulnerabilities.forEach(vulnerability => {
-                const severity = vulnerability.severity;
-                if (severityCounts.hasOwnProperty(severity)) {
-                    severityCounts[severity]++;
-                }
+        processVulnerabilityCategoryData() {
+            // Count vulnerabilities for each category
+            const categoryCounts = {};
+            vulnerabilities.forEach(vuln => {
+                categoryCounts[vuln.category] = (categoryCounts[vuln.category] || 0) + 1;
             });
 
-            this.chartData.labels = severityLevels.map(s => s.label);
-            this.chartData.datasets[0].data = severityLevels.map(s => severityCounts[s.label]);
-            this.chartData.datasets[0].backgroundColor = severityLevels.map(s => s.color);
+            const categories = Object.keys(categoryCounts);
+            const data = categories.map(cat => categoryCounts[cat]);
+            const colors = getColorPalette(categories.length);
+
+            this.chartData.labels = categories;
+            this.chartData.datasets[0].data = data;
+            this.chartData.datasets[0].backgroundColor = colors;
         }
     }
 }

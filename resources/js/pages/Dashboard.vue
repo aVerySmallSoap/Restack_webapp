@@ -12,11 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import VulnerabilitiesOverTimeChart from '@/components/custom/VulnerabilitiesOverTimeChart.vue';
-import VulnerabilityCategoryChart from '@/components/custom/VulnerabilityCategoryChart.vue';
-import SeverityDistributionChart from '@/components/custom/SeverityDistributionChart.vue';
-import CategoryDistributionChart from '@/components/custom/CategoryDistributionChart.vue';
-
+import SeverityDistributionChart from '@/components/custom/Charts/SeverityDistributionChart.vue';
+import CategoryDistributionChart from '@/components/custom/Charts/CategoryDistributionChart.vue';
+import TopVulnerabilitiesRanking from '@/components/custom/Charts/TopVulnerabilitiesRanking.vue';
 import DateRangePicker from '@/components/custom/Dashboard/DateRangePicker.vue'
 
 const vuln = ref(0);
@@ -72,7 +70,7 @@ const scanners = ref(3);
             <div class="grid gap-4 md:grid-cols-2 grid-cols-1 auto-rows-min">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Total Vulnerabilities Over Time</CardTitle>
+                        <CardTitle>Vulnerabilities By Category</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <CategoryDistributionChart />
@@ -107,7 +105,7 @@ const scanners = ref(3);
             <!-- </div> -->
 
             <!-- Top Vulnerabilities Section -->
-            <div class="grid gap-4 md:grid-cols-2 grid-cols-1 auto-rows-min mt-4">
+            <div class="grid gap-4 md:grid-cols-2 grid-cols-1 auto-rows-min">
                 <!-- Table/List of Top Vulnerabilities with filters -->
                 <Card>
                     <CardHeader>
@@ -205,7 +203,7 @@ const scanners = ref(3);
                     <CardContent>
                         <!-- Rankings Chart (Stub) -->
                         <div class="w-full h-60">
-                            <TopVulnerabilitiesRankingChart :top="topN" :date="dateFilter"/>
+                            <TopVulnerabilitiesRanking :top="topN" :date="dateFilter"/>
                         </div>
                     </CardContent>
                 </Card>
