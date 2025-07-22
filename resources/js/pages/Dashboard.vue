@@ -20,6 +20,12 @@ import DateRangePicker from '@/components/custom/Dashboard/DateRangePicker.vue'
 const vuln = ref(0);
 const reports = ref(0);
 const scanners = ref(3);
+const topN = ref(10);
+
+const dateRange = ref({
+    start: null,
+    end: null,
+})
 </script>
 
 <template>
@@ -181,29 +187,29 @@ const scanners = ref(3);
                         </table>
                     </CardContent>
                 </Card>
+
                 <!-- Rankings Chart and Filters -->
                 <Card>
                     <CardHeader>
-                        <CardTitle>Top Vulnerabilities</CardTitle>
+                        <CardTitle>Vulnerability Rankings Chart</CardTitle>
                         <div class="flex gap-2 mt-2">
-                            <Select>
+                            <Select v-model="topN">
                                 <SelectTrigger>
                                     <SelectValue placeholder="Top Vulnerabilities"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="Top-10">Top 10</SelectItem>
-                                        <SelectItem value="Top-5">Top 5</SelectItem>
+                                        <SelectItem :value="10">Top 10</SelectItem>
+                                        <SelectItem :value="5">Top 5</SelectItem>
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
-                            <DateRangePicker />
+                            <DateRangePicker :v-model="dateRange" />
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <!-- Rankings Chart (Stub) -->
                         <div class="w-full h-60">
-                            <TopVulnerabilitiesRanking :top="topN" :date="dateFilter"/>
+                            <TopVulnerabilitiesRanking :top="Number(topN)" :date="dateRange"/>
                         </div>
                     </CardContent>
                 </Card>
