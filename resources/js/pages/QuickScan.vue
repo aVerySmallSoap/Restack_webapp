@@ -308,6 +308,30 @@ function colorize(severity: string) {
                             </AccordionItem>
                         </template>
                     </Accordion>
+                    <!-- Temporary WhatWeb Results Display for Testing -->
+                    <div v-if="Result && Result.plugins">
+                        <h2 class="font-bold text-xl mt-8 mb-2">WhatWeb Results (Temporary)</h2>
+                        <div class="grid gap-2 mb-8">
+                            <template v-for="(plugin, idx) in Result.plugins" :key="idx">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>{{ Object.keys(plugin)[0] }}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div v-for="(val, key) in plugin[Object.keys(plugin)[0]]" :key="key">
+                                            <strong>{{ key }}:</strong>
+                                            <span v-if="Array.isArray(val)">
+                            {{ val.join(', ') }}
+                        </span>
+                                            <span v-else>
+                            {{ val }}
+                        </span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </template>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
