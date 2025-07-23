@@ -52,6 +52,7 @@ const chartData = computed(() => {
 
 const chartOptions = {
     responsive: true,
+    maintainAspectRation: false,
     plugins: {
         legend: { display: false },
         title: { display: false }

@@ -8,6 +8,7 @@ import type { ColumnDef, SortingState, VisibilityState } from '@tanstack/vue-tab
 import { FlexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useVueTable } from '@tanstack/vue-table';
 import { ChevronDown } from 'lucide-vue-next';
 import { ref } from 'vue';
+import DataTablePagination from '@/components/custom/DataTablePagination.vue'
 
 const props = defineProps<{
     columns: ColumnDef<TData, TValue>[];
@@ -103,13 +104,9 @@ const table = useVueTable({
                     </template>
                 </TableBody>
             </Table>
-        </div>
-        <div class="flex items-center justify-end space-x-2 py-4">
-            <Button variant="outline" size="sm" :disabled="!table.getCanPreviousPage()" @click="table.previousPage()"> Previous </Button>
 
-            <span class="text-sm font-medium"> Page {{ table.getState().pagination.pageIndex + 1 }} of {{ table.getPageCount() }} </span>
-
-            <Button variant="outline" size="sm" :disabled="!table.getCanNextPage()" @click="table.nextPage()"> Next </Button>
         </div>
+        <DataTablePagination :table="table" class="py-2"/>
+
     </div>
 </template>
