@@ -28,11 +28,11 @@ const data = {
             url: '/quickscan',
             icon: Zap
         },
-        // {
-        //     title: 'Full Scan',
-        //     url: '/fullscan',
-        //     icon: Search
-        // }
+        {
+            title: 'Full Scan',
+            url: '/fullscan',
+            icon: Search
+        }
         ],
     navMain: [
         {

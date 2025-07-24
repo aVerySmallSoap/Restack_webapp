@@ -31,7 +31,7 @@ Route::get('/quickscan', function () {
 });
 
 Route::get('/fullscan', function () {
-    abort(404);
+    return Inertia::render('FullScan');
 });
 
 // -- Metrics --
