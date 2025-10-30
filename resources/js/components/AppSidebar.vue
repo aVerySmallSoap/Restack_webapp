@@ -24,15 +24,15 @@ const data = {
     },
     navScan: [
         {
-            title: 'Quick Scan',
-            url: '/quickscan',
+            title: 'Scan',
+            url: '/scan',
             icon: Zap
         },
-        {
-            title: 'Full Scan',
-            url: '/fullscan',
-            icon: Search
-        }
+        // {
+        //     title: 'Full Scan',
+        //     url: '/fullscan',
+        //     icon: Search
+        // }
         ],
     navMain: [
         {

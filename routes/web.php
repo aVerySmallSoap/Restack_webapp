@@ -15,6 +15,10 @@ use function Termwind\render;
 ////    return Inertia::render('Welcome');
 //})->name('home');
 
+Route::get('/test', function () {
+    return Inertia::render('quickiescan');
+})->name('home');
+
 // -- Login --
 Route::get('/signin', function () {
     return Inertia::render('LoginForm');
@@ -26,8 +30,8 @@ Route::get('/reg', function () {
 
 
 // -- Scanning --
-Route::get('/quickscan', function () {
-    return Inertia::render('QuickScan');
+Route::get('/scan', function () {
+    return Inertia::render('Scan');
 });
 
 Route::get('/fullscan', function () {
