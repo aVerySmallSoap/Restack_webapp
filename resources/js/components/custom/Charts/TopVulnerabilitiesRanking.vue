@@ -1,70 +1,115 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Bar } from 'vue-chartjs';
+// FIX: Corrected the import syntax
+import { computed } from 'vue'
 import {
-    Chart,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-} from 'chart.js';
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHeader,
+    TableHead,
+    TableRow,
+} from '@/components/ui/table'
+import SeverityBadge from '@/components/custom/SeverityBadge.vue'
+import type { FullVulnerability } from '@/lib/restack/historyParsers'
 
-// Register Chart.js components
-Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-
-// Props
+// Define props to accept vulnerability data
 const props = defineProps<{
-    top: number;
-    date: string;
-}>();
+    vulnerabilities: FullVulnerability[]
+}>()
 
-// Dummy data for demonstration; replace with real API/data fetching logic
-const allVulnerabilities = [
-    { name: 'XSS', count: 24 },
-    { name: 'SQL Injection', count: 17 },
-    { name: 'CSRF', count: 8 },
-    { name: 'RCE', count: 6 },
-    { name: 'IDOR', count: 5 },
-    { name: 'Path Traversal', count: 3 },
-    { name: 'Insecure Deserialization', count: 2 },
-    { name: 'SSRF', count: 1 },
-];
+// Define the event this component can emit
+const emit = defineEmits<{
+    (e: 'view-vulnerability', vuln: FullVulnerability): void
+}>()
 
-// Filter and sort data based on props
-const chartData = computed(() => {
-    // In a real app, filter by props.date
-    const sorted = [...allVulnerabilities].sort((a, b) => b.count - a.count);
-    const topN = sorted.slice(0, props.top);
+// Rank vulnerabilities by count
+const rankedVulnerabilities = computed(() => {
+    const vulnMap = new Map<string, { count: number; vuln: FullVulnerability }>()
 
-    return {
-        labels: topN.map(v => v.name),
-        datasets: [
-            {
-                label: 'Occurrences',
-                backgroundColor: '#4f46e5',
-                data: topN.map(v => v.count),
-            }
-        ]
-    };
-});
+    props.vulnerabilities.forEach((vuln) => {
+        const key = vuln.type // Group by vulnerability type/name
+        if (vulnMap.has(key)) {
+            vulnMap.get(key)!.count++
+        }
+        else {
+            vulnMap.set(key, { count: 1, vuln })
+        }
+    })
 
-const chartOptions = {
-    responsive: true,
-    maintainAspectRation: false,
-    plugins: {
-        legend: { display: false },
-        title: { display: false }
-    },
-    scales: {
-        y: { beginAtZero: true }
-    }
-};
+    return Array.from(vulnMap.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10) // Get top 10
+})
+
+// Emit the event to the parent component
+function handleRowClick(vuln: FullVulnerability) {
+    emit('view-vulnerability', vuln)
+}
 </script>
 
 <template>
-    <div>
-        <Bar :data="chartData" :options="chartOptions" />
-    </div>
+    <Card class="h-full">
+        <CardHeader>
+            <CardTitle>Top 10 Vulnerabilities</CardTitle>
+            <CardDescription>
+                Most frequently occurring vulnerability types.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead class="w-[50px]">
+                            Rank
+                        </TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead class="w-[80px]">
+                            Count
+                        </TableHead>
+                        <TableHead class="w-[80px]">
+                            Severity
+                        </TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody v-if="rankedVulnerabilities.length > 0">
+                    <TableRow
+                        v-for="(item, index) in rankedVulnerabilities"
+                        :key="item.vuln.id"
+                        class="cursor-pointer"
+                        @click="handleRowClick(item.vuln)"
+                    >
+                        <TableCell class="font-medium">
+                            #{{ index + 1 }}
+                        </TableCell>
+                        <TableCell class="max-w-[250px] truncate font-medium">
+                            {{ item.vuln.type }}
+                        </TableCell>
+                        <TableCell>
+                            {{ item.count }}
+                        </TableCell>
+                        <TableCell>
+                            <SeverityBadge :severity="item.vuln.severity" />
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+                <TableBody v-else>
+                    <TableRow>
+                        <TableCell
+                            :colspan="4"
+                            class="h-24 text-center text-muted-foreground"
+                        >
+                            No vulnerabilities found.
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
+        </CardContent>
+    </Card>
 </template>

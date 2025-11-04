@@ -1,26 +1,40 @@
-<template>
-    <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold ring-1 ring-inset" :class="badgeClass">
-        <slot>{{ displayText }}</slot>
-    </span>
-</template>
-
 <script setup lang="ts">
+import { Badge } from '@/components/ui/badge';
 import { computed } from 'vue';
 
 const props = defineProps<{
-    severity: string;
+    severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational' | string;
 }>();
 
-const SEVERITY_COLORS: Record<string, string> = {
-    Critical: 'bg-red-600 text-white ring-red-500',
-    High: 'bg-orange-500 text-white ring-orange-400',
-    Medium: 'bg-yellow-400 text-black ring-yellow-300',
-    Low: 'bg-green-500 text-white ring-green-400',
-    Info: 'bg-blue-500 text-white ring-blue-400',
-    Unknown: 'bg-gray-400 text-black ring-gray-300',
-};
+// Determine badge color based on severity
+const badgeVariant = computed(() => {
+    switch (props.severity?.toLowerCase()) {
+        case 'critical':
+            return 'destructive';
+        case 'high':
+            return 'destructive';
+        case 'medium':
+            return 'default';
+        case 'low':
+            return 'secondary';
+        default:
+            return 'outline';
+    }
+});
 
-const displayText = computed(() => props.severity.charAt(0).toUpperCase() + props.severity.slice(1));
-
-const badgeClass = computed(() => SEVERITY_COLORS[displayText.value] || SEVERITY_COLORS.Unknown);
+// Get a single-letter label for the compact badge
+const badgeLabel = computed(() => {
+    const s = props.severity?.toLowerCase();
+    if (s === 'critical') return 'C';
+    if (s === 'high') return 'H';
+    if (s === 'medium') return 'M';
+    if (s === 'low') return 'L';
+    return 'I';
+});
 </script>
+
+<template>
+    <Badge :variant="badgeVariant" class="flex h-6 w-6 items-center justify-center p-0">
+        {{ badgeLabel }}
+    </Badge>
+</template>

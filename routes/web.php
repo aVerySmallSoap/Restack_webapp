@@ -56,6 +56,18 @@ Route::get('/history/{id}', function($id){
     return Inertia::render('HistoryItemCards', ["report" => $response->getBody()->getContents(), "details" => $details->getBody()->getContents()]);
 });
 
+Route::get('/history/{id}', function ($id) {
+    // In a real application, you would fetch the report from the DB here
+    // $scan = Scan::findOrFail($id);
+
+    // For now, we pass 'null' and let the Vue component load mock data
+    return Inertia::render('history/Show', [
+        'report' => null,
+        'scanType' => null,
+        'scanDetails' => null
+    ]);
+});
+
 // -- Settings --
 Route::get('/settings/scanner', function(){
     return Inertia::render('settings/Scanner');

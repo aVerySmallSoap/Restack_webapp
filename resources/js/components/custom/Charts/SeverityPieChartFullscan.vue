@@ -1,68 +1,71 @@
-<template>
-    <Doughnut :data="chartData" :options="chartOptions" />
-</template>
+<script setup lang="ts">
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DonutChart, type DonutChartData } from '@/components/ui/chart-donut';
+import type { FullVulnerability } from '@/lib/restack/historyParsers';
+import { computed } from 'vue';
 
-<script>
-import { ArcElement, CategoryScale, Chart as ChartJS, Legend, Title, Tooltip } from 'chart.js';
-import { Doughnut } from 'vue-chartjs';
+// Define props to accept vulnerability data
+const props = defineProps<{
+    vulnerabilities: FullVulnerability[];
+}>();
 
-ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
-
-const severityCounts = {
-    Critical: 4,
-    High: 6,
-    Medium: 10,
-    Low: 3,
-    Info: 2,
-};
-
+// Hex colors for severities
 const severityColors = {
-    Critical: '#ef4444',
-    High: '#f59e42',
-    Medium: '#fbbf24',
-    Low: '#3b82f6',
-    Info: '#a1a1aa',
+    Critical: '#ef4444', // red-500
+    High: '#f97316', // orange-500
+    Medium: '#eab308', // yellow-500
+    Low: '#22c55e', // green-500
+    Informational: '#3b82f6', // blue-500
 };
 
-export default {
-    name: 'SeverityPieChart',
-    components: { Doughnut },
-    data() {
-        const levels = Object.keys(severityCounts);
-        return {
-            chartData: {
-                labels: levels,
-                datasets: [
-                    {
-                        label: 'Severity',
-                        backgroundColor: levels.map((lvl) => severityColors[lvl]),
-                        data: levels.map((lvl) => severityCounts[lvl]),
-                        borderWidth: 0,
-                    },
-                ],
-            },
-            chartOptions: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                let label = context.label || '';
-                                if (label) label += ': ';
-                                const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
-                                const value = context.parsed;
-                                const percentage = ((value / total) * 100).toFixed(2);
-                                return label + value + ' (' + percentage + '%)';
-                            },
-                        },
-                    },
-                },
-            },
-        };
-    },
-};
+// Compute severity counts based on the prop
+const severityCounts = computed(() => {
+    const counts = {
+        Critical: 0,
+        High: 0,
+        Medium: 0,
+        Low: 0,
+        Informational: 0,
+    };
+
+    for (const vuln of props.vulnerabilities) {
+        const severity = vuln.severity || 'Informational';
+        if (counts.hasOwnProperty(severity)) {
+            counts[severity as keyof typeof counts]++;
+        }
+    }
+    return counts;
+});
+
+// Generate data for the donut chart
+const chartData = computed<DonutChartData[]>(() => {
+    return Object.entries(severityCounts.value)
+        .filter(([, count]) => count > 0) // Only show severities with counts > 0
+        .map(([severity, count]) => ({
+            name: severity,
+            total: count,
+            fill: severityColors[severity as keyof typeof severityColors],
+        }));
+});
 </script>
 
-<style scoped></style>
+<template>
+    <Card class="flex h-full flex-col">
+        <CardHeader>
+            <CardTitle>Severity Distribution</CardTitle>
+            <CardDescription> Overview of vulnerability severity. </CardDescription>
+        </CardHeader>
+        <CardContent class="flex flex-1 items-center justify-center pb-6">
+            <DonutChart
+                v-if="chartData.length > 0"
+                index="name"
+                category="total"
+                :data="chartData"
+                :colors="chartData.map((c) => c.fill)"
+                :value-formatter="(v: number) => v.toString()"
+                class="w-full"
+            />
+            <div v-else class="text-muted-foreground py-10 text-center">No vulnerabilities found.</div>
+        </CardContent>
+    </Card>
+</template>
