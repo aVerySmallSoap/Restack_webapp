@@ -1,6 +1,8 @@
 <?php
 /** @noinspection PhpMultipleClassDeclarationsInspection */
 
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\HistoryController;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -43,30 +45,11 @@ Route::get('/dashboard', function(){
     return Inertia::render('Dashboard');
 });
 
-Route::get('/history', function(){
-    return Inertia::render('History');
-});
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-Route::get('/history/{id}', function($id){
-    $client = new Client([
-        'base_uri' => 'localhost:25565'
-    ]);
-    $response = $client->get('/api/v1/wapiti/report/'.$id);
-    $details = $client->get('/api/v1/report/'.$id);
-    return Inertia::render('HistoryItemCards', ["report" => $response->getBody()->getContents(), "details" => $details->getBody()->getContents()]);
-});
-
-Route::get('/history/{id}', function ($id) {
-    // In a real application, you would fetch the report from the DB here
-    // $scan = Scan::findOrFail($id);
-
-    // For now, we pass 'null' and let the Vue component load mock data
-    return Inertia::render('history/Show', [
-        'report' => null,
-        'scanType' => null,
-        'scanDetails' => null
-    ]);
-});
+Route::get('/history', [HistoryController::class, 'index'])->name('history.index');
+Route::get('/history/{id}', [HistoryController::class, 'show'])->name('history.show');
+Route::delete('/history/{id}', [HistoryController::class, 'destroy'])->name('history.destroy');
 
 // -- Settings --
 Route::get('/settings/scanner', function(){
