@@ -27,47 +27,51 @@ Route::get('/', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
+//Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
+//
+//Route::get('register', [RegisteredUserController::class, 'create'])
+//    ->name('register');
+//
+//Route::post('register', [RegisteredUserController::class, 'store']);
+//
+//Route::get('/auth/google', function () {
+//    return Socialite::driver('google')->redirect();
+//})->name('auth.google');
+//
+//Route::get('/auth/google/callback', function () {
+//    $googleUser = Socialite::driver('google')->user();
+//
+//    $user = User::where('email', $googleUser->email)->first();
+//
+//    if ($user) {
+//        $user->update([
+//            'google_id' => $googleUser->id,
+//            'avatar' => $googleUser->avatar,
+//        ]);
+//    } else {
+//        $user = User::create([
+//            'name' => $googleUser->name,
+//            'email' => $googleUser->email,
+//            'google_id' => $googleUser->id,
+//            'avatar' => $googleUser->avatar,
+//            'password' => Hash::make(Str::random(24)),
+//            'email_verified_at' => now(),
+//        ]);
+//    }
+//
+//    Auth::login($user);
+//
+//    return redirect('/dashboard');
+//});
 
-Route::get('register', [RegisteredUserController::class, 'create'])
-    ->name('register');
-
-Route::post('register', [RegisteredUserController::class, 'store']);
-
-Route::get('/auth/google', function () {
-    return Socialite::driver('google')->redirect();
-})->name('auth.google');
-
-Route::get('/auth/google/callback', function () {
-    $googleUser = Socialite::driver('google')->user();
-
-    $user = User::where('email', $googleUser->email)->first();
-
-    if ($user) {
-        $user->update([
-            'google_id' => $googleUser->id,
-            'avatar' => $googleUser->avatar,
-        ]);
-    } else {
-        $user = User::create([
-            'name' => $googleUser->name,
-            'email' => $googleUser->email,
-            'google_id' => $googleUser->id,
-            'avatar' => $googleUser->avatar,
-            'password' => Hash::make(Str::random(24)),
-            'email_verified_at' => now(),
-        ]);
-    }
-
-    Auth::login($user);
-
-    return redirect('/dashboard');
-});
-
-Route::get('/logout', function () {
-    Auth::logout();
-    return redirect('/');
-});
+//Route::get('/logout', function () {
+//    Auth::logout();
+//    return redirect('/')->withHeaders([
+//        'Cache-Control' => 'no-cache, no-store, must-revalidate',
+//        'Pragma' => 'no-cache',
+//        'Expires' => '0',
+//    ]);
+//});
 
 /*
 |--------------------------------------------------------------------------
@@ -100,15 +104,15 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
 // -- Documentation --
     Route::get('/docs/get-started', function(){
         return Inertia::render('docs/GetStarted');
-    })->name('docs.get-started'); // <--- Add this name
+    })->name('docs.get-started');
 
     Route::get('/docs/introduction', function(){
         return Inertia::render('docs/Introduction');
-    })->name('docs.introduction'); // <--- Add this name (Fixes your specific error)
+    })->name('docs.introduction');
 
     Route::get('/docs/changelog', function(){
         return Inertia::render('docs/Changelog');
-    })->name('docs.changelog'); // <--- Add this name
+    })->name('docs.changelog');
 });
 
 

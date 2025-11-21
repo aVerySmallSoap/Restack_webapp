@@ -32,6 +32,36 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    Route::get('/auth/google', function () {
+        return Socialite::driver('google')->redirect();
+    })->name('auth.google');
+
+    Route::get('/auth/google/callback', function () {
+        $googleUser = Socialite::driver('google')->user();
+
+        $user = User::where('email', $googleUser->email)->first();
+
+        if ($user) {
+            $user->update([
+                'google_id' => $googleUser->id,
+                'avatar' => $googleUser->avatar,
+            ]);
+        } else {
+            $user = User::create([
+                'name' => $googleUser->name,
+                'email' => $googleUser->email,
+                'google_id' => $googleUser->id,
+                'avatar' => $googleUser->avatar,
+                'password' => Hash::make(Str::random(24)),
+                'email_verified_at' => now(),
+            ]);
+        }
+
+        Auth::login($user);
+
+        return redirect('/dashboard');
+    });
 });
 
 Route::middleware('auth')->group(function () {
