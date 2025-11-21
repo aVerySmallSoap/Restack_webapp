@@ -84,6 +84,23 @@ const submit = () => {
                 </Button>
             </div>
 
+            <div class="relative">
+                <div class="absolute inset-0 flex items-center">
+                    <span class="w-full border-t" />
+                </div>
+                <div class="relative flex justify-center text-xs uppercase">
+                    <span class="bg-background px-2 text-muted-foreground">
+                        Or continue with
+                    </span>
+                </div>
+            </div>
+
+            <a :href="route('auth.google')" class="w-full">
+                <Button variant="outline" type="button" class="w-full">
+                    Google
+                </Button>
+            </a>
+
             <div class="text-center text-sm text-muted-foreground">
                 Don't have an account?
                 <TextLink :href="route('register')" :tabindex="5">Sign up</TextLink>

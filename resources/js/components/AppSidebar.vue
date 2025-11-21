@@ -1,39 +1,37 @@
 <script setup lang="ts">
 import type { SidebarProps } from '@/components/ui/sidebar';
+import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from '@/components/ui/sidebar';
 import { useSidebar } from '@/components/ui/sidebar/utils';
-import { BookOpen, Settings2, SquareTerminal, Search, Zap} from 'lucide-vue-next';
+import { BookOpen, Settings2, SquareTerminal, Search, Zap } from 'lucide-vue-next';
 import NavScan from '@/components/custom/NavScan.vue';
 import { useDark } from '@vueuse/core';
-const {state} = useSidebar();
+
+const { state } = useSidebar();
 
 const props = withDefaults(defineProps<SidebarProps>(), {
     collapsible: 'icon',
 });
 
-const isDark = useDark()
+const isDark = useDark();
 
+// Fetch real user from Inertia props
+const page = usePage();
+const user = computed(() => page.props.auth.user);
+
+// Removed hardcoded 'user' object from data
 const data = {
-    user: {
-        name: 'aVerySmallSoap',
-        email: 'sample@mail.com',
-        avatar: '',
-    },
     navScan: [
         {
             title: 'Scan',
             url: '/scan',
             icon: Zap
-        },
-        // {
-        //     title: 'Full Scan',
-        //     url: '/fullscan',
-        //     icon: Search
-        // }
-        ],
+        }
+    ],
     navMain: [
         {
             title: 'Dashboard',
@@ -92,8 +90,8 @@ const data = {
     <Sidebar v-bind="props">
         <SidebarHeader>
             <div class="text-center self-center items-center text-3xl flex flex-row" v-if="state != 'collapsed'">
-                <img  v-if="isDark" src="/ico_white.svg" alt="icon" width="32" height="32">
-                <img  v-if="!isDark" src="/ico.svg" alt="icon" width="32" height="32">
+                <img v-if="isDark" src="/ico_white.svg" alt="icon" width="32" height="32">
+                <img v-if="!isDark" src="/ico.svg" alt="icon" width="32" height="32">
                 Restack
             </div>
             <div class="text-center self-center items-center text-3xl flex flex-row" v-if="state == 'collapsed'">
@@ -101,12 +99,16 @@ const data = {
                 <img v-if="!isDark" src="/ico.svg" alt="icon" width="60" height="60">
             </div>
         </SidebarHeader>
+
         <SidebarContent>
             <NavScan :items="data.navScan"/>
             <NavMain :items="data.navMain"/>
         </SidebarContent>
+
         <SidebarFooter>
-            <NavUser :user="data.user" />
+            <NavUser :user="user" />
         </SidebarFooter>
+
+        <SidebarRail />
     </Sidebar>
 </template>
