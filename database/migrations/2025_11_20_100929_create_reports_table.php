@@ -8,25 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Reports Table
         Schema::create('reports', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->dateTime('scan_date');
             $table->string('scanner', 50);
             $table->string('scan_type', 50);
-            $table->string('path'); // Path to report file
             $table->integer('total_vulnerabilities');
             $table->integer('critical_count');
-            // Timestamps are standard in Laravel, but your Python model doesn't strictly imply them.
-            // Add them if you want Laravel to manage created_at/updated_at.
             $table->timestamps();
         });
 
-        // 2. Tech Discovery Table
         Schema::create('tech_discovery', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('report_id');
-            // Python defines this as String(50) despite the name suggesting datetime
             $table->string('scan_date', 50);
             $table->json('data');
             $table->timestamps();
@@ -34,7 +28,6 @@ return new class extends Migration
             $table->foreign('report_id')->references('id')->on('reports')->onDelete('cascade');
         });
 
-        // 3. Scan Table
         Schema::create('scan', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('report_id');
@@ -50,7 +43,6 @@ return new class extends Migration
             $table->foreign('report_id')->references('id')->on('reports')->onDelete('cascade');
         });
 
-        // 4. Vulnerabilities Table
         Schema::create('vulnerabilities', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('report_id');
@@ -71,7 +63,6 @@ return new class extends Migration
             $table->foreign('report_id')->references('id')->on('reports')->onDelete('cascade');
         });
 
-        // 5. Scheduled Scans Table
         Schema::create('scheduled_scans', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('url');
