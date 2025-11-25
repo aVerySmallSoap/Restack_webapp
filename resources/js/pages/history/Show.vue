@@ -304,7 +304,12 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
                     </Card>
 
                     <Card v-if="transformedData.aiSummary">
-                        <CardHeader><CardTitle class="flex items-center gap-2"><Sparkles class="h-5 w-5 text-primary" /><span>AI Summary & Recommendations</span></CardTitle></CardHeader>
+                        <CardHeader>
+                            <div class="flex items-center justify-between"> <CardTitle class="flex items-center gap-2">
+                                <Sparkles class="h-5 w-5 text-primary" />
+                                <span>AI Summary & Recommendations</span>
+                            </CardTitle>
+                                <Badge variant="outline" class="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border-indigo-200"> Powered by Gemini </Badge> </div> </CardHeader>
                         <CardContent class="space-y-4 text-sm">
                             <div><h4 class="font-semibold mb-2">Overall Assessment</h4><p class="text-muted-foreground">{{ transformedData.aiSummary.assessment }}</p></div>
                             <div><h4 class="font-semibold mb-2">Key Findings</h4><ul class="list-disc pl-5 space-y-1 text-muted-foreground"><li v-for="(finding, idx) in transformedData.aiSummary.keyFindings" :key="`f-${idx}`">{{ finding }}</li></ul></div>

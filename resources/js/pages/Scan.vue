@@ -555,11 +555,11 @@ const previewUrl = computed(() => {
 
                 <Card v-if="scanData.aiSummary">
                     <CardHeader>
-                        <CardTitle class="flex items-center gap-2">
+                        <div class="flex items-center justify-between"> <CardTitle class="flex items-center gap-2">
                             <Sparkles class="text-primary h-5 w-5" />
                             <span>AI Summary & Recommendations</span>
                         </CardTitle>
-                    </CardHeader>
+                            <Badge variant="outline" class="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border-indigo-200"> Powered by Gemini </Badge> </div> </CardHeader>
                     <CardContent class="space-y-4 text-sm">
                         <div>
                             <h4 class="mb-2 font-semibold">Overall Assessment</h4>
