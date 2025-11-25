@@ -5,6 +5,8 @@ export { default as ChartContainer } from "./ChartContainer.vue"
 export { default as ChartLegendContent } from "./ChartLegendContent.vue"
 export { default as ChartTooltipContent } from "./ChartTooltipContent.vue"
 export { default as ChartLegend } from "./ChartLegend.vue"
+export { default as ChartSingleTooltip } from "./ChartSingleTooltip.vue" // <-- Added this
+export { default as ChartStyle } from "./ChartStyle.vue"
 export { componentToString } from "./utils"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
@@ -12,12 +14,12 @@ export const THEMES = { light: "", dark: ".dark" } as const
 
 export type ChartConfig = {
   [k in string]: {
-    label?: string | Component
-    icon?: string | Component
-  } & (
+  label?: string | Component
+  icon?: string | Component
+} & (
     | { color?: string, theme?: never }
     | { color?: never, theme: Record<keyof typeof THEMES, string> }
-  )
+    )
 }
 
 interface ChartContextProps {
@@ -28,3 +30,8 @@ interface ChartContextProps {
 export const [useChart, provideChartContext] = createContext<ChartContextProps>("Chart")
 
 export { VisCrosshair as ChartCrosshair, VisTooltip as ChartTooltip } from "@unovis/vue"
+
+// --- Helper function required by Donut/Bar charts ---
+export function defaultColors(count: number = 3) {
+  return Array.from({ length: count }, (_, i) => `hsl(var(--chart-${i + 1}))`)
+}

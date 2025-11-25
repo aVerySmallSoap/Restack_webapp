@@ -318,8 +318,8 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
 
                     <template v-else>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Card><CardHeader><CardTitle>Severity Distribution</CardTitle></CardHeader><CardContent><SeverityPieChart :vulnerabilities="transformedData.vulns" /></CardContent></Card>
-                            <Card><CardHeader><CardTitle>Findings by Scanner</CardTitle></CardHeader><CardContent><ScannerBarChart :vulnerabilities="transformedData.vulns" /></CardContent></Card>
+                            <SeverityPieChart :vulnerabilities="transformedData.vulns" />
+                            <ScannerBarChart :vulnerabilities="transformedData.vulns" />
                         </div>
 
                         <Card>

@@ -251,13 +251,20 @@ const stopMockProgress = () => {
 function formatUrl(inputUrl: string) {
     let formatted = inputUrl.trim();
     if (!formatted) return '';
-    if (inputUrl.includes('localhost') || inputUrl.includes('127.0.0.1')) {
-        formatted = 'http://host.docker.internal';
+    if (inputUrl.includes('localhost')) {
+        formatted = inputUrl.replace("localhost", "host.docker.internal");
+    }else if (inputUrl.includes('127.0.0.1')){
+        formatted = inputUrl.replace("127.0.0.1", "host.docker.internal");
     }
     if (!/^https?:\/\//i.test(formatted)) {
-        formatted = 'http://' + formatted;
+        formatted = 'https://' + formatted;
+        return formatted
     }
-    return formatted;
+    if (formatted.includes("host.docker.internal") && !formatted.includes("http://")){
+        formatted = "http://" + formatted
+        return formatted;
+    }
+    return inputUrl
 }
 
 async function handleFetchError(res: Response) {

@@ -70,19 +70,23 @@ class DashboardController extends Controller
         // 6. Chart: Vulnerabilities Over Time (Line)
         // Grouping by Day for Postgres
         $timelineStats = Vulnerability::select(
-            DB::raw("TO_CHAR(scan_date, 'Mon DD') as date"),
-            DB::raw('count(*) as total')
+            DB::raw("TO_CHAR(scan_date, 'YYYY-MM-DD') as raw_date"),
+            DB::raw("SUM(CASE WHEN severity = 'Critical' THEN 1 ELSE 0 END) as critical"),
+            DB::raw("SUM(CASE WHEN severity = 'High' THEN 1 ELSE 0 END) as high"),
+            DB::raw("SUM(CASE WHEN severity = 'Medium' THEN 1 ELSE 0 END) as medium"),
+            DB::raw("SUM(CASE WHEN severity = 'Low' THEN 1 ELSE 0 END) as low")
         )
             ->whereBetween('scan_date', [$startDate, $endDate])
-            ->groupBy(DB::raw("TO_CHAR(scan_date, 'Mon DD')"))
-            ->orderBy(DB::raw("min(scan_date)"))
+            ->groupBy(DB::raw("TO_CHAR(scan_date, 'YYYY-MM-DD')"))
+            ->orderBy('raw_date', 'asc')
             ->get()
             ->map(function ($item) {
                 return [
-                    'date' => $item->date,
-                    'total' => $item->total,
-                    // You could add a 'critical' count here with a conditional sum if needed
-                    'critical' => 0
+                    'date' => $item->raw_date,
+                    'critical' => (int) $item->critical,
+                    'high' => (int) $item->high,
+                    'medium' => (int) $item->medium,
+                    'low' => (int) $item->low,
                 ];
             });
 
