@@ -28,6 +28,12 @@ import {
 import { Sparkles } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 import { toast } from 'vue-sonner';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // ---------- CONFIGURATION ----------
 const API_BASE_URL = 'http://127.0.0.1:25565';

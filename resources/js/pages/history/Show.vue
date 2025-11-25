@@ -205,7 +205,7 @@ const priorityTable = useVueTable({ get data() { return transformedData.value?.p
 const basicVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const basicFilter = ref('')
 const basicVulnColumns: ColumnDef<any>[] = [
-    { accessorKey: 'category', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Category' }), cell: ({ row }) => h('div', { class: 'font-medium max-w-[200px] truncate' }, row.getValue('category')) },
+    { accessorKey: 'category', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Category' }), cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue('category')) },
     { accessorKey: 'severity', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }), cell: ({ row }) => h(Badge, { variant: getSeverityBadge(row.getValue('severity')) }, () => row.getValue('severity')), sortingFn: (a, b) => b.original.level - a.original.level },
     { accessorKey: 'path', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Path' }), cell: ({ row }) => h('div', { class: 'max-w-[250px] truncate font-mono text-xs' }, row.getValue('path')) },
     {
@@ -224,7 +224,7 @@ const basicTable = useVueTable({ get data() { return transformedData.value?.allV
 const fullVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const fullFilter = ref('')
 const fullVulnColumns: ColumnDef<any>[] = [
-    { accessorKey: 'type', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }), cell: ({ row }) => h('div', { class: 'font-medium max-w-[200px] truncate' }, row.getValue('type')) },
+    { accessorKey: 'type', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }), cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue('type')) },
     { accessorKey: 'severity', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }), cell: ({ row }) => h(Badge, { variant: getSeverityBadge(row.getValue('severity')) }, () => row.getValue('severity')) },
     { accessorKey: 'scanner', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Scanner' }) },
     { accessorKey: 'endpoint', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Endpoint' }), cell: ({ row }) => h('div', { class: 'max-w-[150px] truncate' }, row.getValue('endpoint')) },
@@ -298,7 +298,7 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
                                 <div class="p-4 border rounded-lg"><h3 class="text-sm font-medium text-muted-foreground">Total Findings</h3><p class="text-3xl font-bold">{{ transformedData.scanMeta.totalVulns }}</p></div>
                                 <div class="p-4 border rounded-lg"><h3 class="text-sm font-medium text-muted-foreground">Critical/High</h3><p class="text-3xl font-bold text-destructive">{{ scanType === 'basic' ? transformedData.scanMeta.criticalHighVulns : transformedData.scanMeta.criticalVulns }}</p></div>
                                 <div class="p-4 border rounded-lg"><h3 class="text-sm font-medium text-muted-foreground">Technologies</h3><p class="text-3xl font-bold">{{ transformedData.technologies.length }}</p></div>
-                                <div class="p-4 border rounded-lg"><h3 class="text-sm font-medium text-muted-foreground">Top Vulnerability</h3><p class="text-2xl md:text-3xl font-bold truncate">{{ transformedData.topRisk }}</p></div>
+                                <div class="p-4 border rounded-lg"><h3 class="text-sm font-medium text-muted-foreground">Top Vulnerability</h3><p class="text-2xl md:text-3xl font-bold">{{ transformedData.topRisk }}</p></div>
                             </div>
                         </CardContent>
                     </Card>

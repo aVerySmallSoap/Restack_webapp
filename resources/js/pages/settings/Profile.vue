@@ -1,5 +1,10 @@
+{
+type: uploaded file
+fileName: averysmallsoap/restack_webapp/Restack_webapp-b34cc1610d01164d8f2e8c074df0ab306f4c0e44/resources/js/pages/settings/Profile.vue
+fullContent:
 <script setup lang="ts">
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm as useInertiaForm, usePage } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 import DeleteUser from '@/components/DeleteUser.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
@@ -28,15 +33,30 @@ const breadcrumbs: BreadcrumbItem[] = [
 const page = usePage<SharedData>();
 const user = page.props.auth.user as User;
 
-const form = useForm({
+// Use a local mock for recently successful since we aren't hitting the backend
+const recentlySuccessful = ref(false);
+
+const form = useInertiaForm({
     name: user.name,
     email: user.email,
 });
 
 const submit = () => {
-    form.patch(route('profile.update'), {
-        preserveScroll: true,
-    });
+    // Simulate save behavior for UI demo
+    console.log("Mock saving profile:", form.data());
+
+    // Simulate network delay
+    form.processing = true;
+    setTimeout(() => {
+        form.processing = false;
+        recentlySuccessful.value = true;
+        setTimeout(() => recentlySuccessful.value = false, 2000);
+    }, 600);
+
+    // Original code (commented out for demo):
+    // form.patch(route('profile.update'), {
+    //     preserveScroll: true,
+    // });
 };
 </script>
 
@@ -96,7 +116,7 @@ const submit = () => {
                             leave-active-class="transition ease-in-out"
                             leave-to-class="opacity-0"
                         >
-                            <p v-show="form.recentlySuccessful" class="text-sm text-neutral-600">Saved.</p>
+                            <p v-show="recentlySuccessful" class="text-sm text-neutral-600">Saved.</p>
                         </Transition>
                     </div>
                 </form>
@@ -106,3 +126,4 @@ const submit = () => {
         </SettingsLayout>
     </AppLayout>
 </template>
+}
