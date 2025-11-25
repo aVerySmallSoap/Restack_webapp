@@ -9,6 +9,7 @@ import { computed } from 'vue';
 // Determine thread color based on theme
 const isDark = useDark();
 const threadsColor = computed<[number, number, number]>(() => (isDark.value ? [1, 1, 1] : [0, 0, 0]));
+const textTypeColors = computed(() => (isDark.value ? ['#EDEDEC'] : ['#1b1b18']));
 </script>
 
 <template>
@@ -44,11 +45,12 @@ const threadsColor = computed<[number, number, number]>(() => (isDark.value ? [1
                 <div class="flex items-center gap-2 text-4xl font-bold tracking-tighter sm:text-6xl lg:text-8xl">
                     <span class="text-blue-500 dark:text-blue-500">Scan. </span>
                     <TextType
-                        :text="['Analyze.', 'Prioritize.', 'Report.', 'Restack.', 'Oten.']"
+                        :text="['Analyze.', 'Prioritize.', 'Report.', 'Restack.']"
                         :typingSpeed="75"
                         :pauseDuration="1500"
                         :showCursor="true"
                         cursorCharacter="_"
+                        :text-colors="textTypeColors"
                     />
                 </div>
             </div>

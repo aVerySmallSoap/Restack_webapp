@@ -13,6 +13,8 @@ use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -99,6 +101,26 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
 
     Route::get('/settings/export', function(){
         return Inertia::render('settings/Export');
+    });
+
+// -- Scan Preview --
+    Route::post('/scan/preview', function (Request $request) {
+        $url = $request->input('url');
+        if (!filter_var($url, FILTER_VALIDATE_URL)) return response()->json(['error' => 'Invalid URL'], 400);
+
+        try {
+            // Fetch with short timeout to prevent hanging
+            $html = Http::timeout(3)->get($url)->body();
+
+            // Basic extraction (robust production apps might use a DOM parser)
+            $title = preg_match('/<title>(.*?)<\/title>/i', $html, $m) ? $m[1] : null;
+            $desc = preg_match('/<meta[^>]+name="description"[^>]+content="([^"]+)"/i', $html, $m) ? $m[1] : null;
+            $image = preg_match('/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i', $html, $m) ? $m[1] : null;
+
+            return response()->json(['title' => $title, 'description' => $desc, 'image' => $image]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Preview unavailable'], 422);
+        }
     });
 
 // -- Documentation --
