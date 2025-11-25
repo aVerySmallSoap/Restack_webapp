@@ -208,7 +208,15 @@ const basicVulnColumns: ColumnDef<any>[] = [
     { accessorKey: 'category', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Category' }), cell: ({ row }) => h('div', { class: 'font-medium max-w-[200px] truncate' }, row.getValue('category')) },
     { accessorKey: 'severity', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }), cell: ({ row }) => h(Badge, { variant: getSeverityBadge(row.getValue('severity')) }, () => row.getValue('severity')), sortingFn: (a, b) => b.original.level - a.original.level },
     { accessorKey: 'path', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Path' }), cell: ({ row }) => h('div', { class: 'max-w-[250px] truncate font-mono text-xs' }, row.getValue('path')) },
-    { id: 'actions', cell: ({ row }) => h(Button, { variant: 'ghost', size: 'sm', type: 'button', onClick: () => { selectedBasicVuln.value = row.original; basicDrawerOpen.value = true } }, 'Details') },
+    {
+        id: 'actions',
+        cell: ({ row }) => h(Button, {
+            variant: 'ghost',
+            size: 'sm',
+            type: 'button',
+            onClick: () => { selectedBasicVuln.value = row.original; basicDrawerOpen.value = true }
+        }, () => 'Details')
+    },
 ]
 const basicTable = useVueTable({ get data() { return transformedData.value?.allVulns || [] }, get columns() { return basicVulnColumns }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(), onSortingChange: (u) => basicVulnSorting.value = typeof u === 'function' ? u(basicVulnSorting.value) : u, onGlobalFilterChange: (u) => basicFilter.value = typeof u === 'function' ? u(basicFilter.value) : u, state: { get sorting() { return basicVulnSorting.value }, get globalFilter() { return basicFilter.value } } })
 
@@ -220,7 +228,7 @@ const fullVulnColumns: ColumnDef<any>[] = [
     { accessorKey: 'severity', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }), cell: ({ row }) => h(Badge, { variant: getSeverityBadge(row.getValue('severity')) }, () => row.getValue('severity')) },
     { accessorKey: 'scanner', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Scanner' }) },
     { accessorKey: 'endpoint', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Endpoint' }), cell: ({ row }) => h('div', { class: 'max-w-[150px] truncate' }, row.getValue('endpoint')) },
-    { id: 'actions', cell: ({ row }) => h(Button, { variant: 'ghost', size: 'sm', type: 'button', onClick: () => { selectedFullVuln.value = row.original; fullDrawerOpen.value = true } }, 'Details') },
+    { id: 'actions', cell: ({ row }) => h(Button, { variant: 'ghost', size: 'sm', type: 'button', onClick: () => { selectedFullVuln.value = row.original; fullDrawerOpen.value = true } }, () => 'Details') },
 ]
 const fullTable = useVueTable({ get data() { return transformedData.value?.vulns || [] }, get columns() { return fullVulnColumns }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(), onSortingChange: (u) => fullVulnSorting.value = typeof u === 'function' ? u(fullVulnSorting.value) : u, onGlobalFilterChange: (u) => fullFilter.value = typeof u === 'function' ? u(fullFilter.value) : u, state: { get sorting() { return fullVulnSorting.value }, get globalFilter() { return fullFilter.value } } })
 
