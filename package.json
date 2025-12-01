@@ -49,7 +49,7 @@
         "motion-v": "^1.7.4",
         "ogl": "^1.0.11",
         "radix-vue": "^1.9.17",
-        "reka-ui": "^2.6.0",
+        "reka-ui": "^2.6.1",
         "tailwind-merge": "^3.4.0",
         "tailwindcss": "^4.1.1",
         "typescript": "^5.2.2",
