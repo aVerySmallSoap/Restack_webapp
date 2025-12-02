@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, ref } from 'vue'
+import { ref, computed, h } from 'vue'
 import type { PropType } from 'vue'
 import {
     useVueTable,
@@ -12,7 +12,7 @@ import {
     type SortingState,
     type ColumnFiltersState,
 } from '@tanstack/vue-table'
-import { ArrowUpDown, MoreHorizontal, Trash2, Calendar, Clock } from 'lucide-vue-next'
+import { ArrowUpDown, MoreHorizontal, Trash2, Calendar, Clock, Edit, Copy } from 'lucide-vue-next'
 
 // Components
 import { Button } from '@/components/ui/button'
@@ -44,6 +44,7 @@ const props = defineProps({
 
 const emit = defineEmits<{
     (e: 'delete', id: string): void
+    (e: 'edit', scan: ScheduledScan): void
 }>()
 
 // --- State ---
@@ -63,97 +64,48 @@ const getFrequencyLabel = (type: string) => {
     return map[type] || type
 }
 
+const parseConfiguration = (config: string | object) => {
+    try {
+        const parsed = typeof config === 'string' ? JSON.parse(config) : config
+        const ignoredKeys = ['profile']
+        const entries = Object.entries(parsed || {}).filter(([key]) => !ignoredKeys.includes(key))
+        return entries
+    } catch (e) {
+        return []
+    }
+}
+
+const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+}
+
 // --- Columns Definition ---
 const columns: ColumnDef<ScheduledScan>[] = [
     {
         accessorKey: 'codename',
+        // Update header to use h()
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Codename' }),
-        cell: ({ row }) => h('div', { class: 'flex items-center gap-2 font-medium' }, [
-            h(Calendar, { class: 'h-4 w-4 text-muted-foreground' }),
-            row.getValue('codename')
-        ]),
+        cell: ({ row }) => row.getValue('codename'),
     },
     {
         accessorKey: 'url',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Target URL' }),
-        cell: ({ row }) => h('a', {
-            href: row.getValue('url'),
-            target: '_blank',
-            class: 'text-muted-foreground hover:underline'
-        }, row.getValue('url')),
+        cell: ({ row }) => row.getValue('url'),
     },
     {
         accessorKey: 'jobType',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Frequency' }),
-        cell: ({ row }) => h('div', { class: 'flex items-center gap-2' }, [
-            h(Clock, { class: 'h-3 w-3 text-muted-foreground' }),
-            getFrequencyLabel(row.getValue('jobType'))
-        ]),
+        cell: ({ row }) => getFrequencyLabel(row.getValue('jobType')),
     },
     {
         accessorKey: 'configuration',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Configuration' }),
-        cell: ({ row }) => {
-            try {
-                // Parse the JSON configuration string
-                const configRaw = row.getValue('configuration');
-                const config = typeof configRaw === 'string' ? JSON.parse(configRaw) : configRaw;
-
-                // Filter out keys we don't want to show (like 'profile' if it still exists in old records)
-                const ignoredKeys = ['profile'];
-                const entries = Object.entries(config || {}).filter(([key]) => !ignoredKeys.includes(key));
-
-                if (entries.length === 0) {
-                    return h('span', { class: 'text-muted-foreground text-xs' }, '-')
-                }
-
-                // Render each key-value pair as a small badge
-                return h('div', { class: 'flex flex-wrap gap-1' },
-                    entries.map(([key, value]) =>
-                        h(Badge, {
-                            variant: 'outline',
-                            class: 'font-mono text-[10px] px-1 py-0 h-5'
-                        }, () => `${key}: ${value}`)
-                    )
-                )
-            } catch (e) {
-                return h('span', { class: 'text-muted-foreground text-xs' }, 'Invalid Config')
-            }
-        },
+        cell: ({ row }) => row.getValue('configuration'),
     },
     {
         id: 'actions',
         enableHiding: false,
-        cell: ({ row }) => {
-            return h(DropdownMenu, {}, {
-                default: () => h(DropdownMenuTrigger, { asChild: true }, {
-                    default: () => h(Button, { variant: 'ghost', class: 'h-8 w-8 p-0' }, {
-                        default: () => [
-                            h('span', { class: 'sr-only' }, 'Open menu'),
-                            h(MoreHorizontal, { class: 'h-4 w-4' })
-                        ]
-                    })
-                }),
-                content: () => h(DropdownMenuContent, { align: 'end' }, {
-                    default: () => [
-                        h(DropdownMenuLabel, {}, () => 'Actions'),
-                        h(DropdownMenuItem, {
-                            onClick: () => navigator.clipboard.writeText(row.original.id)
-                        }, () => 'Copy ID'),
-                        h(DropdownMenuSeparator),
-                        h(DropdownMenuItem, {
-                            class: 'text-destructive focus:text-destructive focus:bg-destructive/10',
-                            onClick: () => emit('delete', row.original.id)
-                        }, {
-                            default: () => [
-                                h(Trash2, { class: 'mr-2 h-4 w-4' }),
-                                'Delete Schedule'
-                            ]
-                        })
-                    ]
-                })
-            })
-        },
+        cell: ({ row }) => row.original,
     },
 ]
 
@@ -209,10 +161,88 @@ const table = useVueTable({
                                 :data-state="row.getIsSelected() ? 'selected' : undefined"
                             >
                                 <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-                                    <FlexRender
-                                        :render="cell.column.columnDef.cell"
-                                        :props="cell.getContext()"
-                                    />
+                                    <!-- Codename Column -->
+                                    <template v-if="cell.column.id === 'codename'">
+                                        <div class="flex items-center gap-2 font-medium">
+                                            <Calendar class="h-4 w-4 text-muted-foreground" />
+                                            {{ cell.getValue() }}
+                                        </div>
+                                    </template>
+
+                                    <!-- URL Column -->
+                                    <template v-else-if="cell.column.id === 'url'">
+                                        <a
+                                            :href="cell.getValue() as string"
+                                            target="_blank"
+                                            class="text-muted-foreground hover:underline"
+                                        >
+                                            {{ cell.getValue() }}
+                                        </a>
+                                    </template>
+
+                                    <!-- Job Type Column -->
+                                    <template v-else-if="cell.column.id === 'jobType'">
+                                        <div class="flex items-center gap-2">
+                                            <Clock class="h-3 w-3 text-muted-foreground" />
+                                            {{ getFrequencyLabel(cell.getValue() as string) }}
+                                        </div>
+                                    </template>
+
+                                    <!-- Configuration Column -->
+                                    <template v-else-if="cell.column.id === 'configuration'">
+                                        <div class="flex flex-wrap gap-1">
+                                            <template v-if="parseConfiguration(cell.getValue() as string | object).length > 0">
+                                                <Badge
+                                                    v-for="[key, value] in parseConfiguration(cell.getValue() as string | object)"
+                                                    :key="key"
+                                                    variant="outline"
+                                                    class="font-mono text-[10px] px-1 py-0 h-5"
+                                                >
+                                                    {{ key }}: {{ value }}
+                                                </Badge>
+                                            </template>
+                                            <span v-else class="text-muted-foreground text-xs">-</span>
+                                        </div>
+                                    </template>
+
+                                    <!-- Actions Column -->
+                                    <template v-else-if="cell.column.id === 'actions'">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger as-child>
+                                                <Button variant="ghost" class="h-8 w-8 p-0">
+                                                    <span class="sr-only">Open menu</span>
+                                                    <MoreHorizontal class="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem @click="copyToClipboard(row.original.id)">
+                                                    <Copy class="mr-2 h-4 w-4" />
+                                                    Copy ID
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem @click="emit('edit', row.original)">
+                                                    <Edit class="mr-2 h-4 w-4" />
+                                                    Edit Schedule
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    class="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                    @click="emit('delete', row.original.id)"
+                                                >
+                                                    <Trash2 class="mr-2 h-4 w-4" />
+                                                    Delete Schedule
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </template>
+
+                                    <!-- Default fallback -->
+                                    <template v-else>
+                                        <FlexRender
+                                            :render="cell.column.columnDef.cell"
+                                            :props="cell.getContext()"
+                                        />
+                                    </template>
                                 </TableCell>
                             </TableRow>
                         </template>
