@@ -7,7 +7,7 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from '@/components/ui/sidebar';
 import { useSidebar } from '@/components/ui/sidebar/utils';
-import { BookOpen, Settings2, SquareTerminal, Search, Zap } from 'lucide-vue-next';
+import { BookOpen, Settings2, SquareTerminal, Search, Zap, CalendarSync } from 'lucide-vue-next';
 import NavScan from '@/components/custom/NavScan.vue';
 import { useDark } from '@vueuse/core';
 
@@ -23,13 +23,18 @@ const isDark = useDark();
 const page = usePage();
 const user = computed(() => page.props.auth.user);
 
-// Removed hardcoded 'user' object from data
 const data = {
     navScan: [
         {
             title: 'Scan',
             url: '/scan',
             icon: Zap
+        },
+
+        {
+            title: 'Scheduled Scan',
+            url: '/scheduled',
+            icon: CalendarSync
         }
     ],
     navMain: [
