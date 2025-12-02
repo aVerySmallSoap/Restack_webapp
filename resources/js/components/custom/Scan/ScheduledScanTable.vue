@@ -56,7 +56,9 @@ const getFrequencyLabel = (type: string) => {
     const map: Record<string, string> = {
         daily: 'Daily',
         weekly: 'Weekly',
-        monthly: 'Monthly'
+        monthly: 'Monthly',
+        interval: 'Interval',
+        cron: 'Cron'
     }
     return map[type] || type
 }
@@ -90,17 +92,30 @@ const columns: ColumnDef<ScheduledScan>[] = [
     },
     {
         accessorKey: 'configuration',
-        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Profile' }),
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Configuration' }),
         cell: ({ row }) => {
             try {
                 // Parse the JSON configuration string
-                const config = JSON.parse(row.getValue('configuration') as string)
-                const profile = config.profile || 'unknown'
+                const configRaw = row.getValue('configuration');
+                const config = typeof configRaw === 'string' ? JSON.parse(configRaw) : configRaw;
 
-                return h(Badge, {
-                    variant: profile === 'full' ? 'destructive' : 'secondary',
-                    class: 'uppercase font-mono text-xs'
-                }, () => profile)
+                // Filter out keys we don't want to show (like 'profile' if it still exists in old records)
+                const ignoredKeys = ['profile'];
+                const entries = Object.entries(config || {}).filter(([key]) => !ignoredKeys.includes(key));
+
+                if (entries.length === 0) {
+                    return h('span', { class: 'text-muted-foreground text-xs' }, '-')
+                }
+
+                // Render each key-value pair as a small badge
+                return h('div', { class: 'flex flex-wrap gap-1' },
+                    entries.map(([key, value]) =>
+                        h(Badge, {
+                            variant: 'outline',
+                            class: 'font-mono text-[10px] px-1 py-0 h-5'
+                        }, () => `${key}: ${value}`)
+                    )
+                )
             } catch (e) {
                 return h('span', { class: 'text-muted-foreground text-xs' }, 'Invalid Config')
             }
