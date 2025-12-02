@@ -123,6 +123,10 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         }
     });
 
+    Route::get('/scheduled', function(){
+        return Inertia::render('scan/ScheduledScan');
+    });
+
 // -- Documentation --
     Route::get('/docs/get-started', function(){
         return Inertia::render('docs/GetStarted');
