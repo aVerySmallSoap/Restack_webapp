@@ -169,7 +169,7 @@ const xTickValues = computed(() => chartData.value.map((_, i) => i))
                             :tick-values="xTickValues"
                             :tick-format="(i) => truncateLabel(chartData[i]?.vulnerability_type)"
                             :grid-line="false"
-                            :tick-text-angle="-45"
+                            :tick-text-angle="-20"
                             :tick-text-anchor="'end'"
                             :tick-text-font-size="12"
                             :tick-text-color="'#333'"

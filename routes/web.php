@@ -127,6 +127,10 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         return Inertia::render('scan/ScheduledScan');
     });
 
+    Route::get('/domain-dashboard', function(){
+        return Inertia::render('DomainDashboard');
+    });
+
 // -- Documentation --
     Route::get('/docs/get-started', function(){
         return Inertia::render('docs/GetStarted');

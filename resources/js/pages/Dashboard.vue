@@ -170,7 +170,7 @@ watch(dateRange, (newRange) => {
             <div class="flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0">
                 <div>
                     <h1 class="font-bold px-2 text-3xl tracking-tight">System Overview</h1>
-                    <p class="px-2 text-sm text-muted-foreground">Operational metrics and security intelligence.</p>
+                    <p class="px-2 text-sm text-muted-foreground">Summary for all domains</p>
                 </div>
                 <DateRangePicker
                     :model-value="dateRange"
