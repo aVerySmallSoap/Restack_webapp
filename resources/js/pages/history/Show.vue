@@ -35,7 +35,6 @@ import { toast } from 'vue-sonner'
 // ---------- CONFIGURATION ----------
 const API_BASE_URL = 'http://127.0.0.1:25565'
 
-// ---------- PROPS (Database Record) ----------
 const props = defineProps<{
     report: {
         id: string
@@ -49,48 +48,46 @@ const props = defineProps<{
     } | null
 }>()
 
-// ---------- STATE ----------
 const basicDrawerOpen = ref(false)
 const fullDrawerOpen = ref(false)
 const selectedBasicVuln = ref<any>(null)
 const selectedFullVuln = ref<any>(null)
 
-// ---------- HELPERS ----------
 function getSeverityBadge(level: any) {
     if (typeof level === 'number') { if (level >= 3) return 'destructive'; if (level === 2) return 'default'; return 'secondary' }
     switch (level?.toLowerCase()) { case 'critical': case 'high': return 'destructive'; case 'medium': return 'default'; default: return 'secondary' }
 }
-function getBasicSeverityText(level: number) { if (level >= 3) return 'High'; if (level === 2) return 'Medium'; return 'Low' }
 function mapSeverityToNumber(sev: string) {
     switch (sev?.toLowerCase()) { case 'critical': return 4; case 'high': return 3; case 'medium': return 2; default: return 1 }
 }
 
-// ---------- ACTIONS ----------
+function formatHttpRequest(req: any): string {
+    if (!req) return ''
+    if (typeof req === 'string') return req
+    if (req.raw) return req.raw
+    return JSON.stringify(req, null, 2)
+}
+
 const downloadReport = (format: 'excel' | 'pdf') => {
     if (!props.report?.id) return
-
     const url = `${API_BASE_URL}/api/v1/report/${props.report.id}/export/${format}`
-
-    // Trigger download in new window (browser handles file download)
     window.open(url, '_blank')
     toast.info(`Generating ${format.toUpperCase()} report...`)
 }
 
-// ---------- DATA TRANSFORMER (DB -> UI Shape) ----------
 const scanType = computed(() => {
     if (!props.report) return 'basic'
-    return props.report.scan_type?.toLowerCase().includes('wapiti') ? 'basic' : 'full'
+    const type = props.report.scan_type?.toLowerCase() || ''
+    return (type.includes('wapiti') || type.includes('basic')) ? 'basic' : 'full'
 })
 
 const transformedData = computed(() => {
     if (!props.report) return null
 
-    // 1. Common Meta
     const target = props.report.scans?.[0]?.target_url || 'Unknown Target'
     const duration = props.report.scans?.[0]?.scan_duration || 0
     let country = 'Unknown', ip = 'Unknown'
 
-    // Parse Tech Data
     const techData = props.report.tech_discoveries?.[0]?.data || []
     const plugins = typeof techData === 'string' ? JSON.parse(techData) : techData
     const flatPlugins = Array.isArray(plugins) ? plugins.flat() : []
@@ -110,9 +107,7 @@ const transformedData = computed(() => {
         }
     })
 
-    // 2. Transform Vulnerabilities based on Type
     if (scanType.value === 'basic') {
-        // --- BASIC SCAN TRANSFORMATION ---
         const grouped: Record<string, any> = {}
         props.report.vulnerabilities.forEach((v: any) => {
             if (!grouped[v.vulnerability_type]) {
@@ -132,7 +127,9 @@ const transformedData = computed(() => {
                 module: v.scanner,
                 category: v.vulnerability_type,
                 description: v.description,
-                solution: v.remediation_effort
+                solution: v.remediation_effort,
+                http_request: formatHttpRequest(v.http_request),
+                curl_command: v.data?.curl_command || ''
             })
         })
 
@@ -148,13 +145,12 @@ const transformedData = computed(() => {
             priorities,
             technologies,
             aiSummary: {
-                assessment: `Historical Basic Scan of ${target}.`,
+                assessment: `Historical ${props.report.scan_type || 'Basic'} Scan of ${target}.`,
                 keyFindings: categories.slice(0, 3).map((c: any) => c.name),
                 recommendations: ["Review historical findings to ensure remediation."]
             }
         }
     } else {
-        // --- FULL SCAN TRANSFORMATION ---
         const vulns = props.report.vulnerabilities.map((v: any) => ({
             id: v.id,
             type: v.vulnerability_type,
@@ -163,10 +159,13 @@ const transformedData = computed(() => {
             confidence: v.confidence,
             method: v.method,
             endpoint: v.endpoint,
-            exploit: '',
+            // Robust Mapping for Full Drawer
+            http_request: formatHttpRequest(v.http_request),
+            curl_command: v.data?.curl_command || '',
+            exploit: v.data?.evidence || v.data?.exploit || '',
             description: v.description,
             solution: v.remediation_effort,
-            reference: 'N/A'
+            reference: v.reference || 'N/A'
         }))
 
         const priorities = vulns
@@ -182,7 +181,7 @@ const transformedData = computed(() => {
             priorities,
             technologies,
             aiSummary: {
-                assessment: `Historical Full Scan of ${target}.`,
+                assessment: `Historical ${props.report.scan_type || 'Full'} Scan of ${target}.`,
                 keyFindings: [`${vulns.length} total findings recorded.`],
                 recommendations: ["Verify if these issues persist in latest scans."]
             }
@@ -190,9 +189,6 @@ const transformedData = computed(() => {
     }
 })
 
-// ---------- TABLE CONFIGURATION ----------
-
-// 1. Risk Priority
 const prioritySorting = ref<SortingState>([])
 const priorityColumns: ColumnDef<any>[] = [
     { accessorKey: 'type', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }), cell: ({ row }) => h('div', { class: 'font-medium truncate max-w-[200px]' }, row.getValue('type')) },
@@ -201,7 +197,6 @@ const priorityColumns: ColumnDef<any>[] = [
 ]
 const priorityTable = useVueTable({ get data() { return transformedData.value?.priorities || [] }, get columns() { return priorityColumns }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), onSortingChange: (u) => prioritySorting.value = typeof u === 'function' ? u(prioritySorting.value) : u, state: { get sorting() { return prioritySorting.value } } })
 
-// 2. Basic Vulnerabilities
 const basicVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const basicFilter = ref('')
 const basicVulnColumns: ColumnDef<any>[] = [
@@ -220,7 +215,6 @@ const basicVulnColumns: ColumnDef<any>[] = [
 ]
 const basicTable = useVueTable({ get data() { return transformedData.value?.allVulns || [] }, get columns() { return basicVulnColumns }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(), onSortingChange: (u) => basicVulnSorting.value = typeof u === 'function' ? u(basicVulnSorting.value) : u, onGlobalFilterChange: (u) => basicFilter.value = typeof u === 'function' ? u(basicFilter.value) : u, state: { get sorting() { return basicVulnSorting.value }, get globalFilter() { return basicFilter.value } } })
 
-// 3. Full Vulnerabilities
 const fullVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const fullFilter = ref('')
 const fullVulnColumns: ColumnDef<any>[] = [
@@ -232,20 +226,17 @@ const fullVulnColumns: ColumnDef<any>[] = [
 ]
 const fullTable = useVueTable({ get data() { return transformedData.value?.vulns || [] }, get columns() { return fullVulnColumns }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(), onSortingChange: (u) => fullVulnSorting.value = typeof u === 'function' ? u(fullVulnSorting.value) : u, onGlobalFilterChange: (u) => fullFilter.value = typeof u === 'function' ? u(fullFilter.value) : u, state: { get sorting() { return fullVulnSorting.value }, get globalFilter() { return fullFilter.value } } })
 
-// 4. Technologies
 const techFilter = ref('')
 const techColumns: ColumnDef<any>[] = [
     { accessorKey: 'name', header: 'Technology' },
     { accessorKey: 'version', header: 'Version' },
 ]
 const techTable = useVueTable({ get data() { return transformedData.value?.technologies || [] }, get columns() { return techColumns }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), getFilteredRowModel: getFilteredRowModel(), onGlobalFilterChange: (u) => techFilter.value = typeof u === 'function' ? u(techFilter.value) : u, state: { get globalFilter() { return techFilter.value } } })
-
 </script>
 
 <template>
     <Navigation>
         <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
-
             <div v-if="report && transformedData">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
@@ -255,31 +246,20 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
                             <span><strong>Date:</strong> {{ new Date(report.scan_date).toLocaleString() }}</span>
                         </div>
                     </div>
-
                     <div class="flex gap-2 px-2">
                         <DropdownMenu>
                             <DropdownMenuTrigger as-child>
-                                <Button variant="outline">
-                                    <Download class="mr-2 h-4 w-4" />
-                                    Export Report
-                                </Button>
+                                <Button variant="outline"><Download class="mr-2 h-4 w-4" /> Export Report</Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem @click="downloadReport('pdf')">
-                                    <FileText class="mr-2 h-4 w-4" />
-                                    Export as PDF
-                                </DropdownMenuItem>
-                                <DropdownMenuItem @click="downloadReport('excel')">
-                                    <FileSpreadsheet class="mr-2 h-4 w-4" />
-                                    Export as Excel
-                                </DropdownMenuItem>
+                                <DropdownMenuItem @click="downloadReport('pdf')"><FileText class="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
+                                <DropdownMenuItem @click="downloadReport('excel')"><FileSpreadsheet class="mr-2 h-4 w-4" /> Export as Excel</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
                 </div>
 
                 <div class="space-y-4 animate-fadein mt-2">
-
                     <Card>
                         <CardHeader>
                             <CardTitle class="text-2xl">{{ scanType === 'basic' ? 'Basic' : 'Full' }} Scan Report</CardTitle>
@@ -305,11 +285,11 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
 
                     <Card v-if="transformedData.aiSummary">
                         <CardHeader>
-                            <div class="flex items-center justify-between"> <CardTitle class="flex items-center gap-2">
-                                <Sparkles class="h-5 w-5 text-primary" />
-                                <span>AI Summary & Recommendations</span>
-                            </CardTitle>
-                                <Badge variant="outline" class="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border-indigo-200"> Powered by Gemini </Badge> </div> </CardHeader>
+                            <div class="flex items-center justify-between">
+                                <CardTitle class="flex items-center gap-2"><Sparkles class="h-5 w-5 text-primary" /><span>AI Summary & Recommendations</span></CardTitle>
+                                <Badge variant="outline" class="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border-indigo-200"> Powered by Gemini </Badge>
+                            </div>
+                        </CardHeader>
                         <CardContent class="space-y-4 text-sm">
                             <div><h4 class="font-semibold mb-2">Overall Assessment</h4><p class="text-muted-foreground">{{ transformedData.aiSummary.assessment }}</p></div>
                             <div><h4 class="font-semibold mb-2">Key Findings</h4><ul class="list-disc pl-5 space-y-1 text-muted-foreground"><li v-for="(finding, idx) in transformedData.aiSummary.keyFindings" :key="`f-${idx}`">{{ finding }}</li></ul></div>
@@ -326,7 +306,6 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
                             <SeverityPieChart :vulnerabilities="transformedData.vulns" />
                             <ScannerBarChart :vulnerabilities="transformedData.vulns" />
                         </div>
-
                         <Card>
                             <CardHeader><CardTitle>Top Vulnerabilities</CardTitle></CardHeader>
                             <CardContent>
@@ -357,18 +336,14 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
                             <div class="border rounded-md"><Table><TableHeader><TableRow v-for="hg in techTable.getHeaderGroups()" :key="hg.id"><TableHead v-for="h in hg.headers" :key="h.id"><FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/></TableHead></TableRow></TableHeader><TableBody><TableRow v-for="row in techTable.getRowModel().rows" :key="row.id"><TableCell v-for="cell in row.getVisibleCells()" :key="cell.id"><FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/></TableCell></TableRow></TableBody></Table></div><DataTablePagination :table="techTable" />
                         </CardContent>
                     </Card>
-
                 </div>
-
                 <BasicScanDetailDrawer v-if="selectedBasicVuln" :vuln="selectedBasicVuln" :open="basicDrawerOpen" @update:open="basicDrawerOpen = $event" />
                 <FullScanDetailDrawer v-if="selectedFullVuln" :vuln="selectedFullVuln" :open="fullDrawerOpen" @update:open="fullDrawerOpen = $event" />
             </div>
-
             <div v-else class="flex flex-col items-center justify-center h-[50vh] space-y-4 text-muted-foreground">
                 <AlertCircle class="h-12 w-12" />
                 <div class="text-center"><h3 class="text-lg font-medium">Report Not Found</h3><p>The scan report could not be loaded.</p></div>
             </div>
-
         </div>
     </Navigation>
 </template>

@@ -43,6 +43,7 @@ import {
 import { ChartContainer } from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { SEVERITY_CHART_CONFIG } from '@/lib/colors'
 
 // ---------- Types ----------
 
@@ -120,20 +121,46 @@ const activityConfig = {
     scans: { label: 'Scans', color: '#10b981' } // Emerald
 }
 
-// 2. Scanner Distribution (Donut from scan_type_distribution)
+// 2. Scanner Distribution (Donut from scan_type_distribution) - Updated with standardized colors
 const scannerData = computed(() => {
     const dist = analytics.value.full_summary?.scan_type_distribution || {}
     return Object.entries(dist).map(([key, value]) => ({ key, value }))
 })
-const scannerConfig = {
-    value: { label: 'Scans', color: '#3b82f6' }
-}
-const donutColors = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6']
 
-// 3. Pareto (Bar + Line) - RESTORED ORIGINAL COLORS
+// Define scanner colors using a consistent palette
+const scannerColors = [
+    SEVERITY_CHART_CONFIG.informational.color, // Blue
+    SEVERITY_CHART_CONFIG.medium.color,        // Yellow
+    SEVERITY_CHART_CONFIG.critical.color,      // Red
+    SEVERITY_CHART_CONFIG.low.color,           // Green
+    '#8b5cf6'                                   // Purple
+]
+
+const scannerConfig = {
+    value: { label: 'Scans', color: SEVERITY_CHART_CONFIG.informational.color }
+}
+
+// Interactive state for scanner donut
+const activeScannerKey = ref<string | null>(null)
+const totalScans = computed(() => scannerData.value.reduce((acc, curr) => acc + curr.value, 0))
+const scannerCentralLabel = computed(() => {
+    if (activeScannerKey.value) {
+        const segment = scannerData.value.find(d => d.key === activeScannerKey.value)
+        return segment ? segment.value.toString() : '0'
+    }
+    return totalScans.value.toString()
+})
+const scannerCentralSubLabel = computed(() => {
+    if (activeScannerKey.value) {
+        return activeScannerKey.value.charAt(0).toUpperCase() + activeScannerKey.value.slice(1)
+    }
+    return 'Total Scans'
+})
+
+// 3. Pareto (Bar + Line) - Use standardized colors
 const paretoConfig = {
-    count: { label: 'Occurrence Count', color: '#3b82f6' }, // Blue-500 (Restored)
-    cumulative: { label: 'Cumulative %', color: '#ef4444' } // Red-500 (Restored)
+    count: { label: 'Occurrence Count', color: SEVERITY_CHART_CONFIG.informational.color },
+    cumulative: { label: 'Cumulative %', color: SEVERITY_CHART_CONFIG.critical.color }
 }
 
 const paretoChartData = computed(() => analytics.value.pareto?.pareto_vulnerabilities || [])
@@ -159,6 +186,7 @@ const truncateLabel = (str: string, maxLength: number = 15) => {
     return str.substring(0, maxLength) + '...'
 }
 const API_BASE = 'http://localhost:25565'
+
 // ---------- API Logic ----------
 const fetchTargets = async () => {
     try {
@@ -332,7 +360,7 @@ watch(selectedTarget, (newVal) => {
                                         :grid-line="false"
                                     />
                                     <VisAxis type="y" :tick-format="(v) => v.toFixed(0)" />
-                                    <VisTooltip />
+
                                 </VisXYContainer>
                             </ChartContainer>
                         </CardContent>
@@ -345,22 +373,54 @@ watch(selectedTarget, (newVal) => {
                             </CardTitle>
                             <CardDescription>Distribution of scans by scanner type.</CardDescription>
                         </CardHeader>
-                        <CardContent class="h-[300px] w-full flex items-center justify-center">
-                            <div v-if="scannerData.length > 0" class="w-full h-full">
-                                <ChartContainer :config="scannerConfig" class="h-full w-full">
+                        <CardContent class="flex-1 flex flex-col pb-4">
+                            <div v-if="scannerData.length > 0" class="flex-1 flex flex-col">
+                                <ChartContainer :config="scannerConfig" class="aspect-square max-h-[250px] mx-auto w-full">
                                     <VisSingleContainer :data="scannerData" :margin="{ top: 0, bottom: 0, left: 0, right: 0 }">
                                         <VisDonut
                                             :value="(d) => d.value"
-                                            :color="(d, i) => donutColors[i % donutColors.length]"
+                                            :color="(d, i) => scannerColors[i % scannerColors.length]"
                                             :arc-width="40"
-                                            :central-label="scannerData.reduce((acc, curr) => acc + curr.value, 0).toString()"
-                                            central-sub-label="Total Scans"
+                                            :central-label="scannerCentralLabel"
+                                            :central-sub-label="scannerCentralSubLabel"
+                                            :events="{
+                                                [Donut.selectors.segment]: {
+                                                    click: (d, ev, i, elements) => {
+                                                        const clickedKey = d.data.key
+                                                        if (activeScannerKey === clickedKey) {
+                                                            activeScannerKey = null
+                                                            elements.forEach(el => el.style.opacity = '1')
+                                                        } else {
+                                                            activeScannerKey = clickedKey
+                                                            elements.forEach(el => el.style.opacity = '0.3')
+                                                            elements[i].style.opacity = '1'
+                                                        }
+                                                    }
+                                                }
+                                            }"
                                         />
-                                        <VisTooltip :triggers="{
-                                            [Donut.selectors.segment]: (d) => `${d.data.key}: ${d.data.value} scans`
-                                        }" />
                                     </VisSingleContainer>
                                 </ChartContainer>
+
+                                <!-- Legend for Scanner Distribution -->
+                                <div class="mt-4 space-y-2 px-4">
+                                    <div
+                                        v-for="(item, index) in scannerData"
+                                        :key="item.key"
+                                        class="flex items-center gap-3 text-sm cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-all"
+                                        :class="{ 'opacity-50': activeScannerKey && activeScannerKey !== item.key }"
+                                        @click="activeScannerKey = activeScannerKey === item.key ? null : item.key"
+                                    >
+                                        <div
+                                            class="h-3 w-3 rounded-sm shrink-0"
+                                            :style="{ backgroundColor: scannerColors[index % scannerColors.length] }"
+                                        />
+                                        <span class="font-medium capitalize flex-1">{{ item.key }}</span>
+                                        <span class="text-muted-foreground font-mono text-xs tabular-nums">
+                                            {{ item.value }}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                             <div v-else class="h-full flex items-center justify-center text-muted-foreground">
                                 No scanner data available
@@ -437,40 +497,18 @@ watch(selectedTarget, (newVal) => {
                                     :tick-text-color="paretoConfig.cumulative.color"
                                     :tick-format="(v) => ((v / paretoYMax) * 100).toFixed(0) + '%'"
                                 />
-                                <VisTooltip :triggers="{
-                                    [GroupedBar.selectors.bar]: (d) => `
-                                        <div style='padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>
-                                            <div style='font-weight: 600; margin-bottom: 8px; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;'>
-                                                ${d.vulnerability_type}
-                                            </div>
-                                            <div style='display: grid; grid-template-columns: auto auto; gap: 4px 12px; font-size: 13px;'>
-                                                <span style='color: #64748b;'>Count:</span>
-                                                <span style='font-weight: 600; color: ${paretoConfig.count.color}; text-align: right;'>${d.count}</span>
-
-                                                <span style='color: #64748b;'>Impact:</span>
-                                                <span style='font-weight: 600; color: #0f172a; text-align: right;'>${d.percentage.toFixed(1)}%</span>
-
-                                                <span style='color: #64748b;'>Cumulative:</span>
-                                                <span style='font-weight: 600; color: ${paretoConfig.cumulative.color}; text-align: right;'>${d.cumulative_percentage.toFixed(1)}%</span>
-                                            </div>
-                                        </div>
-                                    `,
-                                    [Scatter.selectors.point]: (d) => `
-                                        <div style='padding: 8px 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 13px;'>
-                                            <span style='color: ${paretoConfig.cumulative.color}; font-weight: 600;'>Cumulative: ${d.cumulative_percentage.toFixed(1)}%</span>
-                                        </div>
-                                    `
-                                }" />
                             </VisXYContainer>
                         </ChartContainer>
 
                         <div v-if="analytics.pareto" class="mt-4 pt-4 border-t space-y-2">
                             <div class="flex items-start gap-2">
-                                <div class="h-2 w-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                                <div class="h-2 w-2 rounded-full mt-1.5 shrink-0"
+                                     :style="{ backgroundColor: paretoConfig.count.color }" />
                                 <p class="text-sm font-medium">{{ analytics.pareto.insight }}</p>
                             </div>
                             <div class="flex items-start gap-2">
-                                <div class="h-2 w-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                                <div class="h-2 w-2 rounded-full mt-1.5 shrink-0"
+                                     :style="{ backgroundColor: paretoConfig.cumulative.color }" />
                                 <p class="text-sm text-muted-foreground">{{ analytics.pareto.recommendation }}</p>
                             </div>
                         </div>

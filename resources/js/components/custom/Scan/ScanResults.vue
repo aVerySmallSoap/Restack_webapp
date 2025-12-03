@@ -30,7 +30,6 @@ const props = defineProps<{
     data: ScanResult
 }>()
 
-// Computed safe accessors with fallbacks
 const safeData = computed(() => ({
     target: props.data?.target || 'Unknown',
     scanType: props.data?.scanType || 'Scan',
@@ -46,7 +45,6 @@ const safeData = computed(() => ({
     summaryStats: props.data?.summaryStats || null
 }))
 
-// --- Drawer State ---
 const drawerOpen = ref(false)
 const selectedVuln = ref<Vulnerability | null>(null)
 
@@ -55,11 +53,15 @@ function showVulnDetail(vuln: Vulnerability) {
     drawerOpen.value = true
 }
 
-// --- Helpers ---
+// Logic Update: Automated scans now treated as Full scans for drawer routing
+const isBasicScan = computed(() => {
+    const type = safeData.value.scanType.toLowerCase()
+    return type.includes('basic') || type.includes('wapiti')
+})
+
 function getSeverityBadge(severity: string) {
     switch (severity?.toLowerCase()) {
-        case 'critical':
-        case 'high': return 'destructive'
+        case 'critical': case 'high': return 'destructive'
         case 'medium': return 'default'
         default: return 'secondary'
     }
@@ -75,9 +77,6 @@ function mapSeverityToNumber(sev: string) {
     }
 }
 
-// --- Table Configs ---
-
-// 1. Priority Table
 const priorityColumns: ColumnDef<Vulnerability>[] = [
     {
         accessorKey: 'type',
@@ -103,7 +102,6 @@ const priorityTable = useVueTable({
     getSortedRowModel: getSortedRowModel(),
 })
 
-// 2. All Vulnerabilities Table
 const vulnerabilityColumns: ColumnDef<Vulnerability>[] = [
     {
         accessorKey: 'type',
@@ -143,7 +141,6 @@ const vulnerabilitiesTable = useVueTable({
     onGlobalFilterChange: (u) => (globalFilter.value = typeof u === 'function' ? u(globalFilter.value) : u),
 })
 
-// 3. Tech Table
 const techColumns: ColumnDef<Technology>[] = [
     { accessorKey: 'name', header: 'Technology' },
     { accessorKey: 'version', header: 'Version' },
@@ -200,8 +197,7 @@ const techTable = useVueTable({
             </CardContent>
         </Card>
 
-        <!-- Scanner Agreement Card (Full Scan Only) -->
-        <Card v-if="safeData.summaryStats && safeData.scanType === 'Full Scan'">
+        <Card v-if="safeData.summaryStats && !isBasicScan">
             <CardHeader>
                 <CardTitle>Scan Confidence Metrics</CardTitle>
                 <CardDescription>Agreement and confidence statistics from multiple scanners</CardDescription>
@@ -348,7 +344,7 @@ const techTable = useVueTable({
         </Card>
 
         <BasicScanDetailDrawer
-            v-if="safeData.scanType === 'Basic Scan' && selectedVuln"
+            v-if="isBasicScan && selectedVuln"
             :vuln="selectedVuln"
             :open="drawerOpen"
             @update:open="drawerOpen = $event"
@@ -365,8 +361,4 @@ const techTable = useVueTable({
 
 <style scoped>
 .animate-fadein { animation: fadein 0.5s; }
-@keyframes fadein {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
 </style>

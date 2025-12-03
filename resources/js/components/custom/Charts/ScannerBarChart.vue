@@ -15,6 +15,7 @@ import {
     ChartTooltipContent,
     componentToString,
 } from "@/components/ui/chart"
+import { SEVERITY_CHART_CONFIG } from '@/lib/colors'
 
 const props = defineProps({
     vulnerabilities: {
@@ -23,40 +24,44 @@ const props = defineProps({
     }
 })
 
-// 1. Define the metrics we want to toggle between
-const severities = ['total', 'critical', 'high', 'medium', 'low'] as const
+// 1. Define the metrics we want to toggle between (now includes informational)
+const severities = ['total', 'critical', 'high', 'medium', 'low', 'informational'] as const
 type SeverityKey = typeof severities[number]
 
-// 2. Configuration for colors and labels
-const chartConfig = {
-    total:    { label: "Total Found", color: "#3b82f6" }, // Blue
-    critical: { label: "Critical",    color: "#ef4444" }, // Red
-    high:     { label: "High",        color: "#f97316" }, // Orange
-    medium:   { label: "Medium",      color: "#eab308" }, // Yellow
-    low:      { label: "Low",         color: "#22c55e" }, // Green
-}
+// 2. Use centralized color configuration
+const chartConfig = SEVERITY_CHART_CONFIG
 
 const activeChart = ref<SeverityKey>("total")
 
 // 3. Process the raw vulnerability list into a structured format for the chart
-// Result format: [{ scanner: 'ZAP', total: 15, critical: 2, high: 5 ... }, ...]
+// Result format: [{ scanner: 'ZAP', total: 15, critical: 2, high: 5, ... informational: 1 }, ...]
 const chartData = computed(() => {
     const map = new Map<string, Record<SeverityKey, number>>()
 
     props.vulnerabilities.forEach(v => {
         const scanner = v.scanner || 'Unknown'
-        const severity = (v.severity || 'low').toLowerCase() as SeverityKey
+        const severity = (v.severity || 'informational').toLowerCase() as SeverityKey
 
         if (!map.has(scanner)) {
-            map.set(scanner, { total: 0, critical: 0, high: 0, medium: 0, low: 0 })
+            map.set(scanner, {
+                total: 0,
+                critical: 0,
+                high: 0,
+                medium: 0,
+                low: 0,
+                informational: 0
+            })
         }
 
         const entry = map.get(scanner)!
         entry.total += 1
 
         // Safety check in case a severity isn't one of our standard keys
-        if (severity in entry) {
+        if (severity in entry && severity !== 'total') {
             entry[severity] += 1
+        } else if (severity !== 'total') {
+            // If unknown severity, count as informational
+            entry.informational += 1
         }
     })
 
@@ -79,27 +84,37 @@ type Data = typeof chartData.value[number]
 
 <template>
     <Card class="w-full">
-        <CardHeader class="flex flex-col items-stretch border-b !p-0 sm:flex-row">
-            <div class="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
+        <CardHeader class="flex flex-col gap-4 pb-4">
+            <div class="flex flex-col gap-1">
                 <CardTitle>Scanner Findings</CardTitle>
                 <CardDescription>
                     Distribution of vulnerabilities detected by each scanner
                 </CardDescription>
             </div>
-            <div class="flex flex-wrap">
+
+            <!-- Compact Filter Buttons -->
+            <div class="flex flex-wrap gap-2">
                 <button
                     v-for="key in severities"
                     :key="key"
                     :data-active="activeChart === key"
-                    class="data-[active=true]:bg-muted/50 flex flex-1 flex-col justify-center gap-1 border-t px-4 py-4 text-left even:border-l sm:border-t-0 sm:border-l sm:px-6 sm:py-6 min-w-[80px]"
+                    class="data-[active=true]:ring-2 data-[active=true]:ring-offset-1 flex items-center gap-2 px-3 py-2 rounded-md border bg-card hover:bg-muted/50 transition-all"
+                    :class="{ 'ring-offset-background': activeChart === key }"
+                    :style="{
+                        'ring-color': activeChart === key ? chartConfig[key].color : undefined
+                    }"
                     @click="activeChart = key"
                 >
-          <span class="text-xs text-muted-foreground capitalize">
-            {{ chartConfig[key].label }}
-          </span>
-                    <span class="text-lg font-bold leading-none sm:text-2xl">
-            {{ totals[key].toLocaleString() }}
-          </span>
+                    <span
+                        class="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                        :style="{ backgroundColor: chartConfig[key].color }"
+                    />
+                    <span class="text-xs font-medium capitalize whitespace-nowrap">
+                        {{ chartConfig[key].label }}
+                    </span>
+                    <span class="text-sm font-bold ml-1">
+                        {{ totals[key] }}
+                    </span>
                 </button>
             </div>
         </CardHeader>
@@ -139,8 +154,8 @@ type Data = typeof chartData.value[number]
 
                     <ChartCrosshair
                         :template="componentToString(chartConfig, ChartTooltipContent, {
-               labelFormatter: (d, i) => chartData[i]?.scanner
-            })"
+                            labelFormatter: (d, i) => chartData[i]?.scanner
+                        })"
                     />
                 </VisXYContainer>
             </ChartContainer>

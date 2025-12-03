@@ -3,23 +3,24 @@ import { computed } from 'vue'
 import {
     Sheet,
     SheetContent,
+    SheetDescription,
     SheetHeader,
     SheetTitle,
-    SheetDescription,
 } from '@/components/ui/sheet'
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Copy, ExternalLink } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import CodeBlock from '@/components/custom/CodeBlock.vue'
 
-// 1. Updated Interface to match Scan.vue's parser output
+// Extend interface to support fields from Automated/Basic scans
 interface FullVulnerability {
     id: string
-    type: string      // Name/Rule ID
+    type: string
     severity: string
     scanner: string
     confidence: string
@@ -28,7 +29,10 @@ interface FullVulnerability {
     exploit: string
     description: string
     solution: string
-    reference: string // Markdown or Text links
+    reference: string
+    http_request?: string
+    curl_command?: string
+    module?: string
 }
 
 const props = defineProps<{
@@ -45,128 +49,142 @@ const openState = computed({
     set: (value: boolean) => emit('update:open', value),
 })
 
-// Helper to parse markdown links if present, otherwise return as string
-// This is a simple heuristic since the API returns raw markdown in 'reference'
 const parsedReferences = computed(() => {
     if (!props.vuln?.reference || props.vuln.reference === 'N/A') return []
 
-    // Regex to find [Title](URL) or just URLs
     const markdownRegex = /\[([^\]]+)\]\(([^)]+)\)/g
     const links = []
     let match
 
-    // Try to match Markdown links
     while ((match = markdownRegex.exec(props.vuln.reference)) !== null) {
         links.push({ title: match[1], url: match[2] })
     }
 
-    // If no markdown links found, but text exists, try to split by newlines and find http
     if (links.length === 0) {
         const lines = props.vuln.reference.split('\n')
         lines.forEach(line => {
             if (line.includes('http')) {
-                links.push({ title: line, url: line.trim() }) // formatting could be improved here
+                links.push({ title: line, url: line.trim() })
             }
         })
     }
-
     return links
 })
 
 function getSeverityVariant(severity: string | undefined): 'destructive' | 'default' | 'secondary' | 'outline' {
     switch (severity?.toLowerCase()) {
-        case 'critical':
-        case 'high':
-            return 'destructive'
-        case 'medium':
-            return 'default'
-        case 'low':
-            return 'secondary'
-        default:
-            return 'outline'
+        case 'critical': case 'high': return 'destructive'
+        case 'medium': return 'default'
+        case 'low': return 'secondary'
+        default: return 'outline'
     }
+}
+
+function copyToClipboard(text: string, label: string) {
+    navigator.clipboard.writeText(text)
+    toast.success(`${label} copied to clipboard`)
 }
 </script>
 
 <template>
     <Sheet :open="openState" @update:open="openState = $event">
-        <SheetContent class="w-full sm:max-w-2xl overflow-y-auto bg-background text-foreground">
-            <div v-if="vuln" class="mx-auto w-full">
+        <SheetContent class="w-full sm:max-w-2xl bg-background text-foreground p-0 gap-0">
+            <div class="p-6 pb-2">
                 <SheetHeader>
-                    <SheetTitle class="text-2xl break-words">{{ vuln.type }}</SheetTitle>
+                    <SheetTitle class="flex items-center gap-2 text-2xl break-words">
+                        <Badge :variant="getSeverityVariant(vuln?.severity)">{{ vuln?.severity || 'Unknown' }}</Badge>
+                        <span class="truncate">{{ vuln?.type || 'Vulnerability' }}</span>
+                    </SheetTitle>
                     <SheetDescription>
-                        <div class="flex flex-wrap items-center gap-2 pt-2">
-                            <Badge :variant="getSeverityVariant(vuln.severity)">
-                                {{ vuln.severity }}
-                            </Badge>
-                            <Badge variant="outline">
-                                Scanner: {{ vuln.scanner }}
-                            </Badge>
-                            <Badge variant="outline" v-if="vuln.confidence && vuln.confidence !== 'Unknown'">
-                                Confidence: {{ vuln.confidence }}
-                            </Badge>
+                        <div class="flex flex-wrap items-center gap-4 text-sm mt-2">
+                            <div v-if="vuln?.scanner"><strong>Scanner:</strong> {{ vuln.scanner }}</div>
+                            <div v-if="vuln?.confidence && vuln.confidence !== 'Unknown'"><strong>Confidence:</strong> {{ vuln.confidence }}</div>
+                            <div v-if="vuln?.module"><strong>Module:</strong> {{ vuln.module }}</div>
                         </div>
                     </SheetDescription>
                 </SheetHeader>
-
-                <div class="p-4 pb-0">
-                    <Accordion type="single" collapsible default-value="item-1">
-
-                        <AccordionItem value="item-1">
-                            <AccordionTrigger>Description</AccordionTrigger>
-                            <AccordionContent class="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                                {{ vuln.description }}
-                            </AccordionContent>
-                        </AccordionItem>
-
-                        <AccordionItem value="item-2">
-                            <AccordionTrigger>Technical Details</AccordionTrigger>
-                            <AccordionContent class="space-y-3">
-                                <div>
-                                    <div class="text-xs font-semibold mb-1">Location / Endpoint</div>
-                                    <CodeBlock :code="vuln.endpoint" lang="text" class="text-xs" />
-                                </div>
-                                <div v-if="vuln.method && vuln.method !== 'GET'">
-                                    <div class="text-xs font-semibold mb-1">Method</div>
-                                    <CodeBlock :code="vuln.method" lang="text" class="text-xs" />
-                                </div>
-                                <div v-if="vuln.exploit">
-                                    <div class="text-xs font-semibold mb-1">Evidence / Payload</div>
-                                    <CodeBlock :code="vuln.exploit" lang="text" class="text-xs" />
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-
-                        <AccordionItem value="item-3">
-                            <AccordionTrigger>Solution</AccordionTrigger>
-                            <AccordionContent class="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                                {{ vuln.solution }}
-                            </AccordionContent>
-                        </AccordionItem>
-
-                        <AccordionItem value="item-4" v-if="parsedReferences.length > 0">
-                            <AccordionTrigger>References</AccordionTrigger>
-                            <AccordionContent>
-                                <ul class="list-disc space-y-1 pl-4 text-sm">
-                                    <li v-for="(ref, idx) in parsedReferences" :key="idx">
-                                        <a :href="ref.url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline break-all">
-                                            {{ ref.title }}
-                                        </a>
-                                    </li>
-                                </ul>
-                            </AccordionContent>
-                        </AccordionItem>
-
-                        <AccordionItem value="item-4-raw" v-else-if="vuln.reference && vuln.reference !== 'N/A'">
-                            <AccordionTrigger>References</AccordionTrigger>
-                            <AccordionContent class="text-xs whitespace-pre-wrap font-mono">
-                                {{ vuln.reference }}
-                            </AccordionContent>
-                        </AccordionItem>
-
-                    </Accordion>
-                </div>
             </div>
+            <Separator class="my-2" />
+            <ScrollArea class="h-[calc(100vh-140px)] px-6">
+                <Tabs default-value="overview" class="w-full pb-6">
+                    <TabsList class="grid w-full grid-cols-4 mb-4">
+                        <TabsTrigger value="overview">Overview</TabsTrigger>
+                        <TabsTrigger value="technical">Technical</TabsTrigger>
+                        <TabsTrigger value="solution">Solution</TabsTrigger>
+                        <TabsTrigger value="references">References</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="overview" class="space-y-4">
+                        <Card>
+                            <CardHeader><CardTitle>Description</CardTitle></CardHeader>
+                            <CardContent>
+                                <p class="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{{ vuln?.description || 'No description available.' }}</p>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="technical" class="space-y-4">
+                        <Card v-if="vuln?.http_request">
+                            <CardHeader>
+                                <div class="flex items-center justify-between">
+                                    <CardTitle>HTTP Request</CardTitle>
+                                    <Button variant="ghost" size="sm" @click="copyToClipboard(vuln.http_request!, 'HTTP Request')"><Copy class="h-4 w-4" /></Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent><CodeBlock :code="vuln.http_request" lang="http" class="text-xs" /></CardContent>
+                        </Card>
+
+                        <Card v-if="vuln?.curl_command">
+                            <CardHeader>
+                                <div class="flex items-center justify-between">
+                                    <CardTitle>cURL Command</CardTitle>
+                                    <Button variant="ghost" size="sm" @click="copyToClipboard(vuln.curl_command!, 'cURL Command')"><Copy class="h-4 w-4" /></Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent><CodeBlock :code="vuln.curl_command" lang="bash" class="text-xs" /></CardContent>
+                        </Card>
+
+                        <Card v-if="vuln?.exploit && vuln.exploit !== 'N/A'">
+                            <CardHeader><CardTitle>Evidence / Payload</CardTitle></CardHeader>
+                            <CardContent><CodeBlock :code="vuln.exploit" lang="text" class="text-xs" /></CardContent>
+                        </Card>
+
+                        <Card v-if="vuln?.endpoint">
+                            <CardHeader><CardTitle>Location / Endpoint</CardTitle></CardHeader>
+                            <CardContent><CodeBlock :code="vuln.endpoint" lang="text" class="text-xs" /></CardContent>
+                        </Card>
+
+                        <Card v-if="!vuln?.http_request && !vuln?.curl_command && (!vuln?.exploit || vuln.exploit === 'N/A')">
+                            <CardContent class="pt-6"><p class="text-sm text-muted-foreground text-center">No technical details available.</p></CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="solution" class="space-y-4">
+                        <Card>
+                            <CardHeader><CardTitle>Recommended Solution</CardTitle></CardHeader>
+                            <CardContent><p class="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{{ vuln?.solution || 'No solution provided.' }}</p></CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="references" class="space-y-4">
+                        <Card v-if="parsedReferences.length">
+                            <CardHeader><CardTitle>External References</CardTitle><CardDescription>Additional resources and documentation</CardDescription></CardHeader>
+                            <CardContent>
+                                <div class="space-y-2">
+                                    <a v-for="(ref, idx) in parsedReferences" :key="idx" :href="ref.url" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 rounded-lg border hover:bg-muted transition-colors">
+                                        <span class="text-sm font-medium truncate pr-4">{{ ref.title }}</span>
+                                        <ExternalLink class="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    </a>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card v-else-if="vuln?.reference && vuln.reference !== 'N/A'">
+                            <CardHeader><CardTitle>Raw References</CardTitle></CardHeader>
+                            <CardContent><pre class="text-xs whitespace-pre-wrap font-mono">{{ vuln.reference }}</pre></CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </ScrollArea>
         </SheetContent>
     </Sheet>
 </template>
