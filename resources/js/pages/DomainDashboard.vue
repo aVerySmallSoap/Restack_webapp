@@ -260,7 +260,7 @@ watch(selectedTarget, (newVal) => {
                 </div>
                 <div class="w-full md:w-[300px]">
                     <Select v-model="selectedTarget">
-                        <SelectTrigger>
+                        <SelectTrigger class="w-full">
                             <SelectValue placeholder="Select a target domain" />
                         </SelectTrigger>
                         <SelectContent>
@@ -360,7 +360,7 @@ watch(selectedTarget, (newVal) => {
                                         :grid-line="false"
                                     />
                                     <VisAxis type="y" :tick-format="(v) => v.toFixed(0)" />
-
+                                    <VisTooltip />
                                 </VisXYContainer>
                             </ChartContainer>
                         </CardContent>
@@ -497,6 +497,30 @@ watch(selectedTarget, (newVal) => {
                                     :tick-text-color="paretoConfig.cumulative.color"
                                     :tick-format="(v) => ((v / paretoYMax) * 100).toFixed(0) + '%'"
                                 />
+                                <VisTooltip :triggers="{
+                                    [GroupedBar.selectors.bar]: (d) => `
+                                        <div style='padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>
+                                            <div style='font-weight: 600; margin-bottom: 8px; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;'>
+                                                ${d.vulnerability_type}
+                                            </div>
+                                            <div style='display: grid; grid-template-columns: auto auto; gap: 4px 12px; font-size: 13px;'>
+                                                <span style='color: #64748b;'>Count:</span>
+                                                <span style='font-weight: 600; color: ${paretoConfig.count.color}; text-align: right;'>${d.count}</span>
+
+                                                <span style='color: #64748b;'>Impact:</span>
+                                                <span style='font-weight: 600; color: #0f172a; text-align: right;'>${d.percentage.toFixed(1)}%</span>
+
+                                                <span style='color: #64748b;'>Cumulative:</span>
+                                                <span style='font-weight: 600; color: ${paretoConfig.cumulative.color}; text-align: right;'>${d.cumulative_percentage.toFixed(1)}%</span>
+                                            </div>
+                                        </div>
+                                    `,
+                                    [Scatter.selectors.point]: (d) => `
+                                        <div style='padding: 8px 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 13px;'>
+                                            <span style='color: ${paretoConfig.cumulative.color}; font-weight: 600;'>Cumulative: ${d.cumulative_percentage.toFixed(1)}%</span>
+                                        </div>
+                                    `
+                                }" />
                             </VisXYContainer>
                         </ChartContainer>
 
