@@ -298,7 +298,7 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
 
                     <div v-if="scanType === 'basic'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Card><CardHeader><CardTitle>Top Vulnerabilities</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow v-for="hg in priorityTable.getHeaderGroups()" :key="hg.id"><TableHead v-for="h in hg.headers" :key="h.id"><FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/></TableHead></TableRow></TableHeader><TableBody><TableRow v-if="!priorityTable.getRowModel().rows.length"><TableCell :colSpan="priorityColumns.length" class="h-24 text-center">No high or medium risks found.</TableCell></TableRow><TableRow v-for="row in priorityTable.getRowModel().rows" :key="row.id"><TableCell v-for="cell in row.getVisibleCells()" :key="cell.id"><FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/></TableCell></TableRow></TableBody></Table></CardContent></Card>
-                        <Card><CardHeader><CardTitle>Severity Distribution</CardTitle></CardHeader><CardContent><SeverityPieChart :vulnerabilities="transformedData.allVulns" /></CardContent></Card>
+                        <SeverityPieChart :vulnerabilities="transformedData.allVulns" />
                     </div>
 
                     <template v-else>
@@ -329,11 +329,32 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
                         </CardContent>
                     </Card>
 
-                    <Card v-if="transformedData.technologies.length">
+                    <Card>
                         <CardHeader><CardTitle>Technologies</CardTitle></CardHeader>
                         <CardContent>
                             <Input placeholder="Filter technologies..." :model-value="techFilter" @update:modelValue="techFilter = $event" class="h-8 mb-2" />
-                            <div class="border rounded-md"><Table><TableHeader><TableRow v-for="hg in techTable.getHeaderGroups()" :key="hg.id"><TableHead v-for="h in hg.headers" :key="h.id"><FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/></TableHead></TableRow></TableHeader><TableBody><TableRow v-for="row in techTable.getRowModel().rows" :key="row.id"><TableCell v-for="cell in row.getVisibleCells()" :key="cell.id"><FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/></TableCell></TableRow></TableBody></Table></div><DataTablePagination :table="techTable" />
+                            <div class="border rounded-md">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow v-for="hg in techTable.getHeaderGroups()" :key="hg.id">
+                                            <TableHead v-for="h in hg.headers" :key="h.id">
+                                                <FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/>
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow v-if="!techTable.getRowModel().rows.length">
+                                            <TableCell :colSpan="techColumns.length" class="h-24 text-center">No technologies detected.</TableCell>
+                                        </TableRow>
+                                        <TableRow v-for="row in techTable.getRowModel().rows" :key="row.id">
+                                            <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+                                                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/>
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <DataTablePagination :table="techTable" />
                         </CardContent>
                     </Card>
                 </div>

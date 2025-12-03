@@ -318,7 +318,7 @@ const techTable = useVueTable({
             </CardContent>
         </Card>
 
-        <Card v-if="safeData.technologies.length">
+        <Card>
             <CardHeader><CardTitle>Technologies</CardTitle></CardHeader>
             <CardContent class="space-y-2">
                 <div class="rounded-md border">
@@ -331,6 +331,9 @@ const techTable = useVueTable({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
+                            <TableRow v-if="!techTable.getRowModel().rows.length">
+                                <TableCell :colSpan="techColumns.length" class="h-24 text-center">No technologies detected.</TableCell>
+                            </TableRow>
                             <TableRow v-for="row in techTable.getRowModel().rows" :key="row.id">
                                 <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
                                     <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
