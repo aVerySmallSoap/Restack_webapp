@@ -8,18 +8,9 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
-use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Laravel\Socialite\Socialite;
-
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
-
-    Route::post('register', [RegisteredUserController::class, 'store']);
-
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
@@ -36,39 +27,15 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
-
-    Route::get('/auth/google', function () {
-        return Socialite::driver('google')->redirect();
-    })->name('auth.google');
-
-    Route::get('/auth/google/callback', function () {
-        $googleUser = Socialite::driver('google')->stateless()->user();
-
-        $user = User::where('email', $googleUser->email)->first();
-
-        if ($user) {
-            $user->update([
-                'google_id' => $googleUser->id,
-                'avatar' => $googleUser->avatar,
-            ]);
-        } else {
-            $user = User::create([
-                'name' => $googleUser->name,
-                'email' => $googleUser->email,
-                'google_id' => $googleUser->id,
-                'avatar' => $googleUser->avatar,
-                'password' => Hash::make(Str::random(24)),
-                'email_verified_at' => now(),
-            ]);
-        }
-
-        Auth::login($user);
-
-        return redirect('/dashboard');
-    });
 });
 
 Route::middleware('auth')->group(function () {
+    // Moved Registration here - only logged in users (Admins) can access
+    Route::get('register', [RegisteredUserController::class, 'create'])
+        ->name('register');
+
+    Route::post('register', [RegisteredUserController::class, 'store']);
+
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
 

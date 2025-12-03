@@ -7,7 +7,7 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from '@/components/ui/sidebar';
 import { useSidebar } from '@/components/ui/sidebar/utils';
-import { BookOpen, Settings2, SquareTerminal, Search, Zap, CalendarSync } from 'lucide-vue-next';
+import { BookOpen, Settings2, SquareTerminal, Search, Zap, CalendarSync, Users } from 'lucide-vue-next';
 import NavScan from '@/components/custom/NavScan.vue';
 import { useDark } from '@vueuse/core';
 
@@ -56,6 +56,11 @@ const data = {
                     url: '/history',
                 },
             ],
+        },
+        {
+            title: 'Users',
+            url: '/users',
+            icon: Users,
         },
         {
             title: 'Settings',

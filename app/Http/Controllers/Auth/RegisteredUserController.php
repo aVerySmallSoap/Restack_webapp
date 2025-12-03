@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
@@ -40,12 +39,14 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'is_admin' => false, // Default new users to non-admin
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
+        // Removed Auth::login($user);
 
-        return to_route('dashboard');
+        // Redirect to user management with success toast
+        return to_route('admin.users')->with('success', 'User created successfully.');
     }
 }

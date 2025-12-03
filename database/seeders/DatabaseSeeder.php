@@ -13,11 +13,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
+        // Create the default administrator
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Administrator',
+            'email' => 'admin@restack.io',
+            // If your User model casts password to 'hashed', use plain text here.
+            // Otherwise, wrap in Hash::make('password').
+            // Based on your User.php context, 'hashed' cast is present.
+            'password' => 'password',
+            'is_admin' => true,
         ]);
     }
 }

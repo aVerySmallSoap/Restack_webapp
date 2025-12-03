@@ -1,6 +1,7 @@
 <?php
 /** @noinspection PhpMultipleClassDeclarationsInspection */
 
+use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
@@ -89,6 +90,10 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
 
 // -- Metrics --
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // -- Admin User Management --
+    Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users');
+    Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
 
     Route::get('/history', [HistoryController::class, 'index'])->name('history.index');
     Route::get('/history/{id}', [HistoryController::class, 'show'])->name('history.show');
