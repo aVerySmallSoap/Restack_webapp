@@ -176,7 +176,7 @@ const table = useVueTable({
                                     <!-- URL Column -->
                                     <template v-else-if="cell.column.id === 'url'">
                                         <a :href="cell.getValue() as string"
-                                        target="_blank"
+                                           target="_blank"
                                         class="text-muted-foreground hover:underline text-sm"
                                         >
                                         {{ cell.getValue() }}

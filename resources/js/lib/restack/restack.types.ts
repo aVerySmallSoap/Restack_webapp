@@ -98,3 +98,32 @@ export interface ScheduledScan {
     jobType: string
     configuration: Record<string, number | string>
 }
+
+export interface DescriptiveStatsResponse {
+    meta: {
+        mode: 'snapshot' | 'time-series';
+        filter: string;
+        report_count: number;
+        total_findings: number;
+    };
+    findings_per_scan?: {
+        mean: number;
+        median: number;
+        std_dev: number;
+        q1: number;
+        q3: number;
+        iqr: number;
+        min: number;
+        max: number;
+        coefficient_of_variation: number;
+    };
+    severity_distribution?: Record<string, number>;
+    severity_ratios?: Record<string, number>;
+    message?: string;
+}
+
+export interface TimeSeriesPoint {
+    date: string;
+    count: number;
+    critical_count?: number; // Optional: if you want to plot criticals separately
+}

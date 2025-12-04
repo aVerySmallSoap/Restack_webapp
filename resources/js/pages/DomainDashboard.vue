@@ -1,27 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import axios from 'axios'
 import {
-    VisXYContainer,
-    VisGroupedBar,
-    VisLine,
-    VisScatter,
-    VisAxis,
-    VisTooltip,
-    VisAnnotations,
-    VisDonut,
-    VisSingleContainer
-} from '@unovis/vue'
-import { Donut, GroupedBar, Scatter } from '@unovis/ts'
-import {
-    ScanSearch,
-    FileText,
-    Target,
     Activity,
-    TrendingUp,
+    Target,
     Sigma,
-    Network,
-    PieChart,
-    CalendarDays
+    BarChart3,
+    AlertTriangle,
+    Calendar,
+    Camera
 } from 'lucide-vue-next'
 
 // Components
@@ -40,583 +27,327 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { ChartContainer } from '@/components/ui/chart'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Badge } from '@/components/ui/badge'
-import { SEVERITY_CHART_CONFIG } from '@/lib/colors'
 
-// ---------- Types ----------
+import DistributionHistogram from '@/components/custom/Charts/DistributionHistogram.vue';
+import OutlierBoxPlot from '@/components/custom/Charts/OutlierBoxPlot.vue';
+import TrendLineChart from '@/components/custom/Charts/TrendLineChart.vue';
+import PrevalenceChart from '@/components/custom/Charts/PrevalenceChart.vue';
 
-interface ActivityData {
-    date: string
-    count: number
-}
+import { DescriptiveStatsResponse, TimeSeriesPoint } from '@/lib/restack/restack.types';
 
-interface SummaryApiResponse {
-    period_days: number
-    summary_statistics: {
-        total_scans: number
-        total_vulnerabilities_found: number
-        average_vulns_per_scan: number
-        scans_per_day: number
-        unique_targets: number
-    }
-    scan_type_distribution: Record<string, number>
-    average_scan_duration: Record<string, number>
-    daily_activity: ActivityData[]
-    most_scanned_targets: Array<{ url: string, scan_count: number }>
-}
+// Config
+const API_BASE = "http://localhost:25565";
 
-interface ParetoItem {
-    vulnerability_type: string
-    count: number
-    percentage: number
-    cumulative_percentage: number
-}
-
-interface DistributionData {
-    best_fit_distribution: string
-    interpretation: string
-}
-
-interface CorrelationData {
-    significant_correlations: Array<{
-        variable_1: string
-        variable_2: string
-        correlation: number
-        strength: string
-    }>
-}
-
-interface RegressionData {
-    model_accuracy: number
-    predicted_next_month_vulns: number
-    trend_direction: 'increasing' | 'decreasing' | 'stable'
-}
-
-// ---------- State ----------
-const loading = ref(true)
+// State
+const isLoading = ref(false)
 const targets = ref<string[]>([])
-const selectedTarget = ref<string>("")
+const selectedTarget = ref<string>('all')
+const analysisMode = ref<'snapshot' | 'time-series'>('snapshot')
 
-const analytics = ref<{
-    full_summary: SummaryApiResponse | null,
-    pareto: { pareto_vulnerabilities: ParetoItem[], insight: string, recommendation: string } | null,
-    distribution: DistributionData | null,
-    correlation: CorrelationData | null,
-    regression: RegressionData | null
-}>({
-    full_summary: null,
-    pareto: null,
-    distribution: null,
-    correlation: null,
-    regression: null
-})
+// Data
+const stats = ref<DescriptiveStatsResponse | null>(null)
+const trendData = ref<TimeSeriesPoint[]>([])
 
-// ---------- Computed Chart Data ----------
-
-// 1. Activity (Line Chart from daily_activity)
-const activityData = computed(() => analytics.value.full_summary?.daily_activity || [])
-const activityConfig = {
-    scans: { label: 'Scans', color: '#10b981' } // Emerald
+// Helper: Ensure valid URI for backend (fixes 422 error)
+// Backend expects "http://example.com", frontend often has just "example.com"
+const ensureUrl = (domain: string) => {
+    if (!domain || domain === 'all') return '';
+    return domain.startsWith('http') ? domain : `http://${domain}`;
 }
 
-// 2. Scanner Distribution (Donut from scan_type_distribution) - Updated with standardized colors
-const scannerData = computed(() => {
-    const dist = analytics.value.full_summary?.scan_type_distribution || {}
-    return Object.entries(dist).map(([key, value]) => ({ key, value }))
-})
-
-// Define scanner colors using a consistent palette
-const scannerColors = [
-    SEVERITY_CHART_CONFIG.informational.color, // Blue
-    SEVERITY_CHART_CONFIG.medium.color,        // Yellow
-    SEVERITY_CHART_CONFIG.critical.color,      // Red
-    SEVERITY_CHART_CONFIG.low.color,           // Green
-    '#8b5cf6'                                   // Purple
-]
-
-const scannerConfig = {
-    value: { label: 'Scans', color: SEVERITY_CHART_CONFIG.informational.color }
-}
-
-// Interactive state for scanner donut
-const activeScannerKey = ref<string | null>(null)
-const totalScans = computed(() => scannerData.value.reduce((acc, curr) => acc + curr.value, 0))
-const scannerCentralLabel = computed(() => {
-    if (activeScannerKey.value) {
-        const segment = scannerData.value.find(d => d.key === activeScannerKey.value)
-        return segment ? segment.value.toString() : '0'
-    }
-    return totalScans.value.toString()
-})
-const scannerCentralSubLabel = computed(() => {
-    if (activeScannerKey.value) {
-        return activeScannerKey.value.charAt(0).toUpperCase() + activeScannerKey.value.slice(1)
-    }
-    return 'Total Scans'
-})
-
-// 3. Pareto (Bar + Line) - Use standardized colors
-const paretoConfig = {
-    count: { label: 'Occurrence Count', color: SEVERITY_CHART_CONFIG.informational.color },
-    cumulative: { label: 'Cumulative %', color: SEVERITY_CHART_CONFIG.critical.color }
-}
-
-const paretoChartData = computed(() => analytics.value.pareto?.pareto_vulnerabilities || [])
-const paretoMaxCount = computed(() => {
-    if (paretoChartData.value.length === 0) return 100
-    return Math.max(...paretoChartData.value.map(d => d.count))
-})
-const paretoYMax = computed(() => paretoMaxCount.value * 1.15)
-const xTickValues = computed(() => paretoChartData.value.map((_, i) => i))
-const barLabels = computed(() => {
-    return paretoChartData.value.map((d, i) => ({
-        x: i,
-        y: d.count,
-        text: d.count.toString(),
-        color: '#1e293b'
-    }))
-})
-
-// Helper: Truncate Labels
-const truncateLabel = (str: string, maxLength: number = 15) => {
-    if (!str) return ''
-    if (str.length <= maxLength) return str
-    return str.substring(0, maxLength) + '...'
-}
-const API_BASE = 'http://localhost:25565'
-
-// ---------- API Logic ----------
 const fetchTargets = async () => {
     try {
-        const res = await fetch(`${API_BASE}/api/v1/analytics/targets`)
-        if (res.ok) {
-            const data = await res.json()
-            targets.value = data.domains || []
-
-            const urlParams = new URLSearchParams(window.location.search)
-            const targetParam = urlParams.get('target')
-
-            if (targetParam && targets.value.includes(targetParam)) {
-                selectedTarget.value = targetParam
-            } else if (targets.value.length > 0) {
-                selectedTarget.value = targets.value[0]
-            }
-        }
-    } catch (e) {
-        console.error("Failed to fetch targets", e)
+        const response = await axios.get(`${API_BASE}/api/v1/analytics/targets`)
+        targets.value = response.data.domains || []
+    } catch (error) {
+        console.error('Failed to fetch targets:', error)
     }
 }
 
-const fetchAllAnalytics = async (target: string) => {
-    if (!target) return
-    loading.value = true
-
-    const newUrl = new URL(window.location.href)
-    newUrl.searchParams.set('target', target)
-    window.history.pushState({}, '', newUrl)
+const fetchDashboardData = async () => {
+    isLoading.value = true
+    stats.value = null
+    trendData.value = []
 
     try {
-        const [summaryRes, paretoRes, distRes, corrRes, regRes] = await Promise.all([
-            fetch(`${API_BASE}/test/poll/data/summary/30?target=${target}`),
-            fetch(`${API_BASE}/test/poll/data/pareto?target=${target}`),
-            fetch(`${API_BASE}/test/poll/data/distribution?target=${target}`),
-            fetch(`${API_BASE}/test/poll/data/correlation?target=${target}`),
-            fetch(`${API_BASE}/test/poll/data/regression?target=${target}`)
-        ])
+        // 1. Fetch Descriptive Stats
+        const statsParams: any = { mode: analysisMode.value }
+        if (selectedTarget.value && selectedTarget.value !== 'all') {
+            statsParams.target = selectedTarget.value
+        }
 
-        if (summaryRes.ok) analytics.value.full_summary = await summaryRes.json()
-        if (paretoRes.ok) analytics.value.pareto = await paretoRes.json()
-        if (distRes.ok) analytics.value.distribution = await distRes.json()
-        if (corrRes.ok) analytics.value.correlation = await corrRes.json()
-        if (regRes.ok) analytics.value.regression = await regRes.json()
+        // Use explicit API_BASE
+        const statsRes = await axios.get(`${API_BASE}/api/v1/analytics/descriptive`, { params: statsParams })
+        stats.value = statsRes.data
 
-    } catch (e) {
-        console.error("Error fetching analytics", e)
+        // 2. Fetch Time-Series Data (Only in time-series mode)
+        if (analysisMode.value === 'time-series' && selectedTarget.value !== 'all') {
+            // FIX: Use 'params' object to generate ?target=http://example.com
+            // This matches the updated Backend Query parameter logic
+            const trendRes = await axios.get(`${API_BASE}/test/poll/data/timeseries`, {
+                params: {
+                    target: ensureUrl(selectedTarget.value),
+                    days: 90
+                }
+            })
+
+            if(Array.isArray(trendRes.data)) {
+                trendData.value = trendRes.data.map((d: any) => ({
+                    date: d.date,
+                    count: d.total_vulnerabilities || d.count
+                }));
+            }
+        }
+
+    } catch (error) {
+        console.error('Failed to fetch dashboard data:', error)
     } finally {
-        loading.value = false
+        isLoading.value = false
     }
 }
 
-onMounted(async () => {
-    await fetchTargets()
+// Watchers
+watch([selectedTarget, analysisMode], () => {
+    fetchDashboardData()
 })
 
-watch(selectedTarget, (newVal) => {
-    if (newVal) {
-        fetchAllAnalytics(newVal)
-    }
+// Lifecycle
+onMounted(() => {
+    fetchTargets()
+    fetchDashboardData()
 })
 </script>
 
 <template>
     <Navigation>
-        <div class="flex flex-1 flex-col gap-6 p-4 pt-0">
-            <div class="flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0">
+        <div class="p-6 space-y-6">
+
+            <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-card p-4 rounded-lg border shadow-sm">
                 <div>
-                    <h1 class="font-bold px-2 text-3xl tracking-tight">Domain Analytics</h1>
-                    <p class="px-2 text-sm text-muted-foreground">Summary for {{ selectedTarget || 'Selected Domain' }}</p>
+                    <h1 class="text-2xl font-bold tracking-tight">Analytics Dashboard</h1>
+                    <p class="text-muted-foreground text-sm mt-1">
+                        {{ analysisMode === 'snapshot' ? 'Current security posture (Latest Scans)' : 'Historical performance and trends' }}
+                    </p>
                 </div>
-                <div class="w-full md:w-[300px]">
-                    <Select v-model="selectedTarget">
-                        <SelectTrigger class="w-full">
-                            <SelectValue placeholder="Select a target domain" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem v-for="t in targets" :key="t" :value="t">
-                                {{ t }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
+
+                <div class="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+
+                    <Tabs v-model="analysisMode" class="w-full sm:w-[300px]">
+                        <TabsList class="grid w-full grid-cols-2">
+                            <TabsTrigger value="snapshot" class="flex items-center gap-2">
+                                <Camera class="h-4 w-4" /> Snapshot
+                            </TabsTrigger>
+                            <TabsTrigger value="time-series" class="flex items-center gap-2">
+                                <Calendar class="h-4 w-4" /> Time Series
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <span class="text-sm font-medium whitespace-nowrap hidden sm:inline">Target:</span>
+                        <Select v-model="selectedTarget">
+                            <SelectTrigger class="w-full sm:w-[220px]">
+                                <SelectValue placeholder="All Targets" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Targets</SelectItem>
+                                <SelectItem v-for="t in targets" :key="t" :value="t">
+                                    {{ t }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
             </div>
 
-            <div v-if="loading" class="space-y-6">
-                <div class="grid gap-4 grid-cols-1 md:grid-cols-4">
-                    <Skeleton class="h-[120px] w-full" v-for="i in 4" :key="i" />
-                </div>
-                <div class="grid gap-4 grid-cols-1 md:grid-cols-2">
-                    <Skeleton class="h-[300px] w-full" />
-                    <Skeleton class="h-[300px] w-full" />
-                </div>
+            <div v-if="isLoading" class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Skeleton class="h-32" v-for="i in 4" :key="i" />
+            </div>
+
+            <div v-else-if="!stats || stats.meta.report_count === 0" class="flex flex-col items-center justify-center h-64 border rounded-lg bg-muted/10 border-dashed">
+                <AlertTriangle class="h-10 w-10 text-muted-foreground mb-2" />
+                <p class="text-muted-foreground font-medium">No data found for this selection.</p>
+                <p class="text-xs text-muted-foreground mt-1">Try selecting a different target or mode.</p>
             </div>
 
             <div v-else class="space-y-6 animate-fadein">
 
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="text-sm font-medium">Total Scans</CardTitle>
-                            <ScanSearch class="h-4 w-4 text-muted-foreground" />
+                            <CardTitle class="text-sm font-medium">
+                                {{ analysisMode === 'snapshot' ? 'Mean Findings' : 'Historical Mean' }}
+                            </CardTitle>
+                            <Activity class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-2xl font-bold">{{ analytics.full_summary?.summary_statistics.total_scans ?? 0 }}</div>
-                            <p class="text-xs text-muted-foreground">last 30 days</p>
+                            <div class="text-2xl font-bold">{{ stats.findings_per_scan?.mean.toFixed(1) || 0 }}</div>
+                            <p class="text-xs text-muted-foreground">
+                                Average per {{ analysisMode === 'snapshot' ? 'target' : 'historical scan' }}
+                            </p>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="text-sm font-medium">Total Findings</CardTitle>
-                            <FileText class="h-4 w-4 text-muted-foreground" />
+                            <CardTitle class="text-sm font-medium">Median</CardTitle>
+                            <Target class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-2xl font-bold">{{ analytics.full_summary?.summary_statistics.total_vulnerabilities_found ?? 0 }}</div>
-                            <div class="flex items-center text-xs text-muted-foreground">
-                                <span class="font-medium text-foreground mr-1">
-                                    {{ Math.round(analytics.full_summary?.summary_statistics.average_vulns_per_scan ?? 0) }}
-                                </span>
-                                avg per scan
-                            </div>
+                            <div class="text-2xl font-bold">{{ stats.findings_per_scan?.median || 0 }}</div>
+                            <p class="text-xs text-muted-foreground">
+                                Typical finding count
+                            </p>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="text-sm font-medium">Scan Frequency</CardTitle>
-                            <Activity class="h-4 w-4 text-emerald-500" />
+                            <CardTitle class="text-sm font-medium">Coef. of Variation</CardTitle>
+                            <Sigma class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-2xl font-bold">{{ analytics.full_summary?.summary_statistics.scans_per_day ?? 0 }}</div>
-                            <p class="text-xs text-muted-foreground">scans per day</p>
+                            <div class="text-2xl font-bold">{{ stats.findings_per_scan?.coefficient_of_variation || 0 }}</div>
+                            <p class="text-xs text-muted-foreground">
+                                Volatility (StdDev / Mean)
+                            </p>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="text-sm font-medium">Active Targets</CardTitle>
-                            <Target class="h-4 w-4 text-indigo-500" />
+                            <CardTitle class="text-sm font-medium">Total Reports</CardTitle>
+                            <BarChart3 class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-2xl font-bold">{{ analytics.full_summary?.summary_statistics.unique_targets ?? 0 }}</div>
-                            <p class="text-xs text-muted-foreground">endpoints or subdomains</p>
+                            <div class="text-2xl font-bold">{{ stats.meta.report_count }}</div>
+                            <p class="text-xs text-muted-foreground">
+                                Processed findings: {{ stats.meta.total_findings }}
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div class="grid gap-4 md:grid-cols-2">
 
-                    <Card class="flex flex-col">
+                    <Card class="col-span-1">
                         <CardHeader>
-                            <CardTitle class="flex items-center gap-2">
-                                <CalendarDays class="h-4 w-4" /> Scan History
-                            </CardTitle>
-                            <CardDescription>Daily scan volume over the last 30 days.</CardDescription>
+                            <CardTitle>Severity Distribution</CardTitle>
+                            <CardDescription>
+                                Frequency of vulnerabilities by severity level
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent class="h-[300px] w-full">
-                            <ChartContainer :config="activityConfig" class="h-full w-full">
-                                <VisXYContainer :data="activityData" :margin="{ top: 10, right: 10, bottom: 40, left: 40 }">
-                                    <VisLine
-                                        :x="(d) => new Date(d.date).getTime()"
-                                        :y="(d) => d.count"
-                                        :color="activityConfig.scans.color"
-                                        :stroke-width="2"
-                                    />
-                                    <VisAxis
-                                        type="x"
-                                        :tick-format="(ts) => new Date(ts).toLocaleDateString(undefined, {month:'short', day:'numeric'})"
-                                        :num-ticks="6"
-                                        :grid-line="false"
-                                    />
-                                    <VisAxis type="y" :tick-format="(v) => v.toFixed(0)" />
-                                    <VisTooltip />
-                                </VisXYContainer>
-                            </ChartContainer>
+                        <CardContent class="h-[350px]">
+                            <DistributionHistogram
+                                v-if="stats.severity_distribution"
+                                :data="stats.severity_distribution"
+                            />
                         </CardContent>
                     </Card>
 
-                    <Card class="flex flex-col">
+                    <Card class="col-span-1">
                         <CardHeader>
-                            <CardTitle class="flex items-center gap-2">
-                                <PieChart class="h-4 w-4" /> Tools Used
-                            </CardTitle>
-                            <CardDescription>Distribution of scans by scanner type.</CardDescription>
+                            <CardTitle>Statistical Spread (IQR)</CardTitle>
+                            <CardDescription>
+                                Box plot showing min, max, median, and quartiles
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent class="flex-1 flex flex-col pb-4">
-                            <div v-if="scannerData.length > 0" class="flex-1 flex flex-col">
-                                <ChartContainer :config="scannerConfig" class="aspect-square max-h-[250px] mx-auto w-full">
-                                    <VisSingleContainer :data="scannerData" :margin="{ top: 0, bottom: 0, left: 0, right: 0 }">
-                                        <VisDonut
-                                            :value="(d) => d.value"
-                                            :color="(d, i) => scannerColors[i % scannerColors.length]"
-                                            :arc-width="40"
-                                            :central-label="scannerCentralLabel"
-                                            :central-sub-label="scannerCentralSubLabel"
-                                            :events="{
-                                                [Donut.selectors.segment]: {
-                                                    click: (d, ev, i, elements) => {
-                                                        const clickedKey = d.data.key
-                                                        if (activeScannerKey === clickedKey) {
-                                                            activeScannerKey = null
-                                                            elements.forEach(el => el.style.opacity = '1')
-                                                        } else {
-                                                            activeScannerKey = clickedKey
-                                                            elements.forEach(el => el.style.opacity = '0.3')
-                                                            elements[i].style.opacity = '1'
-                                                        }
-                                                    }
-                                                }
-                                            }"
-                                        />
-                                    </VisSingleContainer>
-                                </ChartContainer>
+                        <CardContent class="h-[350px]">
+                            <OutlierBoxPlot
+                                v-if="stats.findings_per_scan"
+                                :min="stats.findings_per_scan.min"
+                                :q1="stats.findings_per_scan.q1"
+                                :median="stats.findings_per_scan.median"
+                                :q3="stats.findings_per_scan.q3"
+                                :max="stats.findings_per_scan.max"
+                                :mean="stats.findings_per_scan.mean"
+                                :sd="stats.findings_per_scan.std_dev"
+                            />
+                        </CardContent>
+                    </Card>
 
-                                <!-- Legend for Scanner Distribution -->
-                                <div class="mt-4 space-y-2 px-4">
-                                    <div
-                                        v-for="(item, index) in scannerData"
-                                        :key="item.key"
-                                        class="flex items-center gap-3 text-sm cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-all"
-                                        :class="{ 'opacity-50': activeScannerKey && activeScannerKey !== item.key }"
-                                        @click="activeScannerKey = activeScannerKey === item.key ? null : item.key"
-                                    >
-                                        <div
-                                            class="h-3 w-3 rounded-sm shrink-0"
-                                            :style="{ backgroundColor: scannerColors[index % scannerColors.length] }"
-                                        />
-                                        <span class="font-medium capitalize flex-1">{{ item.key }}</span>
-                                        <span class="text-muted-foreground font-mono text-xs tabular-nums">
-                                            {{ item.value }}
-                                        </span>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2 mt-6">
+
+                    <Card class="col-span-1">
+                        <CardHeader>
+                            <CardTitle>Systemic Vulnerabilities</CardTitle>
+                            <CardDescription>
+                                Percentage of targets affected by each issue type.
+                                High values indicate systemic failures.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent class="h-[350px]">
+                            <PrevalenceChart
+                                v-if="stats && stats.prevalence && Object.keys(stats.prevalence).length > 0"
+                                :data="stats.prevalence"
+                            />
+                            <div v-else class="h-full flex items-center justify-center text-muted-foreground">
+                                No prevalence data available.
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card class="col-span-1">
+                        <CardHeader>
+                            <CardTitle>Risk Hotspots</CardTitle>
+                            <CardDescription>Top 5 most vulnerable targets (Pareto Analysis)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div v-if="stats && stats.hotspots && stats.hotspots.length > 0" class="space-y-4">
+                                <div v-for="(host, index) in stats.hotspots" :key="index" class="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                                    <div class="flex flex-col overflow-hidden">
+                            <span class="font-medium truncate max-w-[200px]" :title="host.target">
+                                {{ host.target }}
+                            </span>
+                                        <span class="text-xs text-muted-foreground">
+                                {{ host.total_vulns }} total findings
+                            </span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="text-right">
+                                            <div class="text-sm font-bold text-red-600">
+                                                {{ host.critical_count }}
+                                            </div>
+                                            <div class="text-[10px] text-muted-foreground uppercase">Critical</div>
+                                        </div>
                                     </div>
                                 </div>
+                            </div>
+                            <div v-else class="h-[250px] flex items-center justify-center text-muted-foreground">
+                                No hotspots identified.
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                </div>
+
+                <div v-if="analysisMode === 'time-series'" class="grid gap-4 grid-cols-1">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Vulnerability Trend</CardTitle>
+                            <CardDescription>
+                                History over the last 90 days {{ selectedTarget !== 'all' ? `for ${selectedTarget}` : '(Select a target to view trend)' }}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent class="h-[400px]">
+                            <div v-if="trendData.length > 0">
+                                <TrendLineChart
+                                    :data="trendData"
+                                    :trend-mean="stats.findings_per_scan?.mean"
+                                />
                             </div>
                             <div v-else class="h-full flex items-center justify-center text-muted-foreground">
-                                No scanner data available
+                                <p v-if="selectedTarget === 'all'">Select a specific target to view trend data.</p>
+                                <p v-else>No trend data available for this target.</p>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
 
-                <Card class="flex flex-col w-full">
-                    <CardHeader>
-                        <CardTitle>Pareto Analysis (80/20 Rule)</CardTitle>
-                        <CardDescription>Identifying the vital few vulnerabilities causing the majority of findings.</CardDescription>
-                    </CardHeader>
-                    <CardContent class="min-h-[450px]">
-                        <ChartContainer :config="paretoConfig" class="h-[450px] w-full">
-                            <VisXYContainer
-                                :data="paretoChartData"
-                                :margin="{ top: 40, right: 60, bottom: 110, left: 60 }"
-                                :y-domain="[0, paretoYMax]"
-                            >
-                                <VisGroupedBar
-                                    :x="(d, i) => i"
-                                    :y="(d) => d.count"
-                                    :color="paretoConfig.count.color"
-                                    :rounded-corners="0"
-                                    :bar-padding="0.2"
-                                />
-                                <VisAnnotations
-                                    :items="barLabels"
-                                    :x="(d) => d.x"
-                                    :y="(d) => d.y + (paretoMaxCount * 0.02)"
-                                    :content="(d) => d.text"
-                                    :text-color="(d) => d.color"
-                                    vertical-align="bottom"
-                                />
-                                <VisLine
-                                    :x="(d, i) => i"
-                                    :y="[(d) => (d.cumulative_percentage / 100) * paretoYMax]"
-                                    :color="paretoConfig.cumulative.color"
-                                    :stroke-width="2"
-                                    :curve-type="'monotoneX'"
-                                />
-                                <VisScatter
-                                    :x="(d, i) => i"
-                                    :y="[(d) => (d.cumulative_percentage / 100) * paretoYMax]"
-                                    :color="paretoConfig.cumulative.color"
-                                    :size="8"
-                                    :stroke-color="'white'"
-                                    :stroke-width="1"
-                                />
-                                <VisAxis
-                                    type="x"
-                                    :tick-values="xTickValues"
-                                    :tick-format="(i) => truncateLabel(paretoChartData[i]?.vulnerability_type)"
-                                    :grid-line="false"
-                                    :tick-text-angle="-15"
-                                    :tick-text-anchor="'end'"
-                                    :tick-text-font-size="12"
-                                />
-                                <VisAxis
-                                    type="y"
-                                    label="Count"
-                                    :label-color="paretoConfig.count.color"
-                                    :grid-line="true"
-                                    :tick-text-color="paretoConfig.count.color"
-                                    :tick-format="(v) => v.toFixed(0)"
-                                />
-                                <VisAxis
-                                    type="y"
-                                    position="right"
-                                    label="Cumulative %"
-                                    :label-color="paretoConfig.cumulative.color"
-                                    :grid-line="false"
-                                    :tick-text-color="paretoConfig.cumulative.color"
-                                    :tick-format="(v) => ((v / paretoYMax) * 100).toFixed(0) + '%'"
-                                />
-                                <VisTooltip :triggers="{
-                                    [GroupedBar.selectors.bar]: (d) => `
-                                        <div style='padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>
-                                            <div style='font-weight: 600; margin-bottom: 8px; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;'>
-                                                ${d.vulnerability_type}
-                                            </div>
-                                            <div style='display: grid; grid-template-columns: auto auto; gap: 4px 12px; font-size: 13px;'>
-                                                <span style='color: #64748b;'>Count:</span>
-                                                <span style='font-weight: 600; color: ${paretoConfig.count.color}; text-align: right;'>${d.count}</span>
-
-                                                <span style='color: #64748b;'>Impact:</span>
-                                                <span style='font-weight: 600; color: #0f172a; text-align: right;'>${d.percentage.toFixed(1)}%</span>
-
-                                                <span style='color: #64748b;'>Cumulative:</span>
-                                                <span style='font-weight: 600; color: ${paretoConfig.cumulative.color}; text-align: right;'>${d.cumulative_percentage.toFixed(1)}%</span>
-                                            </div>
-                                        </div>
-                                    `,
-                                    [Scatter.selectors.point]: (d) => `
-                                        <div style='padding: 8px 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 13px;'>
-                                            <span style='color: ${paretoConfig.cumulative.color}; font-weight: 600;'>Cumulative: ${d.cumulative_percentage.toFixed(1)}%</span>
-                                        </div>
-                                    `
-                                }" />
-                            </VisXYContainer>
-                        </ChartContainer>
-
-                        <div v-if="analytics.pareto" class="mt-4 pt-4 border-t space-y-2">
-                            <div class="flex items-start gap-2">
-                                <div class="h-2 w-2 rounded-full mt-1.5 shrink-0"
-                                     :style="{ backgroundColor: paretoConfig.count.color }" />
-                                <p class="text-sm font-medium">{{ analytics.pareto.insight }}</p>
-                            </div>
-                            <div class="flex items-start gap-2">
-                                <div class="h-2 w-2 rounded-full mt-1.5 shrink-0"
-                                     :style="{ backgroundColor: paretoConfig.cumulative.color }" />
-                                <p class="text-sm text-muted-foreground">{{ analytics.pareto.recommendation }}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                    <Card class="flex flex-col">
-                        <CardHeader>
-                            <CardTitle class="flex items-center gap-2 text-base">
-                                <Sigma class="h-4 w-4 text-purple-500"/> Distribution Fit
-                            </CardTitle>
-                            <CardDescription>Mathematical model of vuln occurrence.</CardDescription>
-                        </CardHeader>
-                        <CardContent class="flex-1 flex flex-col justify-center">
-                            <div v-if="analytics.distribution">
-                                <div class="text-center py-4 bg-muted/20 rounded-lg mb-4">
-                                    <div class="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Best Fit Model</div>
-                                    <div class="text-2xl font-bold text-primary mt-1 capitalize">{{ analytics.distribution.best_fit_distribution }}</div>
-                                </div>
-                                <div class="text-sm text-muted-foreground italic text-center">
-                                    "{{ analytics.distribution.interpretation }}"
-                                </div>
-                            </div>
-                            <div v-else class="text-center text-sm text-muted-foreground">Insufficient data</div>
-                        </CardContent>
-                    </Card>
-
-                    <Card class="flex flex-col">
-                        <CardHeader>
-                            <CardTitle class="flex items-center gap-2 text-base">
-                                <Network class="h-4 w-4 text-blue-500"/> Correlations
-                            </CardTitle>
-                            <CardDescription>Hidden relationships in scan data.</CardDescription>
-                        </CardHeader>
-                        <CardContent class="flex-1">
-                            <div v-if="analytics.correlation?.significant_correlations?.length" class="space-y-3">
-                                <div v-for="(corr, i) in analytics.correlation.significant_correlations.slice(0, 3)" :key="i" class="flex items-center justify-between p-2 border rounded-md text-xs">
-                                    <div class="font-medium">
-                                        {{ corr.variable_1 }} <span class="text-muted-foreground">vs</span> {{ corr.variable_2 }}
-                                    </div>
-                                    <Badge :variant="Math.abs(corr.correlation) > 0.7 ? 'destructive' : 'secondary'">
-                                        {{ corr.correlation.toFixed(2) }}
-                                    </Badge>
-                                </div>
-                            </div>
-                            <div v-else class="h-full flex items-center justify-center text-sm text-muted-foreground">
-                                No strong correlations found.
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card class="flex flex-col">
-                        <CardHeader>
-                            <CardTitle class="flex items-center gap-2 text-base">
-                                <TrendingUp class="h-4 w-4 text-orange-500"/> Forecast
-                            </CardTitle>
-                            <CardDescription>Predictive analysis for next month.</CardDescription>
-                        </CardHeader>
-                        <CardContent class="flex-1 flex flex-col justify-between">
-                            <div v-if="analytics.regression">
-                                <div class="text-sm text-muted-foreground mb-1">Projected Vulnerabilities</div>
-                                <div class="text-4xl font-bold mb-2">
-                                    {{ Math.round(analytics.regression.predicted_next_month_vulns || 0) }}
-                                </div>
-                                <Badge :variant="analytics.regression.trend_direction === 'increasing' ? 'destructive' : 'outline'">
-                                    Trend: {{ analytics.regression.trend_direction }}
-                                </Badge>
-                            </div>
-                            <div v-else class="h-full flex items-center justify-center text-sm text-muted-foreground">
-                                Data unavailable for prediction.
-                            </div>
-
-                            <div v-if="analytics.regression" class="mt-4 pt-4 border-t flex justify-between text-xs text-muted-foreground">
-                                <span>Confidence</span>
-                                <span class="font-mono font-medium text-foreground">
-                                    {{ ((analytics.regression.model_accuracy || 0) * 100).toFixed(1) }}%
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                </div>
             </div>
         </div>
     </Navigation>
@@ -624,10 +355,10 @@ watch(selectedTarget, (newVal) => {
 
 <style scoped>
 .animate-fadein {
-    animation: fadein 0.5s ease-out;
+    animation: fadein 0.3s ease-out;
 }
 @keyframes fadein {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
