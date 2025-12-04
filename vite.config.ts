@@ -8,9 +8,17 @@ import { defineConfig } from 'vite';
 import vueDevTools from 'vite-plugin-vue-devtools';
 
 export default defineConfig({
+    server: {
+        host: '0.0.0.0',
+        port: 5174,
+        strictPort: true,
+        hmr: {
+            host: '127.0.0.1',
+        },
+    },
     plugins: [
         laravel({
-            input: ['resources/js/app.ts'],
+            input: ['resources/js/app.ts', 'resources/css/app.css'],
             ssr: 'resources/js/ssr.ts',
             refresh: true,
         }),

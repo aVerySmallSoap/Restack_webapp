@@ -96,5 +96,5 @@ export interface ScheduledScan {
     url: string
     codename: string
     jobType: string
-    configuration: string
+    configuration: Record<string, number | string>
 }

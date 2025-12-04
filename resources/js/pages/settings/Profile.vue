@@ -42,21 +42,13 @@ const form = useInertiaForm({
 });
 
 const submit = () => {
-    // Simulate save behavior for UI demo
-    console.log("Mock saving profile:", form.data());
-
-    // Simulate network delay
-    form.processing = true;
-    setTimeout(() => {
-        form.processing = false;
-        recentlySuccessful.value = true;
-        setTimeout(() => recentlySuccessful.value = false, 2000);
-    }, 600);
-
-    // Original code (commented out for demo):
-    // form.patch(route('profile.update'), {
-    //     preserveScroll: true,
-    // });
+    form.patch(route('profile.update'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            recentlySuccessful.value = true;
+            setTimeout(() => recentlySuccessful.value = false, 2000);
+        },
+    });
 };
 </script>
 

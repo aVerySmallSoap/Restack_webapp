@@ -64,13 +64,18 @@ const getFrequencyLabel = (type: string) => {
     return map[type] || type
 }
 
-const parseConfiguration = (config: string | object) => {
+// Fixed parseConfiguration to handle the API response format
+const parseConfiguration = (config: any) => {
     try {
-        const parsed = typeof config === 'string' ? JSON.parse(config) : config
-        const ignoredKeys = ['profile']
-        const entries = Object.entries(parsed || {}).filter(([key]) => !ignoredKeys.includes(key))
-        return entries
+        // If it's already an object, convert to entries array
+        if (config && typeof config === 'object') {
+            const ignoredKeys = ['profile']
+            const entries = Object.entries(config).filter(([key]) => !ignoredKeys.includes(key))
+            return entries
+        }
+        return []
     } catch (e) {
+        console.error('Error parsing configuration:', e)
         return []
     }
 }
@@ -83,8 +88,7 @@ const copyToClipboard = (text: string) => {
 const columns: ColumnDef<ScheduledScan>[] = [
     {
         accessorKey: 'codename',
-        // Update header to use h()
-        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Codename' }),
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Name' }),
         cell: ({ row }) => row.getValue('codename'),
     },
     {
@@ -94,8 +98,8 @@ const columns: ColumnDef<ScheduledScan>[] = [
     },
     {
         accessorKey: 'jobType',
-        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Frequency' }),
-        cell: ({ row }) => getFrequencyLabel(row.getValue('jobType')),
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }),
+        cell: ({ row }) => row.getValue('jobType'),
     },
     {
         accessorKey: 'configuration',
@@ -161,7 +165,7 @@ const table = useVueTable({
                                 :data-state="row.getIsSelected() ? 'selected' : undefined"
                             >
                                 <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-                                    <!-- Codename Column -->
+                                    <!-- Name Column -->
                                     <template v-if="cell.column.id === 'codename'">
                                         <div class="flex items-center gap-2 font-medium">
                                             <Calendar class="h-4 w-4 text-muted-foreground" />
@@ -171,12 +175,11 @@ const table = useVueTable({
 
                                     <!-- URL Column -->
                                     <template v-else-if="cell.column.id === 'url'">
-                                        <a
-                                            :href="cell.getValue() as string"
-                                            target="_blank"
-                                            class="text-muted-foreground hover:underline"
+                                        <a :href="cell.getValue() as string"
+                                        target="_blank"
+                                        class="text-muted-foreground hover:underline text-sm"
                                         >
-                                            {{ cell.getValue() }}
+                                        {{ cell.getValue() }}
                                         </a>
                                     </template>
 
@@ -184,24 +187,27 @@ const table = useVueTable({
                                     <template v-else-if="cell.column.id === 'jobType'">
                                         <div class="flex items-center gap-2">
                                             <Clock class="h-3 w-3 text-muted-foreground" />
-                                            {{ getFrequencyLabel(cell.getValue() as string) }}
+                                            <Badge variant="secondary" class="capitalize">
+                                                {{ getFrequencyLabel(cell.getValue() as string) }}
+                                            </Badge>
                                         </div>
                                     </template>
 
                                     <!-- Configuration Column -->
                                     <template v-else-if="cell.column.id === 'configuration'">
                                         <div class="flex flex-wrap gap-1">
-                                            <template v-if="parseConfiguration(cell.getValue() as string | object).length > 0">
+                                            <template v-if="parseConfiguration(cell.getValue()).length > 0">
                                                 <Badge
-                                                    v-for="[key, value] in parseConfiguration(cell.getValue() as string | object)"
+                                                    v-for="[key, value] in parseConfiguration(cell.getValue())"
                                                     :key="key"
                                                     variant="outline"
-                                                    class="font-mono text-[10px] px-1 py-0 h-5"
+                                                    class="font-mono text-[10px] px-2 py-0.5 h-5"
                                                 >
-                                                    {{ key }}: {{ value }}
+                                                    <span class="text-muted-foreground">{{ key }}:</span>
+                                                    <span class="ml-1 font-semibold">{{ value }}</span>
                                                 </Badge>
                                             </template>
-                                            <span v-else class="text-muted-foreground text-xs">-</span>
+                                            <span v-else class="text-muted-foreground text-xs">No config</span>
                                         </div>
                                     </template>
 
@@ -249,7 +255,10 @@ const table = useVueTable({
                         <template v-else>
                             <TableRow>
                                 <TableCell :colSpan="columns.length" class="h-24 text-center">
-                                    No scheduled scans found.
+                                    <div class="flex flex-col items-center gap-2 text-muted-foreground">
+                                        <Calendar class="h-8 w-8 opacity-50" />
+                                        <p>No scheduled scans found.</p>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         </template>

@@ -64,35 +64,20 @@ const data = {
         },
         {
             title: 'Settings',
-            url: '/settings/scanner',
+            url: '/settings/profile',
             icon: Settings2,
             items: [
                 {
-                    title: 'Scanners',
-                    url: '/settings/scanner',
+                    title: 'Profile',
+                    url: '/settings/profile',
                 },
                 {
-                    title: 'Export',
-                    url: '/settings/export',
-                },
-            ],
-        },
-        {
-            title: 'Documentation',
-            url: '/docs',
-            icon: BookOpen,
-            items: [
-                {
-                    title: 'Get Started',
-                    url: '/docs/get-started',
+                    title: 'Password',
+                    url: '/settings/password',
                 },
                 {
-                    title: 'Introduction',
-                    url: '/docs/introduction',
-                },
-                {
-                    title: 'Changelog',
-                    url: '/docs/changelog',
+                    title: 'Appearance',
+                    url: '/settings/appearance',
                 },
             ],
         },

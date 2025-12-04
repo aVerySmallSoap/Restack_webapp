@@ -100,13 +100,13 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
     Route::delete('/history/{id}', [HistoryController::class, 'destroy'])->name('history.destroy');
 
 // -- Settings --
-    Route::get('/settings/scanner', function(){
-        return Inertia::render('settings/Scanner');
-    });
-
-    Route::get('/settings/export', function(){
-        return Inertia::render('settings/Export');
-    });
+//    Route::get('/settings/scanner', function(){
+//        return Inertia::render('settings/Scanner');
+//    });
+//
+//    Route::get('/settings/export', function(){
+//        return Inertia::render('settings/Export');
+//    });
 
 // -- Scan Preview --
     Route::post('/scan/preview', function (Request $request) {
@@ -137,17 +137,17 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
     });
 
 // -- Documentation --
-    Route::get('/docs/get-started', function(){
-        return Inertia::render('docs/GetStarted');
-    })->name('docs.get-started');
-
-    Route::get('/docs/introduction', function(){
-        return Inertia::render('docs/Introduction');
-    })->name('docs.introduction');
-
-    Route::get('/docs/changelog', function(){
-        return Inertia::render('docs/Changelog');
-    })->name('docs.changelog');
+//    Route::get('/docs/get-started', function(){
+//        return Inertia::render('docs/GetStarted');
+//    })->name('docs.get-started');
+//
+//    Route::get('/docs/introduction', function(){
+//        return Inertia::render('docs/Introduction');
+//    })->name('docs.introduction');
+//
+//    Route::get('/docs/changelog', function(){
+//        return Inertia::render('docs/Changelog');
+//    })->name('docs.changelog');
 });
 
 

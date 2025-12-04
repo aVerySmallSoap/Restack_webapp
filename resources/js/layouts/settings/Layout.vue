@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { type NavItem } from '@/types';
@@ -9,10 +8,6 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
         href: '/settings/profile',
-    },
-    {
-        title: 'User Info',
-        href: '/settings/user-info',
     },
     {
         title: 'Password',
@@ -30,10 +25,13 @@ const currentPath = page.props.ziggy?.location ? new URL(page.props.ziggy.locati
 </script>
 
 <template>
-    <div class="px-4 py-6">
-        <Heading title="Settings" description="Manage your profile and account settings" />
+    <div class="flex flex-1 flex-col gap-6 p-4 pt-0">
+        <div>
+            <h1 class="font-bold px-2 text-3xl tracking-tight">Settings</h1>
+            <p class="px-2 text-sm text-muted-foreground">Manage your profile and account settings</p>
+        </div>
 
-        <div class="flex flex-col space-y-8 md:space-y-0 lg:flex-row lg:space-x-12 lg:space-y-0">
+        <div class="flex flex-col space-y-8 md:space-y-0 lg:flex-row lg:space-x-12 lg:space-y-0 px-2">
             <aside class="w-full max-w-xl lg:w-48">
                 <nav class="flex flex-col space-x-0 space-y-1">
                     <Button

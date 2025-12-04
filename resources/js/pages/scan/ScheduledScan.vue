@@ -88,21 +88,17 @@ const fetchSchedules = async () => {
 
         if (res.ok) {
             const json = await res.json()
-            const dataArray = Array.isArray(json) ? json : (json.data || [])
 
-            if (Array.isArray(dataArray)) {
-                scans.value = dataArray.map((s: any) => ({
-                    id: s.id,
-                    codename: s.codename,
-                    url: s.url,
-                    jobType: s.job_type || 'interval',
-                    configuration: typeof s.configuration === 'string'
-                        ? s.configuration
-                        : JSON.stringify(s.configuration || {})
-                }))
-            } else {
-                scans.value = []
-            }
+            // ✅ FIXED: API returns { schedules: [...], count: N }
+            const dataArray = json.schedules || []
+
+            scans.value = dataArray.map((s: any) => ({
+                id: s.id,
+                codename: s.name,        // ✅ API uses 'name'
+                url: s.target,           // ✅ API uses 'target'
+                jobType: s.job_type,     // ✅ API uses 'job_type'
+                configuration: s.configuration  // ✅ Keep as object
+            }))
         } else {
             const errorData = await res.json().catch(() => ({}))
             console.error(`Failed to fetch schedules: ${res.status}`, errorData)
