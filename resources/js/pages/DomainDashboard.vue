@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
+import { format } from 'date-fns'
 import {
     Activity,
     Target,
@@ -13,6 +14,7 @@ import {
 
 // Components
 import Navigation from '@/components/custom/Navigation.vue'
+import DateRangePicker from '@/components/custom/Dashboard/DateRangePicker.vue'
 import {
     Card,
     CardHeader,
@@ -46,12 +48,17 @@ const targets = ref<string[]>([])
 const selectedTarget = ref<string>('all')
 const analysisMode = ref<'snapshot' | 'time-series'>('snapshot')
 
+// Date State (Default to last 90 days)
+const dateRange = ref<{ start: Date; end: Date }>({
+    start: new Date(new Date().setDate(new Date().getDate() - 90)),
+    end: new Date()
+})
+
 // Data
 const stats = ref<DescriptiveStatsResponse | null>(null)
 const trendData = ref<TimeSeriesPoint[]>([])
 
-// Helper: Ensure valid URI for backend (fixes 422 error)
-// Backend expects "http://example.com", frontend often has just "example.com"
+// Helper: Ensure valid URI for backend
 const ensureUrl = (domain: string) => {
     if (!domain || domain === 'all') return '';
     return domain.startsWith('http') ? domain : `http://${domain}`;
@@ -71,32 +78,42 @@ const fetchDashboardData = async () => {
     stats.value = null
     trendData.value = []
 
+    // Format dates for API
+    const dateParams = {
+        start: format(dateRange.value.start, 'yyyy-MM-dd'),
+        end: format(dateRange.value.end, 'yyyy-MM-dd')
+    }
+
     try {
         // 1. Fetch Descriptive Stats
-        const statsParams: any = { mode: analysisMode.value }
+        // Pass date params so histograms and aggregations respect the range
+        const statsParams: any = {
+            mode: analysisMode.value,
+            ...dateParams
+        }
+
         if (selectedTarget.value && selectedTarget.value !== 'all') {
             statsParams.target = selectedTarget.value
         }
 
-        // Use explicit API_BASE
         const statsRes = await axios.get(`${API_BASE}/api/v1/analytics/descriptive`, { params: statsParams })
         stats.value = statsRes.data
 
         // 2. Fetch Time-Series Data (Only in time-series mode)
         if (analysisMode.value === 'time-series' && selectedTarget.value !== 'all') {
-            // FIX: Use 'params' object to generate ?target=http://example.com
-            // This matches the updated Backend Query parameter logic
             const trendRes = await axios.get(`${API_BASE}/test/poll/data/timeseries`, {
                 params: {
                     target: ensureUrl(selectedTarget.value),
-                    days: 90
+                    days: 90, // Fallback if backend uses days, but we prefer dates:
+                    ...dateParams
                 }
             })
 
             if(Array.isArray(trendRes.data)) {
                 trendData.value = trendRes.data.map((d: any) => ({
                     date: d.date,
-                    count: d.total_vulnerabilities || d.count
+                    count: d.total_vulnerabilities || d.count,
+                    critical_count: d.critical_count
                 }));
             }
         }
@@ -106,6 +123,12 @@ const fetchDashboardData = async () => {
     } finally {
         isLoading.value = false
     }
+}
+
+// Handle Date Picker Updates
+const handleDateUpdate = (newRange: { start: Date; end: Date }) => {
+    dateRange.value = newRange
+    fetchDashboardData()
 }
 
 // Watchers
@@ -134,9 +157,14 @@ onMounted(() => {
 
                 <div class="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
 
+                    <DateRangePicker
+                        class="w-full sm:w-auto"
+                        @update:range="handleDateUpdate"
+                    />
+
                     <Tabs v-model="analysisMode" class="w-full sm:w-[300px]">
                         <TabsList class="grid w-full grid-cols-2">
-                            <TabsTrigger value="sna pshot" class="flex items-center gap-2">
+                            <TabsTrigger value="snapshot" class="flex items-center gap-2">
                                 <Camera class="h-4 w-4" /> Snapshot
                             </TabsTrigger>
                             <TabsTrigger value="time-series" class="flex items-center gap-2">
@@ -169,7 +197,7 @@ onMounted(() => {
             <div v-else-if="!stats || stats.meta.report_count === 0" class="flex flex-col items-center justify-center h-64 border rounded-lg bg-muted/10 border-dashed">
                 <AlertTriangle class="h-10 w-10 text-muted-foreground mb-2" />
                 <p class="text-muted-foreground font-medium">No data found for this selection.</p>
-                <p class="text-xs text-muted-foreground mt-1">Try selecting a different target or mode.</p>
+                <p class="text-xs text-muted-foreground mt-1">Try selecting a different target, date range, or mode.</p>
             </div>
 
             <div v-else class="space-y-6 animate-fadein">
@@ -178,14 +206,31 @@ onMounted(() => {
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle class="text-sm font-medium">
-                                {{ analysisMode === 'snapshot' ? 'Mean Findings' : 'Historical Mean' }}
+                                <span v-if="selectedTarget !== 'all' && analysisMode === 'snapshot'">
+                                    Total Findings
+                                </span>
+                                <span v-else>
+                                    {{ analysisMode === 'snapshot' ? 'Mean Findings' : 'Historical Mean' }}
+                                </span>
                             </CardTitle>
                             <Activity class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-2xl font-bold">{{ stats.findings_per_scan?.mean.toFixed(1) || 0 }}</div>
+                            <div class="text-2xl font-bold">
+                                <span v-if="selectedTarget !== 'all' && analysisMode === 'snapshot' && stats.selected_target">
+                                    {{ stats.selected_target.total_vulns }}
+                                </span>
+                                <span v-else>
+                                    {{ stats.findings_per_scan?.mean.toFixed(1) || 0 }}
+                                </span>
+                            </div>
                             <p class="text-xs text-muted-foreground">
-                                Average per {{ analysisMode === 'snapshot' ? 'target' : 'historical scan' }}
+                                <span v-if="selectedTarget !== 'all' && analysisMode === 'snapshot' && stats.selected_target">
+                                    (Global Avg: {{ stats.findings_per_scan?.mean.toFixed(1) }})
+                                </span>
+                                <span v-else>
+                                    Average per {{ analysisMode === 'snapshot' ? 'target' : 'historical scan' }}
+                                </span>
                             </p>
                         </CardContent>
                     </Card>
@@ -198,7 +243,7 @@ onMounted(() => {
                         <CardContent>
                             <div class="text-2xl font-bold">{{ stats.findings_per_scan?.median || 0 }}</div>
                             <p class="text-xs text-muted-foreground">
-                                Typical finding count
+                                Typical finding count (Global)
                             </p>
                         </CardContent>
                     </Card>
@@ -288,7 +333,7 @@ onMounted(() => {
                         <CardHeader>
                             <CardTitle>Statistical Spread (IQR)</CardTitle>
                             <CardDescription>
-                                Box plot showing min, max, median, and quartiles
+                                Box plot showing min, max, median, and quartiles (Global Context)
                             </CardDescription>
                         </CardHeader>
                         <CardContent class="h-[350px]">
@@ -312,7 +357,7 @@ onMounted(() => {
                         <CardHeader>
                             <CardTitle>Vulnerability Trend</CardTitle>
                             <CardDescription>
-                                History over the last 90 days {{ selectedTarget !== 'all' ? `for ${selectedTarget}` : '(Select a target to view trend)' }}
+                                History {{ selectedTarget !== 'all' ? `for ${selectedTarget}` : '(Select a target to view trend)' }}
                             </CardDescription>
                         </CardHeader>
                         <CardContent class="h-[400px]">
@@ -324,7 +369,7 @@ onMounted(() => {
                             </div>
                             <div v-else class="h-full flex items-center justify-center text-muted-foreground">
                                 <p v-if="selectedTarget === 'all'">Select a specific target to view trend data.</p>
-                                <p v-else>No trend data available for this target.</p>
+                                <p v-else>No trend data available for this target in the selected range.</p>
                             </div>
                         </CardContent>
                     </Card>

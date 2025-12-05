@@ -27,7 +27,7 @@ const chartData = computed(() => {
             type: 'scatter',
             mode: 'lines+markers',
             name: 'Total Vulnerabilities',
-            line: { color: SEVERITY_COLORS.informational, width: 3, shape: 'spline' },
+            line: { color: SEVERITY_COLORS.informational, width: 3 },
             fill: 'tozeroy',
             fillcolor: `${SEVERITY_COLORS.informational}1A` // ~10% opacity
         }
