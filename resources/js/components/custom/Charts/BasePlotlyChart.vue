@@ -9,30 +9,62 @@ const props = defineProps<{
 }>();
 
 const chartContainer = ref<HTMLElement | null>(null);
+const isInitialized = ref(false);
 
-// Fix: Ensure this is a standard function, not top-level await
 const drawChart = async () => {
-    if (chartContainer.value) {
-        await Plotly.react(chartContainer.value, props.data, props.layout || {}, {
-            responsive: true,
-            displayModeBar: false,
-            ...props.config
-        });
+    if (!chartContainer.value) return;
+
+    const defaultConfig = {
+        responsive: true,
+        displayModeBar: false,
+        ...props.config
+    };
+
+    try {
+        if (!isInitialized.value) {
+            // First render: use newPlot
+            await Plotly.newPlot(
+                chartContainer.value,
+                props.data,
+                props.layout || {},
+                defaultConfig
+            );
+            isInitialized.value = true;
+        } else {
+            // Subsequent updates: use react for better performance
+            await Plotly.react(
+                chartContainer.value,
+                props.data,
+                props.layout || {},
+                defaultConfig
+            );
+        }
+    } catch (error) {
+        console.error('Plotly rendering error:', error);
     }
 };
 
-watch(() => props.data, drawChart, { deep: true });
-watch(() => props.layout, drawChart, { deep: true });
+watch(() => props.data, async () => {
+    await nextTick();
+    drawChart();
+}, { deep: true });
+
+watch(() => props.layout, async () => {
+    await nextTick();
+    drawChart();
+}, { deep: true });
 
 onMounted(async () => {
     await nextTick();
-    // Initialize chart only after DOM is ready
     drawChart();
     window.addEventListener('resize', drawChart);
 });
 
 onUnmounted(() => {
     window.removeEventListener('resize', drawChart);
+    if (chartContainer.value) {
+        Plotly.purge(chartContainer.value);
+    }
 });
 </script>
 

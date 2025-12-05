@@ -118,12 +118,37 @@ export interface DescriptiveStatsResponse {
         coefficient_of_variation: number;
     };
     severity_distribution?: Record<string, number>;
-    severity_ratios?: Record<string, number>;
+    prevalence?: Record<string, number>;
+
+    severity_type_distribution?: Array<{
+        type: string;
+        Critical: number;
+        High: number;
+        Medium: number;
+        Low: number;
+        Informational: number;
+        total: number;
+    }>;
+
+    selected_target?: {
+        total_vulns: number;
+        rank_percentile: number;
+    };
     message?: string;
 }
 
 export interface TimeSeriesPoint {
     date: string;
     count: number;
-    critical_count?: number; // Optional: if you want to plot criticals separately
+}
+
+export interface TimeSeriesPoint {
+    date: string;
+    count: number;
+}
+
+export interface TimeSeriesPoint {
+    date: string;
+    count: number;
+    critical_count?: number;
 }

@@ -7,7 +7,7 @@ const props = defineProps<{
 }>();
 
 const chartData = computed(() => {
-    // Sort for display (Highest prevalence at top)
+    // Sort ascending for horizontal bar (Top item appears at top)
     const sortedEntries = Object.entries(props.data).sort((a, b) => a[1] - b[1]);
     const categories = sortedEntries.map(e => e[0]);
     const values = sortedEntries.map(e => e[1]);
@@ -16,26 +16,27 @@ const chartData = computed(() => {
         x: values,
         y: categories,
         type: 'bar',
-        orientation: 'h', // Horizontal bar is better for long text labels
+        orientation: 'h',
         text: values.map(v => `${v}%`),
         textposition: 'auto',
         marker: {
-            color: values.map(v => v > 50 ? '#ef4444' : '#3b82f6'), // Red if > 50% prevalence
+            // Highlight widespread issues (>50% prevalence) in Red
+            color: values.map(v => v > 50 ? '#ef4444' : '#3b82f6'),
             opacity: 0.8
         },
-        hoverinfo: 'x+y'
+        hoverinfo: 'y+x'
     }];
 });
 
 const layout = {
-    title: { text: 'Systemic Risk (Prevalence %)', font: { size: 14 } },
-    margin: { t: 30, r: 20, l: 150, b: 40 }, // Larger left margin for labels
+    title: { text: 'Systemic Risk (Prevalence)', font: { size: 14 } },
+    margin: { t: 30, r: 20, l: 220, b: 40 }, // Extra left margin for labels
     xaxis: {
         title: '% of Targets Affected',
         range: [0, 100],
         dtick: 20
     },
-    yaxis: { title: '' }, // Labels are self-explanatory
+    yaxis: { title: '' },
     bargap: 0.2,
     showlegend: false
 };

@@ -3,11 +3,13 @@ import { computed } from 'vue';
 import BasePlotlyChart from './BasePlotlyChart.vue';
 import { getSeverityColor } from '@/lib/colors';
 
+// FIX: Accept 'data' object instead of separate arrays
 const props = defineProps<{
     data: Record<string, number>;
 }>();
 
 const chartData = computed(() => {
+    // Extract keys/values from the object dynamically
     const categories = Object.keys(props.data);
     const values = Object.values(props.data);
 
@@ -18,7 +20,6 @@ const chartData = computed(() => {
         text: values.map(String),
         textposition: 'auto',
         marker: {
-            // Dynamically map colors based on severity keys
             color: categories.map(c => getSeverityColor(c))
         },
         hoverinfo: 'x+y'

@@ -34,7 +34,7 @@ import DistributionHistogram from '@/components/custom/Charts/DistributionHistog
 import OutlierBoxPlot from '@/components/custom/Charts/OutlierBoxPlot.vue';
 import TrendLineChart from '@/components/custom/Charts/TrendLineChart.vue';
 import PrevalenceChart from '@/components/custom/Charts/PrevalenceChart.vue';
-
+import CategoryDistributionChart from '@/components/custom/Charts/CategoryDistributionChart.vue';
 import { DescriptiveStatsResponse, TimeSeriesPoint } from '@/lib/restack/restack.types';
 
 // Config
@@ -136,7 +136,7 @@ onMounted(() => {
 
                     <Tabs v-model="analysisMode" class="w-full sm:w-[300px]">
                         <TabsList class="grid w-full grid-cols-2">
-                            <TabsTrigger value="snapshot" class="flex items-center gap-2">
+                            <TabsTrigger value="sna pshot" class="flex items-center gap-2">
                                 <Camera class="h-4 w-4" /> Snapshot
                             </TabsTrigger>
                             <TabsTrigger value="time-series" class="flex items-center gap-2">
@@ -235,9 +235,7 @@ onMounted(() => {
                     <Card class="col-span-1">
                         <CardHeader>
                             <CardTitle>Severity Distribution</CardTitle>
-                            <CardDescription>
-                                Frequency of vulnerabilities by severity level
-                            </CardDescription>
+                            <CardDescription>Global risk breakdown</CardDescription>
                         </CardHeader>
                         <CardContent class="h-[350px]">
                             <DistributionHistogram
@@ -249,22 +247,17 @@ onMounted(() => {
 
                     <Card class="col-span-1">
                         <CardHeader>
-                            <CardTitle>Statistical Spread (IQR)</CardTitle>
-                            <CardDescription>
-                                Box plot showing min, max, median, and quartiles
-                            </CardDescription>
+                            <CardTitle>Risk by Vulnerability Type</CardTitle>
+                            <CardDescription>Top issues broken down by severity</CardDescription>
                         </CardHeader>
                         <CardContent class="h-[350px]">
-                            <OutlierBoxPlot
-                                v-if="stats.findings_per_scan"
-                                :min="stats.findings_per_scan.min"
-                                :q1="stats.findings_per_scan.q1"
-                                :median="stats.findings_per_scan.median"
-                                :q3="stats.findings_per_scan.q3"
-                                :max="stats.findings_per_scan.max"
-                                :mean="stats.findings_per_scan.mean"
-                                :sd="stats.findings_per_scan.std_dev"
+                            <CategoryDistributionChart
+                                v-if="stats.severity_type_distribution"
+                                :data="stats.severity_type_distribution"
                             />
+                            <div v-else class="h-full flex items-center justify-center text-muted-foreground">
+                                No data available.
+                            </div>
                         </CardContent>
                     </Card>
 
@@ -293,33 +286,22 @@ onMounted(() => {
 
                     <Card class="col-span-1">
                         <CardHeader>
-                            <CardTitle>Risk Hotspots</CardTitle>
-                            <CardDescription>Top 5 most vulnerable targets (Pareto Analysis)</CardDescription>
+                            <CardTitle>Statistical Spread (IQR)</CardTitle>
+                            <CardDescription>
+                                Box plot showing min, max, median, and quartiles
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div v-if="stats && stats.hotspots && stats.hotspots.length > 0" class="space-y-4">
-                                <div v-for="(host, index) in stats.hotspots" :key="index" class="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                                    <div class="flex flex-col overflow-hidden">
-                            <span class="font-medium truncate max-w-[200px]" :title="host.target">
-                                {{ host.target }}
-                            </span>
-                                        <span class="text-xs text-muted-foreground">
-                                {{ host.total_vulns }} total findings
-                            </span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <div class="text-right">
-                                            <div class="text-sm font-bold text-red-600">
-                                                {{ host.critical_count }}
-                                            </div>
-                                            <div class="text-[10px] text-muted-foreground uppercase">Critical</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div v-else class="h-[250px] flex items-center justify-center text-muted-foreground">
-                                No hotspots identified.
-                            </div>
+                        <CardContent class="h-[350px]">
+                            <OutlierBoxPlot
+                                v-if="stats.findings_per_scan"
+                                :min="stats.findings_per_scan.min"
+                                :q1="stats.findings_per_scan.q1"
+                                :median="stats.findings_per_scan.median"
+                                :q3="stats.findings_per_scan.q3"
+                                :max="stats.findings_per_scan.max"
+                                :mean="stats.findings_per_scan.mean"
+                                :sd="stats.findings_per_scan.std_dev"
+                            />
                         </CardContent>
                     </Card>
 
