@@ -15,6 +15,7 @@ import {
 // Components
 import Navigation from '@/components/custom/Navigation.vue'
 import DateRangePicker from '@/components/custom/Dashboard/DateRangePicker.vue'
+import VulnerabilityTable from '@/components/custom/Dashboard/VulnerabilityTable.vue';
 import {
     Card,
     CardHeader,
@@ -31,13 +32,22 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+    Table,
+    TableBody,
+    TableCaption,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
 
 import DistributionHistogram from '@/components/custom/Charts/DistributionHistogram.vue';
 import OutlierBoxPlot from '@/components/custom/Charts/OutlierBoxPlot.vue';
 import TrendLineChart from '@/components/custom/Charts/TrendLineChart.vue';
 import PrevalenceChart from '@/components/custom/Charts/PrevalenceChart.vue';
 import CategoryDistributionChart from '@/components/custom/Charts/CategoryDistributionChart.vue';
-import { DescriptiveStatsResponse, TimeSeriesPoint } from '@/lib/restack/restack.types';
+import { DescriptiveStatsResponse, TimeSeriesPoint, RawVulnerability } from '@/lib/restack/restack.types'; // Ensure RawVulnerability is added to types
 
 // Config
 const API_BASE = "http://localhost:25565";
@@ -57,6 +67,7 @@ const dateRange = ref<{ start: Date; end: Date }>({
 // Data
 const stats = ref<DescriptiveStatsResponse | null>(null)
 const trendData = ref<TimeSeriesPoint[]>([])
+const vulnerabilities = ref<RawVulnerability[]>([])
 
 // Helper: Ensure valid URI for backend
 const ensureUrl = (domain: string) => {
@@ -77,6 +88,7 @@ const fetchDashboardData = async () => {
     isLoading.value = true
     stats.value = null
     trendData.value = []
+    vulnerabilities.value = []
 
     // Format dates for API
     const dateParams = {
@@ -85,26 +97,31 @@ const fetchDashboardData = async () => {
     }
 
     try {
-        // 1. Fetch Descriptive Stats
-        // Pass date params so histograms and aggregations respect the range
-        const statsParams: any = {
+        // 1. Prepare Params
+        const queryParams: any = {
             mode: analysisMode.value,
             ...dateParams
         }
 
         if (selectedTarget.value && selectedTarget.value !== 'all') {
-            statsParams.target = selectedTarget.value
+            queryParams.target = selectedTarget.value
         }
 
-        const statsRes = await axios.get(`${API_BASE}/api/v1/analytics/descriptive`, { params: statsParams })
+        // 2. Fetch Descriptive Stats
+        const statsRes = await axios.get(`${API_BASE}/api/v1/analytics/descriptive`, { params: queryParams })
         stats.value = statsRes.data
 
-        // 2. Fetch Time-Series Data (Only in time-series mode)
+        // 3. Fetch Vulnerability List (New Endpoint)
+        // We use the same params (target + date range) to ensure the table matches the charts
+        const vulnsRes = await axios.get(`${API_BASE}/api/v1/analytics/vulnerabilities`, { params: queryParams })
+        vulnerabilities.value = vulnsRes.data
+
+        // 4. Fetch Time-Series Data (Only in time-series mode)
         if (analysisMode.value === 'time-series' && selectedTarget.value !== 'all') {
             const trendRes = await axios.get(`${API_BASE}/test/poll/data/timeseries`, {
                 params: {
                     target: ensureUrl(selectedTarget.value),
-                    days: 90, // Fallback if backend uses days, but we prefer dates:
+                    days: 90, // Fallback if backend uses days
                     ...dateParams
                 }
             })
@@ -374,7 +391,9 @@ onMounted(() => {
                         </CardContent>
                     </Card>
                 </div>
-
+                <div class="col-span-1 md:col-span-2 lg:col-span-4 animate-fadein">
+                    <VulnerabilityTable :data="vulnerabilities" />
+                </div>
             </div>
         </div>
     </Navigation>

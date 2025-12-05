@@ -142,13 +142,11 @@ export interface TimeSeriesPoint {
     count: number;
 }
 
-export interface TimeSeriesPoint {
+export interface RawVulnerability {
+    severity: string;
+    type: string;
+    endpoint: string;
+    scanner: string;
     date: string;
-    count: number;
-}
-
-export interface TimeSeriesPoint {
-    date: string;
-    count: number;
-    critical_count?: number;
+    target: string;
 }
