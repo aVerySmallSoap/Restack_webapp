@@ -162,13 +162,13 @@ onMounted(() => {
 
 <template>
     <Navigation>
-        <div class="p-6 space-y-6">
+        <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
 
             <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-card p-4 rounded-lg border shadow-sm">
                 <div>
-                    <h1 class="text-2xl font-bold tracking-tight">Analytics Dashboard</h1>
+                    <h1 class="px-2 text-4xl font-bold">Analytics Dashboard</h1>
                     <p class="text-muted-foreground text-sm mt-1">
-                        {{ analysisMode === 'snapshot' ? 'Current security posture (Latest Scans)' : 'Historical performance and trends' }}
+                        {{ analysisMode === 'snapshot' ? 'Latest Scan Performance and Trends' : 'Historical performance and trends' }}
                     </p>
                 </div>
 

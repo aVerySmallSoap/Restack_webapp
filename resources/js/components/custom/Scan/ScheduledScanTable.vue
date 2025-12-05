@@ -64,19 +64,48 @@ const getFrequencyLabel = (type: string) => {
     return map[type] || type
 }
 
-// Fixed parseConfiguration to handle the API response format
-const parseConfiguration = (config: any) => {
+// Improved configuration formatter
+const formatConfiguration = (config: any, jobType: string) => {
     try {
-        // If it's already an object, convert to entries array
-        if (config && typeof config === 'object') {
-            const ignoredKeys = ['profile']
-            const entries = Object.entries(config).filter(([key]) => !ignoredKeys.includes(key))
-            return entries
+        if (!config || typeof config !== 'object') {
+            return 'No configuration'
         }
-        return []
+
+        const ignoredKeys = ['profile']
+
+        if (jobType === 'interval') {
+            // Format interval configuration into a readable string
+            const parts = []
+            if (config.weeks) parts.push(`${config.weeks}w`)
+            if (config.days) parts.push(`${config.days}d`)
+            if (config.hours) parts.push(`${config.hours}h`)
+            if (config.minutes) parts.push(`${config.minutes}m`)
+            if (config.seconds) parts.push(`${config.seconds}s`)
+
+            return parts.length > 0 ? `Every ${parts.join(' ')}` : 'Not configured'
+        } else if (jobType === 'cron') {
+            // Format cron configuration
+            const cronParts = [
+                config.second || '0',
+                config.minute || '0',
+                config.hour || '0',
+                config.day || '*',
+                config.month || '*',
+                config.year || '*'
+            ]
+            return cronParts.join(' ')
+        }
+
+        // Fallback for other types
+        const entries = Object.entries(config)
+            .filter(([key]) => !ignoredKeys.includes(key))
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ')
+
+        return entries || 'No configuration'
     } catch (e) {
-        console.error('Error parsing configuration:', e)
-        return []
+        console.error('Error formatting configuration:', e)
+        return 'Invalid configuration'
     }
 }
 
@@ -103,7 +132,7 @@ const columns: ColumnDef<ScheduledScan>[] = [
     },
     {
         accessorKey: 'configuration',
-        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Configuration' }),
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Schedule' }),
         cell: ({ row }) => row.getValue('configuration'),
     },
     {
@@ -177,9 +206,9 @@ const table = useVueTable({
                                     <template v-else-if="cell.column.id === 'url'">
                                         <a :href="cell.getValue() as string"
                                            target="_blank"
-                                        class="text-muted-foreground hover:underline text-sm"
+                                           class="text-muted-foreground hover:underline text-sm"
                                         >
-                                        {{ cell.getValue() }}
+                                            {{ cell.getValue() }}
                                         </a>
                                     </template>
 
@@ -193,21 +222,12 @@ const table = useVueTable({
                                         </div>
                                     </template>
 
-                                    <!-- Configuration Column -->
+                                    <!-- Configuration Column - IMPROVED -->
                                     <template v-else-if="cell.column.id === 'configuration'">
-                                        <div class="flex flex-wrap gap-1">
-                                            <template v-if="parseConfiguration(cell.getValue()).length > 0">
-                                                <Badge
-                                                    v-for="[key, value] in parseConfiguration(cell.getValue())"
-                                                    :key="key"
-                                                    variant="outline"
-                                                    class="font-mono text-[10px] px-2 py-0.5 h-5"
-                                                >
-                                                    <span class="text-muted-foreground">{{ key }}:</span>
-                                                    <span class="ml-1 font-semibold">{{ value }}</span>
-                                                </Badge>
-                                            </template>
-                                            <span v-else class="text-muted-foreground text-xs">No config</span>
+                                        <div class="flex items-center gap-2">
+                                            <code class="relative rounded bg-muted px-3 py-1.5 font-mono text-xs">
+                                                {{ formatConfiguration(cell.getValue(), row.original.jobType) }}
+                                            </code>
                                         </div>
                                     </template>
 
