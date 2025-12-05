@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
+use Illuminate\Database\Eloquent\Builder;
 class Scan extends Model
 {
     use HasUuids;
@@ -21,5 +21,19 @@ class Scan extends Model
     public function report(): BelongsTo
     {
         return $this->belongsTo(Report::class, 'report_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+
+    protected static function booted(): void
+    {
+        // Use the imported Builder class for the type hint
+        static::addGlobalScope('ancient', function (Builder $builder) {
+            $builder->where('created_at', '<', now()->subYear());
+        });
     }
 }

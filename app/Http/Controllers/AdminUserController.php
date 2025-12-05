@@ -6,14 +6,18 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
-
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 class AdminUserController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the users.
      */
     public function index(): Response
     {
+        Gate::authorize('viewAny', User::class);
+
         return Inertia::render('admin/Users', [
             'users' => User::select('id', 'name', 'email', 'created_at', 'is_admin')
                 ->orderBy('created_at', 'desc')

@@ -91,8 +91,12 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
 // -- Metrics --
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+
     // -- Admin User Management --
-    Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users');
+
+    Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+        Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    });
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
 
     Route::get('/history', [HistoryController::class, 'index'])->name('history.index');

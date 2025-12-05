@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SidebarProps } from '@/components/ui/sidebar';
 import { usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed } from 'vue'; // Ensure this is imported
 
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -18,19 +18,19 @@ const props = withDefaults(defineProps<SidebarProps>(), {
 });
 
 const isDark = useDark();
-
-// Fetch real user from Inertia props
 const page = usePage();
+
+// 1. Fetch user safely
 const user = computed(() => page.props.auth.user);
 
-const data = {
+// 2. Wrap 'data' in computed() so it can use logic
+const data = computed(() => ({
     navScan: [
         {
             title: 'Scan',
             url: '/scan',
             icon: Zap
         },
-
         {
             title: 'Scheduled Scan',
             url: '/scheduled',
@@ -57,11 +57,14 @@ const data = {
                 },
             ],
         },
-        {
+
+        // 3. LOGIC: Only add this object if is_admin is true
+        ...(page.props.auth.user?.is_admin ? [{
             title: 'Users',
             url: '/users',
             icon: Users,
-        },
+        }] : []),
+
         {
             title: 'Settings',
             url: '/settings/profile',
@@ -82,7 +85,7 @@ const data = {
             ],
         },
     ],
-};
+}));
 </script>
 
 <template>
