@@ -254,14 +254,10 @@ const techTable = useVueTable({
         </Card>
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Card>
-                <CardHeader><CardTitle>Severity Distribution</CardTitle></CardHeader>
-                <CardContent><SeverityPieChart :vulnerabilities="safeData.vulnerabilities" /></CardContent>
-            </Card>
-            <Card>
-                <CardHeader><CardTitle>Findings by Scanner</CardTitle></CardHeader>
-                <CardContent><ScannerBarChart :vulnerabilities="safeData.vulnerabilities" /></CardContent>
-            </Card>
+
+            <SeverityPieChart :vulnerabilities="safeData.vulnerabilities" />
+            <ScannerBarChart :vulnerabilities="safeData.vulnerabilities" />
+
         </div>
 
         <Card>

@@ -48,10 +48,6 @@ const data = computed(() => ({
                     url: '/dashboard',
                 },
                 {
-                    title: 'Metrics by Domain',
-                    url: '/domain-dashboard',
-                },
-                {
                     title: 'History',
                     url: '/history',
                 },

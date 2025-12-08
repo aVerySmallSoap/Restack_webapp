@@ -1,31 +1,29 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { router } from '@inertiajs/vue3'
-import { Donut } from "@unovis/ts"
-import { VisSingleContainer, VisDonut } from '@unovis/vue'
+import { ref, onMounted, watch } from 'vue'
+import { Head } from '@inertiajs/vue3'
+import AppLayout from '@/layouts/AppLayout.vue'
 import {
-    ScanSearch,
-    FileText,
-    Target,
+    ShieldCheck,
     Activity,
-    Timer,
-    BarChart3,
-    ArrowUpRight
+    AlertTriangle,
+    Calendar,
+    Target,
+    RotateCcw,
 } from 'lucide-vue-next'
+import axios from 'axios'
 
 // Components
-import Navigation from '@/components/custom/Navigation.vue'
-import HistoryTable from "@/components/custom/History/HistoryTable.vue"
+import CustomAreaChart from '@/components/custom/Charts/CustomAreaChart.vue'
+import CustomDonutChart from '@/components/custom/Charts/CustomDonutChart.vue'
+import CustomHorizBarChart from '@/components/custom/Charts/CustomHorizBarChart.vue'
+import CustomTrendChart from '@/components/custom/Charts/CustomTrendChart.vue'
 import DateRangePicker from '@/components/custom/Dashboard/DateRangePicker.vue'
-import ParetoAnalysis from '@/components/custom/Dashboard/ParetoAnalysis.vue'
-import SeverityDistributionChart from '@/components/custom/Dashboard/SeverityDistributionChart.vue'
-
 import {
     Card,
+    CardContent,
+    CardDescription,
     CardHeader,
     CardTitle,
-    CardContent,
-    CardDescription
 } from '@/components/ui/card'
 import {
     Table,
@@ -35,316 +33,335 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import {
-    ChartConfig,
-    ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent
-} from '@/components/ui/chart';
-import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import VulnerabilityTrendChart from '@/components/custom/Dashboard/VulnerabilityTrendChart.vue'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 
-// Types
-import { ScanHistory } from '@/lib/restack/restack.types'
-import { SEVERITY_CHART_CONFIG } from '@/lib/colors'
+// State
+const loading = ref(true)
+const analyticsData = ref<any>(null)
+const rawVulns = ref<any[]>([])
 
-const props = defineProps<{
-    stats: {
-        totalScans: number
-        totalVulns: number
-        criticalVulns: number
-        highVulns: number
-    }
-    recentScans: ScanHistory[]
-    vulnerabilityDistribution: Array<{ severity: string, count: number }>
-    vulnerabilityTimeline: Array<{ date: string, total: number, critical: number }>
-    filters: {
-        start: string
-        end: string
-    }
-}>()
+// Filter State
+const selectedDomain = ref<string>("all")
+const dateRange = ref<{ start: string | null, end: string | null }>({
+    start: null,
+    end: null
+})
+const availableDomains = ref<string[]>([])
 
-// ---------- Polling Logic ----------
-const API_ENDPOINT = "http://localhost:25565/test/poll/data/summary/30"
-const live_data = ref<any>(null)
-let pollingInterval: ReturnType<typeof setInterval> | null = null
-
-const fetchSummaryData = async () => {
+// Fetch available domains/targets
+const fetchDomains = async () => {
     try {
-        const res = await fetch(API_ENDPOINT)
-        if (!res.ok) throw new Error('Network response was not ok')
-        const data = await res.json()
-        live_data.value = data
+        const res = await axios.get('http://localhost:25565/api/v1/analytics/targets')
+        availableDomains.value = res.data.domains
     } catch (e) {
-        console.error("Failed to fetch summary data", e)
+        console.error("Failed to load targets", e)
     }
 }
+
+// Main analytics fetch with dynamic filters
+const fetchAnalytics = async () => {
+    try {
+        loading.value = true
+
+        // Construct Query Params based on filters
+        const params = new URLSearchParams()
+
+        // Only add target param if not "all"
+        if (selectedDomain.value && selectedDomain.value !== 'all') {
+            params.append('target', selectedDomain.value)
+        }
+
+        // Add date range if selected
+        if (dateRange.value.start) params.append('start', dateRange.value.start)
+        if (dateRange.value.end) params.append('end', dateRange.value.end)
+
+        // Fetch Chart Data from the dashboard endpoint
+        const res = await fetch(`http://localhost:25565/api/v1/analytics/dashboard?${params.toString()}`)
+        analyticsData.value = await res.json()
+
+        // Fetch Raw Vulnerability Data for Table
+        const rawRes = await fetch(`http://localhost:25565/api/v1/analytics/vulnerabilities?${params.toString()}`)
+        rawVulns.value = await rawRes.json()
+
+    } catch (error) {
+        console.error("Failed to load analytics", error)
+    } finally {
+        loading.value = false
+    }
+}
+
+// Handle date range updates from DateRangePicker
+const handleDateUpdate = (range: any) => {
+    console.log('Date range updated:', range) // Debug log
+
+    if (range?.start && range?.end) {
+        // DateRangePicker emits JS Date objects
+        const startDate = range.start instanceof Date
+            ? range.start.toISOString().split('T')[0]
+            : range.start
+        const endDate = range.end instanceof Date
+            ? range.end.toISOString().split('T')[0]
+            : range.end
+
+        dateRange.value = {
+            start: startDate,
+            end: endDate
+        }
+        console.log('Formatted dates:', dateRange.value) // Debug log
+    } else {
+        dateRange.value = { start: null, end: null }
+    }
+}
+
+// Reset all filters
+const resetFilters = () => {
+    selectedDomain.value = "all"
+    dateRange.value = { start: null, end: null }
+}
+
+// Watch filters and refetch when they change
+watch(() => [selectedDomain.value, dateRange.value.start, dateRange.value.end], () => {
+    fetchAnalytics()
+})
 
 onMounted(() => {
-    fetchSummaryData()
-    pollingInterval = setInterval(fetchSummaryData, 30_000)
+    fetchDomains()
+    fetchAnalytics()
 })
 
-onUnmounted(() => {
-    if (pollingInterval) clearInterval(pollingInterval)
-})
-
-// ---------- Computed Stats (Safe Access) ----------
-const summaryStats = computed(() => live_data.value?.summary_statistics || {})
-const scanDistribution = computed(() => live_data.value?.scan_type_distribution || {})
-const scanDurations = computed(() => live_data.value?.average_scan_duration || {})
-const topTargets = computed(() => live_data.value?.most_scanned_targets || [])
-
-// Helper: Format duration from seconds to readable string
-const formatDuration = (seconds: number) => {
-    if (!seconds) return '0s'
-    if (seconds < 60) return `${Math.round(seconds)}s`
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = Math.round(seconds % 60)
-    return `${minutes}m ${remainingSeconds}s`
+const severityColor = (sev: string) => {
+    switch (sev.toLowerCase()) {
+        case 'critical': return 'destructive';
+        case 'high': return 'destructive';
+        case 'medium': return 'secondary';
+        case 'low': return 'outline';
+        default: return 'outline';
+    }
 }
-
-// Helper: Capitalize keys (e.g. "full scan" -> "Full Scan")
-const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
-
-// ---------- Chart Configuration ----------
-const donutConfig = SEVERITY_CHART_CONFIG
-
-
-// ---------- Interactive Donut Logic ----------
-const activeSegmentKey = ref<string | null>(null)
-
-const totalDistVulns = computed(() =>
-    props.vulnerabilityDistribution.reduce((acc, curr) => acc + curr.count, 0)
-)
-
-const centralLabel = computed(() => {
-    if (activeSegmentKey.value) {
-        const segment = props.vulnerabilityDistribution.find(d => d.severity === activeSegmentKey.value)
-        return segment ? `${segment.count}` : '0'
-    }
-    return `${totalDistVulns.value}`
-})
-
-const centralSubLabel = computed(() => {
-    if (activeSegmentKey.value) {
-        return activeSegmentKey.value.charAt(0).toUpperCase() + activeSegmentKey.value.slice(1)
-    }
-    return 'Total'
-})
-
-// ---------- State & Navigation ----------
-const loading = ref(false)
-const dateRange = ref({
-    start: props.filters.start ? new Date(props.filters.start) : new Date(new Date().setDate(new Date().getDate() - 30)),
-    end: props.filters.end ? new Date(props.filters.end) : new Date(),
-})
-
-function onRangeUpdate(range: { start: Date, end: Date }) {
-    dateRange.value = range
-}
-
-watch(dateRange, (newRange) => {
-    if (newRange.start && newRange.end) {
-        loading.value = true
-        router.get(route('dashboard'), {
-            start: newRange.start.toISOString(),
-            end: newRange.end.toISOString()
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-            only: ['stats', 'recentScans', 'vulnerabilityDistribution', 'vulnerabilityTimeline', 'filters'],
-            onFinish: () => loading.value = false
-        })
-    }
-}, { deep: true })
 </script>
 
 <template>
-    <Navigation>
-        <div class="flex flex-1 flex-col gap-6 p-4 pt-0">
-            <div class="flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0">
-                <div>
-                    <h1 class="font-bold px-2 text-3xl tracking-tight">System Overview</h1>
-                    <p class="px-2 text-sm text-muted-foreground">Summary for all domains</p>
+    <Head title="Analytics Dashboard" />
+
+    <AppLayout>
+        <div class="p-6 space-y-6">
+
+            <!-- Header with Filters -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex flex-col gap-2">
+                    <h1 class="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
+                    <p class="text-muted-foreground">
+                        {{ selectedDomain === 'all' ? 'Global posture overview' : `Detailed analysis for ${selectedDomain}` }}
+                    </p>
                 </div>
-                <DateRangePicker
-                    :model-value="dateRange"
-                    @update:range="onRangeUpdate"
-                />
+
+                <!-- Filter Controls -->
+                <div class="flex flex-col sm:flex-row items-center gap-2">
+                    <Select v-model="selectedDomain">
+                        <SelectTrigger class="w-[200px]">
+                            <SelectValue placeholder="Select Target" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Targets</SelectItem>
+                            <SelectItem
+                                v-for="domain in availableDomains"
+                                :key="domain"
+                                :value="domain"
+                            >
+                                {{ domain }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <DateRangePicker
+                        @update:range="handleDateUpdate"
+                    />
+
+                    <Button variant="outline" size="icon" @click="resetFilters" title="Reset Filters">
+                        <RotateCcw class="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
 
-            <div v-if="loading" class="space-y-6">
-                <div class="grid gap-4 grid-cols-1 md:grid-cols-4">
-                    <Skeleton class="h-[120px] w-full" v-for="i in 4" :key="i" />
-                </div>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <Skeleton class="h-[300px] w-full col-span-2" />
-                    <Skeleton class="h-[300px] w-full" />
-                </div>
+            <!-- Loading State -->
+            <div v-if="loading" class="flex items-center justify-center h-96">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
 
-            <div v-else class="space-y-6 animate-fadein">
+            <!-- Main Dashboard Content -->
+            <div v-else-if="analyticsData && analyticsData.kpi" class="space-y-6">
 
                 <!-- KPI Cards -->
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="text-sm font-medium">Total Scans Executed</CardTitle>
-                            <ScanSearch class="h-4 w-4 text-muted-foreground" />
+                            <CardTitle class="text-sm font-medium">Target</CardTitle>
+                            <Target class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-2xl font-bold">{{ summaryStats.total_scans ?? 0 }}</div>
-                            <p class="text-xs text-muted-foreground">Across all environments</p>
+                            <div class="text-2xl font-bold truncate">{{ analyticsData.kpi.target }}</div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="text-sm font-medium">Total Findings</CardTitle>
-                            <FileText class="h-4 w-4 text-muted-foreground" />
+                            <CardTitle class="text-sm font-medium">Total Scans</CardTitle>
+                            <Activity class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-2xl font-bold">{{ summaryStats.total_vulnerabilities_found ?? 0 }}</div>
-                            <div class="flex items-center text-xs text-muted-foreground">
-                                <span class="font-medium text-foreground mr-1">
-                                    {{ Math.round(summaryStats.average_vulns_per_scan ?? 0) }}
-                                </span>
-                                avg per scan
+                            <div class="text-2xl font-bold">{{ analyticsData.kpi.total_scans }}</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">Current Risk (Vulns)</CardTitle>
+                            <AlertTriangle class="h-4 w-4 text-destructive" />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold">{{ analyticsData.kpi.total_vulns }}</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">Time Period</CardTitle>
+                            <Calendar class="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold">{{ analyticsData.kpi.days_analyzed }} <span class="text-xs font-normal text-muted-foreground">Days</span></div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">Stability Score</CardTitle>
+                            <ShieldCheck class="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold" :class="analyticsData.kpi.stability_score > 80 ? 'text-green-600' : 'text-yellow-600'">
+                                {{ analyticsData.kpi.stability_score }}%
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="text-sm font-medium">Scan Velocity</CardTitle>
-                            <Activity class="h-4 w-4 text-emerald-500" />
+                            <CardTitle class="text-sm font-medium">Last Scan</CardTitle>
+                            <Activity class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-2xl font-bold">{{ summaryStats.scans_per_day ?? 0 }}</div>
-                            <p class="text-xs text-muted-foreground">scans per day</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="text-sm font-medium">Active Targets</CardTitle>
-                            <Target class="h-4 w-4 text-indigo-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div class="text-2xl font-bold">{{ summaryStats.unique_targets ?? 0 }}</div>
-                            <p class="text-xs text-muted-foreground">unique endpoints probed</p>
+                            <div class="text-lg font-bold">{{ analyticsData.kpi.last_scan || 'N/A' }}</div>
                         </CardContent>
                     </Card>
                 </div>
 
-                <!-- Vulnerability Trend -->
-                <VulnerabilityTrendChart
-                    class="h-[450px]"
-                    :data="props.vulnerabilityTimeline"
-                />
+                <!-- Charts Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                <!-- Pareto Analysis + Severity Distribution -->
-                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <ParetoAnalysis class="min-h-[500px]" />
-
-                    <SeverityDistributionChart
-                        :vulnerability-distribution="props.vulnerabilityDistribution"
-                    />
-                </div>
-
-                <!-- Scanner Performance + Top Targets -->
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-7">
-
-                    <Card class="md:col-span-4 flex flex-col">
+                    <!-- Vulnerabilities Over Time -->
+                    <Card class="lg:col-span-2">
                         <CardHeader>
-                            <CardTitle class="flex items-center gap-2">
-                                <BarChart3 class="h-5 w-5 text-muted-foreground" />
-                                Scanner Performance Metrics
-                            </CardTitle>
-                            <CardDescription>Breakdown of execution volume and average duration by engine.</CardDescription>
+                            <CardTitle>Vulnerabilities Over Time</CardTitle>
+                            <CardDescription>Aggregated daily vulnerability count</CardDescription>
                         </CardHeader>
-                        <CardContent class="p-0">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Scanner Type</TableHead>
-                                        <TableHead class="text-center">Execution Count</TableHead>
-                                        <TableHead class="text-right">Avg Duration</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow v-for="(count, type) in scanDistribution" :key="type">
-                                        <TableCell class="font-medium capitalize">
-                                            {{ type }}
-                                        </TableCell>
-                                        <TableCell class="text-center">
-                                            <Badge variant="secondary" class="rounded-sm">
-                                                {{ count }}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell class="text-right font-mono text-xs">
-                                            <div class="flex items-center justify-end gap-2">
-                                                {{ formatDuration(scanDurations[type]) }}
-                                                <Timer class="h-3 w-3 text-muted-foreground" />
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                    <TableRow v-if="Object.keys(scanDistribution).length === 0">
-                                        <TableCell colspan="3" class="text-center h-24 text-muted-foreground">
-                                            No scanner data available.
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
+                        <CardContent>
+                            <CustomAreaChart :data="analyticsData.charts.history" />
                         </CardContent>
                     </Card>
 
-                    <Card class="md:col-span-3 flex flex-col">
+                    <!-- Severity Distribution -->
+                    <Card class="lg:col-span-1">
                         <CardHeader>
-                            <CardTitle>Most Scanned Targets</CardTitle>
-                            <CardDescription>Endpoints with highest scan frequency.</CardDescription>
+                            <CardTitle>Severity Distribution</CardTitle>
+                            <CardDescription>Latest scan breakdown</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div class="space-y-4">
-                                <div v-for="(target, index) in topTargets.slice(0, 5)" :key="index" class="flex items-center justify-between">
-                                    <div class="flex items-center space-x-3 overflow-hidden">
-                                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-muted/50 text-xs font-bold">
-                                            {{ index + 1 }}
-                                        </div>
-                                        <div class="flex flex-col truncate">
-                                            <a :href="target.url" target="_blank" class="text-sm font-medium hover:underline truncate w-[180px] md:w-[140px] lg:w-[200px]" :title="target.url">
-                                                {{ target.url.replace(/^https?:\/\//, '') }}
-                                            </a>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-sm font-bold">{{ target.scan_count }}</span>
-                                        <ArrowUpRight class="h-3 w-3 text-muted-foreground" />
-                                    </div>
-                                </div>
-                                <div v-if="topTargets.length === 0" class="flex h-full items-center justify-center text-muted-foreground text-sm">
-                                    No target data available.
-                                </div>
+                            <CustomDonutChart :data="analyticsData.charts.distribution" />
+                        </CardContent>
+                    </Card>
+
+                    <!-- Top Vulnerability Types -->
+                    <Card class="lg:col-span-1">
+                        <CardHeader>
+                            <CardTitle>Top Vulnerability Types</CardTitle>
+                            <CardDescription>Most frequent issue types (Top 5)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <!-- Debug: Show raw data -->
+                            <div v-if="!analyticsData.charts.types || analyticsData.charts.types.length === 0" class="text-sm text-muted-foreground py-4">
+                                No vulnerability types data available
+                            </div>
+                            <div v-else-if="analyticsData.charts.types.length > 0">
+                                <!-- Debug info (remove after fixing) -->
+                                <details class="mb-4 text-xs">
+                                    <summary class="cursor-pointer text-muted-foreground">Debug Data</summary>
+                                    <pre class="mt-2 p-2 bg-muted rounded">{{ JSON.stringify(analyticsData.charts.types, null, 2) }}</pre>
+                                </details>
+                                <CustomHorizBarChart :data="analyticsData.charts.types" />
                             </div>
                         </CardContent>
                     </Card>
+
+                    <!-- Trend Analysis -->
+                    <Card class="lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle>Trend Analysis</CardTitle>
+                            <CardDescription>Linear regression of risk exposure</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <CustomTrendChart :data="analyticsData.charts.trend" />
+                        </CardContent>
+                    </Card>
                 </div>
 
-                <!-- Recent Scans History -->
-                <HistoryTable :data="props.recentScans" />
+                <!-- Latest Findings Table -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Latest Findings</CardTitle>
+                        <CardDescription>Most recent vulnerabilities detected</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead class="w-[100px]">Severity</TableHead>
+                                    <TableHead>Vulnerability</TableHead>
+                                    <TableHead>Endpoint</TableHead>
+                                    <TableHead>Target</TableHead>
+                                    <TableHead class="text-right">Date</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-for="(vuln, index) in rawVulns" :key="index">
+                                    <TableCell>
+                                        <Badge :variant="severityColor(vuln.severity)">{{ vuln.severity }}</Badge>
+                                    </TableCell>
+                                    <TableCell class="font-medium">{{ vuln.type }}</TableCell>
+                                    <TableCell class="text-muted-foreground truncate max-w-[200px]">{{ vuln.endpoint }}</TableCell>
+                                    <TableCell>{{ vuln.target }}</TableCell>
+                                    <TableCell class="text-right">{{ vuln.date }}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+
+            </div>
+
+            <!-- Empty State -->
+            <div v-else class="flex flex-col items-center justify-center h-96 text-muted-foreground">
+                <AlertTriangle class="h-12 w-12 mb-4 opacity-50" />
+                <p>No analytics data available for this target or time range.</p>
             </div>
         </div>
-    </Navigation>
+    </AppLayout>
 </template>
-
-<style scoped>
-.animate-fadein {
-    animation: fadein 0.5s;
-}
-@keyframes fadein {
-    from { opacity: 0; transform: translateY(10px);}
-    to { opacity: 1; transform: translateY(0);}
-}
-</style>
