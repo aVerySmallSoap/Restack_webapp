@@ -15,14 +15,18 @@ class HistoryController extends Controller
             ->orderBy('scan_date', 'desc')
             ->get()
             ->map(function ($report) {
+                // Get the first associated scan, if available
+                $scan = $report->scans->first();
+
                 return [
                     'id' => $report->id,
-                    'target' => $report->scans->first()->target_url ?? 'Unknown Target',
+                    'target' => $scan->target_url ?? 'Unknown Target',
                     'scanType' => $this->formatScanType($report->scan_type),
                     'totalFindings' => $report->total_vulnerabilities,
                     'criticalHigh' => $report->critical_count,
                     'date' => $report->scan_date->toISOString(),
-                    'status' => 'Completed', // Database currently assumes completed scans
+                    'duration' => $scan->scan_duration ?? 0, // Added duration
+                    'status' => 'Completed',
                 ];
             });
 

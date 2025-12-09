@@ -29,11 +29,5 @@ class Scan extends Model
     }
 
 
-    protected static function booted(): void
-    {
-        // Use the imported Builder class for the type hint
-        static::addGlobalScope('ancient', function (Builder $builder) {
-            $builder->where('created_at', '<', now()->subYear());
-        });
-    }
+
 }

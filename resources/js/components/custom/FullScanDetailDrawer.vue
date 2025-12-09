@@ -16,6 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Copy, ExternalLink } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import CodeBlock from '@/components/custom/CodeBlock.vue'
+import { getSeverityColor } from '@/lib/colors'
 
 // Extend interface to support fields from Automated/Basic scans
 interface FullVulnerability {
@@ -49,6 +50,14 @@ const openState = computed({
     set: (value: boolean) => emit('update:open', value),
 })
 
+const severityStyle = computed(() => {
+    return {
+        backgroundColor: getSeverityColor(props.vuln?.severity || 'informational'),
+        color: '#ffffff',
+        border: 'none'
+    }
+})
+
 const parsedReferences = computed(() => {
     if (!props.vuln?.reference || props.vuln.reference === 'N/A') return []
 
@@ -71,15 +80,6 @@ const parsedReferences = computed(() => {
     return links
 })
 
-function getSeverityVariant(severity: string | undefined): 'destructive' | 'default' | 'secondary' | 'outline' {
-    switch (severity?.toLowerCase()) {
-        case 'critical': case 'high': return 'destructive'
-        case 'medium': return 'default'
-        case 'low': return 'secondary'
-        default: return 'outline'
-    }
-}
-
 function copyToClipboard(text: string, label: string) {
     navigator.clipboard.writeText(text)
     toast.success(`${label} copied to clipboard`)
@@ -92,7 +92,7 @@ function copyToClipboard(text: string, label: string) {
             <div class="p-6 pb-2">
                 <SheetHeader>
                     <SheetTitle class="flex items-center gap-2 text-2xl break-words">
-                        <Badge :variant="getSeverityVariant(vuln?.severity)">{{ vuln?.severity || 'Unknown' }}</Badge>
+                        <Badge :style="severityStyle">{{ vuln?.severity || 'Unknown' }}</Badge>
                         <span class="truncate">{{ vuln?.type || 'Vulnerability' }}</span>
                     </SheetTitle>
                     <SheetDescription>

@@ -23,6 +23,7 @@ import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue
 import DataTablePagination from '@/components/custom/DataTablePagination.vue'
 import BasicScanDetailDrawer from '@/components/custom/BasicScanDetailDrawer.vue'
 import FullScanDetailDrawer from '@/components/custom/FullScanDetailDrawer.vue'
+import { getSeverityColor } from '@/lib/colors'
 
 import type { ScanResult, Vulnerability, Technology } from '@/lib/restack/restack.types'
 
@@ -53,17 +54,16 @@ function showVulnDetail(vuln: Vulnerability) {
     drawerOpen.value = true
 }
 
-// Logic Update: Automated scans now treated as Full scans for drawer routing
 const isBasicScan = computed(() => {
     const type = safeData.value.scanType.toLowerCase()
     return type.includes('basic') || type.includes('wapiti')
 })
 
-function getSeverityBadge(severity: string) {
-    switch (severity?.toLowerCase()) {
-        case 'critical': case 'high': return 'destructive'
-        case 'medium': return 'default'
-        default: return 'secondary'
+function getSeverityStyle(level: any) {
+    return {
+        backgroundColor: getSeverityColor(level),
+        color: '#ffffff',
+        border: 'none'
     }
 }
 
@@ -86,7 +86,7 @@ const priorityColumns: ColumnDef<Vulnerability>[] = [
     {
         accessorKey: 'severity',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
-        cell: ({ row }) => h(Badge, { variant: getSeverityBadge(row.getValue('severity')) }, () => row.getValue('severity')),
+        cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity')),
     },
     {
         accessorKey: 'endpoint',
@@ -111,7 +111,7 @@ const vulnerabilityColumns: ColumnDef<Vulnerability>[] = [
     {
         accessorKey: 'severity',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
-        cell: ({ row }) => h(Badge, { variant: getSeverityBadge(row.getValue('severity')) }, () => row.getValue('severity')),
+        cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity')),
         sortingFn: (a, b) => mapSeverityToNumber(b.original.severity) - mapSeverityToNumber(a.original.severity),
     },
     { accessorKey: 'scanner', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Scanner' }) },
@@ -254,10 +254,8 @@ const techTable = useVueTable({
         </Card>
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-
             <SeverityPieChart :vulnerabilities="safeData.vulnerabilities" />
             <ScannerBarChart :vulnerabilities="safeData.vulnerabilities" />
-
         </div>
 
         <Card>

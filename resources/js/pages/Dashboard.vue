@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, h } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import {
@@ -43,6 +43,20 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 
+// Data Table Imports
+import {
+    useVueTable,
+    getCoreRowModel,
+    getSortedRowModel,
+    getPaginationRowModel,
+    FlexRender,
+    type ColumnDef,
+    type SortingState,
+} from '@tanstack/vue-table'
+import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue'
+import DataTablePagination from '@/components/custom/DataTablePagination.vue'
+import { getSeverityColor } from '@/lib/colors'
+
 // State
 const loading = ref(true)
 const analyticsData = ref<any>(null)
@@ -55,6 +69,78 @@ const dateRange = ref<{ start: string | null, end: string | null }>({
     end: null
 })
 const availableDomains = ref<string[]>([])
+
+// Data Table State
+const sorting = ref<SortingState>([])
+
+// Helper for Severity Colors
+const getSeverityStyle = (sev: string) => {
+    return {
+        backgroundColor: getSeverityColor(sev),
+        color: '#ffffff',
+        border: 'none'
+    }
+}
+
+// Helper for Sorting Severity
+const mapSeverityToNumber = (sev: string) => {
+    switch (sev?.toLowerCase()) {
+        case 'critical': return 4;
+        case 'high': return 3;
+        case 'medium': return 2;
+        case 'low': return 1;
+        default: return 0;
+    }
+}
+
+// Data Table Columns Configuration
+const columns: ColumnDef<any>[] = [
+    {
+        accessorKey: 'severity',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
+        cell: ({ row }) => h(Badge, {
+            style: getSeverityStyle(row.getValue('severity'))
+        }, () => row.getValue('severity')),
+        sortingFn: (a, b) => mapSeverityToNumber(b.original.severity) - mapSeverityToNumber(a.original.severity),
+    },
+    {
+        accessorKey: 'type',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Vulnerability' }),
+        cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue('type')),
+    },
+    {
+        accessorKey: 'endpoint',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Endpoint' }),
+        cell: ({ row }) => h('div', { class: 'truncate max-w-[250px] text-muted-foreground' }, row.getValue('endpoint')),
+    },
+    {
+        accessorKey: 'target',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Target' }),
+        cell: ({ row }) => h('div', { class: 'truncate max-w-[150px]' }, row.getValue('target')),
+    },
+    {
+        accessorKey: 'date',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Date' }),
+        cell: ({ row }) => h('div', { class: 'text-right' }, row.getValue('date')),
+    },
+]
+
+// Initialize Table
+const table = useVueTable({
+    get data() { return rawVulns.value },
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onSortingChange: (updaterOrValue) => {
+        sorting.value = typeof updaterOrValue === 'function'
+            ? updaterOrValue(sorting.value)
+            : updaterOrValue
+    },
+    state: {
+        get sorting() { return sorting.value },
+    },
+})
 
 // Fetch available domains/targets
 const fetchDomains = async () => {
@@ -71,24 +157,19 @@ const fetchAnalytics = async () => {
     try {
         loading.value = true
 
-        // Construct Query Params based on filters
         const params = new URLSearchParams()
-
-        // Only add target param if not "all"
         if (selectedDomain.value && selectedDomain.value !== 'all') {
             params.append('target', selectedDomain.value)
         }
-
-        // Add date range if selected
         if (dateRange.value.start) params.append('start', dateRange.value.start)
         if (dateRange.value.end) params.append('end', dateRange.value.end)
 
-        // Fetch Chart Data from the dashboard endpoint
-        const res = await fetch(`http://localhost:25565/api/v1/analytics/dashboard?${params.toString()}`)
-        analyticsData.value = await res.json()
+        const [dashRes, rawRes] = await Promise.all([
+            fetch(`http://localhost:25565/api/v1/analytics/dashboard?${params.toString()}`),
+            fetch(`http://localhost:25565/api/v1/analytics/vulnerabilities?${params.toString()}`)
+        ])
 
-        // Fetch Raw Vulnerability Data for Table
-        const rawRes = await fetch(`http://localhost:25565/api/v1/analytics/vulnerabilities?${params.toString()}`)
+        analyticsData.value = await dashRes.json()
         rawVulns.value = await rawRes.json()
 
     } catch (error) {
@@ -98,12 +179,9 @@ const fetchAnalytics = async () => {
     }
 }
 
-// Handle date range updates from DateRangePicker
+// Handle date range updates
 const handleDateUpdate = (range: any) => {
-    console.log('Date range updated:', range) // Debug log
-
     if (range?.start && range?.end) {
-        // DateRangePicker emits JS Date objects
         const startDate = range.start instanceof Date
             ? range.start.toISOString().split('T')[0]
             : range.start
@@ -111,23 +189,17 @@ const handleDateUpdate = (range: any) => {
             ? range.end.toISOString().split('T')[0]
             : range.end
 
-        dateRange.value = {
-            start: startDate,
-            end: endDate
-        }
-        console.log('Formatted dates:', dateRange.value) // Debug log
+        dateRange.value = { start: startDate, end: endDate }
     } else {
         dateRange.value = { start: null, end: null }
     }
 }
 
-// Reset all filters
 const resetFilters = () => {
     selectedDomain.value = "all"
     dateRange.value = { start: null, end: null }
 }
 
-// Watch filters and refetch when they change
 watch(() => [selectedDomain.value, dateRange.value.start, dateRange.value.end], () => {
     fetchAnalytics()
 })
@@ -136,16 +208,6 @@ onMounted(() => {
     fetchDomains()
     fetchAnalytics()
 })
-
-const severityColor = (sev: string) => {
-    switch (sev.toLowerCase()) {
-        case 'critical': return 'destructive';
-        case 'high': return 'destructive';
-        case 'medium': return 'secondary';
-        case 'low': return 'outline';
-        default: return 'outline';
-    }
-}
 </script>
 
 <template>
@@ -154,7 +216,6 @@ const severityColor = (sev: string) => {
     <AppLayout>
         <div class="p-6 space-y-6">
 
-            <!-- Header with Filters -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div class="flex flex-col gap-2">
                     <h1 class="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
@@ -163,7 +224,6 @@ const severityColor = (sev: string) => {
                     </p>
                 </div>
 
-                <!-- Filter Controls -->
                 <div class="flex flex-col sm:flex-row items-center gap-2">
                     <Select v-model="selectedDomain">
                         <SelectTrigger class="w-[200px]">
@@ -191,15 +251,12 @@ const severityColor = (sev: string) => {
                 </div>
             </div>
 
-            <!-- Loading State -->
             <div v-if="loading" class="flex items-center justify-center h-96">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
 
-            <!-- Main Dashboard Content -->
-            <div v-else-if="analyticsData && analyticsData.kpi" class="space-y-6">
+            <div v-else-if="analyticsData && analyticsData.kpi" class="space-y-6 animate-fadein">
 
-                <!-- KPI Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -207,7 +264,7 @@ const severityColor = (sev: string) => {
                             <Target class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-2xl font-bold truncate">{{ analyticsData.kpi.target }}</div>
+                            <div class="text-2xl font-bold truncate" :title="analyticsData.kpi.target">{{ analyticsData.kpi.target }}</div>
                         </CardContent>
                     </Card>
 
@@ -223,11 +280,14 @@ const severityColor = (sev: string) => {
 
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="text-sm font-medium">Current Risk (Vulns)</CardTitle>
+                            <CardTitle class="text-sm font-medium">Current Vulnerabilities</CardTitle>
                             <AlertTriangle class="h-4 w-4 text-destructive" />
                         </CardHeader>
                         <CardContent>
                             <div class="text-2xl font-bold">{{ analyticsData.kpi.total_vulns }}</div>
+                            <p class="text-xs text-muted-foreground mt-1">
+                                {{ analyticsData.kpi.total_vulns_all_time }} total across all scans
+                            </p>
                         </CardContent>
                     </Card>
 
@@ -259,15 +319,13 @@ const severityColor = (sev: string) => {
                             <Activity class="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-lg font-bold">{{ analyticsData.kpi.last_scan || 'N/A' }}</div>
+                            <div class="text-lg font-bold truncate">{{ analyticsData.kpi.last_scan || 'N/A' }}</div>
                         </CardContent>
                     </Card>
                 </div>
 
-                <!-- Charts Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                    <!-- Vulnerabilities Over Time -->
                     <Card class="lg:col-span-2">
                         <CardHeader>
                             <CardTitle>Vulnerabilities Over Time</CardTitle>
@@ -278,7 +336,6 @@ const severityColor = (sev: string) => {
                         </CardContent>
                     </Card>
 
-                    <!-- Severity Distribution -->
                     <Card class="lg:col-span-1">
                         <CardHeader>
                             <CardTitle>Severity Distribution</CardTitle>
@@ -289,29 +346,21 @@ const severityColor = (sev: string) => {
                         </CardContent>
                     </Card>
 
-                    <!-- Top Vulnerability Types -->
                     <Card class="lg:col-span-1">
                         <CardHeader>
                             <CardTitle>Top Vulnerability Types</CardTitle>
                             <CardDescription>Most frequent issue types (Top 5)</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <!-- Debug: Show raw data -->
                             <div v-if="!analyticsData.charts.types || analyticsData.charts.types.length === 0" class="text-sm text-muted-foreground py-4">
                                 No vulnerability types data available
                             </div>
-                            <div v-else-if="analyticsData.charts.types.length > 0">
-                                <!-- Debug info (remove after fixing) -->
-                                <details class="mb-4 text-xs">
-                                    <summary class="cursor-pointer text-muted-foreground">Debug Data</summary>
-                                    <pre class="mt-2 p-2 bg-muted rounded">{{ JSON.stringify(analyticsData.charts.types, null, 2) }}</pre>
-                                </details>
+                            <div v-else>
                                 <CustomHorizBarChart :data="analyticsData.charts.types" />
                             </div>
                         </CardContent>
                     </Card>
 
-                    <!-- Trend Analysis -->
                     <Card class="lg:col-span-2">
                         <CardHeader>
                             <CardTitle>Trend Analysis</CardTitle>
@@ -323,41 +372,48 @@ const severityColor = (sev: string) => {
                     </Card>
                 </div>
 
-                <!-- Latest Findings Table -->
                 <Card>
                     <CardHeader>
                         <CardTitle>Latest Findings</CardTitle>
-                        <CardDescription>Most recent vulnerabilities detected</CardDescription>
+                        <CardDescription>Most recent vulnerabilities detected across targets</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead class="w-[100px]">Severity</TableHead>
-                                    <TableHead>Vulnerability</TableHead>
-                                    <TableHead>Endpoint</TableHead>
-                                    <TableHead>Target</TableHead>
-                                    <TableHead class="text-right">Date</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                <TableRow v-for="(vuln, index) in rawVulns" :key="index">
-                                    <TableCell>
-                                        <Badge :variant="severityColor(vuln.severity)">{{ vuln.severity }}</Badge>
-                                    </TableCell>
-                                    <TableCell class="font-medium">{{ vuln.type }}</TableCell>
-                                    <TableCell class="text-muted-foreground truncate max-w-[200px]">{{ vuln.endpoint }}</TableCell>
-                                    <TableCell>{{ vuln.target }}</TableCell>
-                                    <TableCell class="text-right">{{ vuln.date }}</TableCell>
-                                </TableRow>
-                            </TableBody>
-                        </Table>
+                        <div class="rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
+                                        <TableHead v-for="header in headerGroup.headers" :key="header.id">
+                                            <FlexRender
+                                                v-if="!header.isPlaceholder"
+                                                :render="header.column.columnDef.header"
+                                                :props="header.getContext()"
+                                            />
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow v-if="table.getRowModel().rows.length === 0">
+                                        <TableCell :colspan="columns.length" class="h-24 text-center">
+                                            No findings available.
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow v-for="row in table.getRowModel().rows" :key="row.id">
+                                        <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+                                            <FlexRender
+                                                :render="cell.column.columnDef.cell"
+                                                :props="cell.getContext()"
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <DataTablePagination :table="table" />
                     </CardContent>
                 </Card>
 
             </div>
 
-            <!-- Empty State -->
             <div v-else class="flex flex-col items-center justify-center h-96 text-muted-foreground">
                 <AlertTriangle class="h-12 w-12 mb-4 opacity-50" />
                 <p>No analytics data available for this target or time range.</p>
@@ -365,3 +421,13 @@ const severityColor = (sev: string) => {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.animate-fadein {
+    animation: fadein 0.5s ease-out;
+}
+@keyframes fadein {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

@@ -31,6 +31,7 @@ import {
 import SeverityPieChart from '@/components/custom/Charts/SeverityPieChart.vue'
 import ScannerBarChart from '@/components/custom/Charts/ScannerBarChart.vue'
 import { toast } from 'vue-sonner'
+import { getSeverityColor } from '@/lib/colors'
 
 // ---------- CONFIGURATION ----------
 const API_BASE_URL = 'http://127.0.0.1:25565'
@@ -53,10 +54,34 @@ const fullDrawerOpen = ref(false)
 const selectedBasicVuln = ref<any>(null)
 const selectedFullVuln = ref<any>(null)
 
-function getSeverityBadge(level: any) {
-    if (typeof level === 'number') { if (level >= 3) return 'destructive'; if (level === 2) return 'default'; return 'secondary' }
-    switch (level?.toLowerCase()) { case 'critical': case 'high': return 'destructive'; case 'medium': return 'default'; default: return 'secondary' }
+// --- HELPERS ---
+
+// Title Resolver: Checks DB columns first, then dives into JSON data to find the real name
+function resolveVulnTitle(v: any): string {
+    // 1. Check explicit name column
+    if (v.name && v.name !== 'Vulnerability') return v.name
+    // 2. Check vulnerability_type (if not generic)
+    if (v.vulnerability_type && v.vulnerability_type !== 'Vulnerability') return v.vulnerability_type
+    // 3. Check raw data blob for 'ruleId' (Wapiti/SARIF standard) or 'title'
+    if (v.data?.ruleId) return v.data.ruleId
+    if (v.data?.title) return v.data.title
+    if (v.data?.name) return v.data.name
+    // 4. Fallback
+    return 'Vulnerability'
 }
+
+function getSeverityStyle(level: any) {
+    const severityStr = typeof level === 'number'
+        ? (level >= 3 ? 'high' : (level === 2 ? 'medium' : 'low'))
+        : level;
+
+    return {
+        backgroundColor: getSeverityColor(severityStr),
+        color: '#ffffff',
+        border: 'none'
+    }
+}
+
 function mapSeverityToNumber(sev: string) {
     switch (sev?.toLowerCase()) { case 'critical': return 4; case 'high': return 3; case 'medium': return 2; default: return 1 }
 }
@@ -110,22 +135,27 @@ const transformedData = computed(() => {
     if (scanType.value === 'basic') {
         const grouped: Record<string, any> = {}
         props.report.vulnerabilities.forEach((v: any) => {
-            if (!grouped[v.vulnerability_type]) {
-                grouped[v.vulnerability_type] = {
-                    name: v.vulnerability_type,
+            const categoryName = resolveVulnTitle(v)
+
+            if (!grouped[categoryName]) {
+                grouped[categoryName] = {
+                    name: categoryName,
                     desc: v.description,
                     solution: v.remediation_effort,
                     vulns: []
                 }
             }
-            grouped[v.vulnerability_type].vulns.push({
+            grouped[categoryName].vulns.push({
                 severity: v.severity,
                 level: mapSeverityToNumber(v.severity),
                 method: v.method,
                 path: v.endpoint,
                 info: v.description,
                 module: v.scanner,
-                category: v.vulnerability_type,
+                category: categoryName,
+                // Pass type/name specifically so the Drawer picks it up
+                type: categoryName,
+                name: categoryName,
                 description: v.description,
                 solution: v.remediation_effort,
                 http_request: formatHttpRequest(v.http_request),
@@ -153,13 +183,12 @@ const transformedData = computed(() => {
     } else {
         const vulns = props.report.vulnerabilities.map((v: any) => ({
             id: v.id,
-            type: v.vulnerability_type,
+            type: resolveVulnTitle(v),
             severity: v.severity,
             scanner: v.scanner,
             confidence: v.confidence,
             method: v.method,
             endpoint: v.endpoint,
-            // Robust Mapping for Full Drawer
             http_request: formatHttpRequest(v.http_request),
             curl_command: v.data?.curl_command || '',
             exploit: v.data?.evidence || v.data?.exploit || '',
@@ -192,7 +221,11 @@ const transformedData = computed(() => {
 const prioritySorting = ref<SortingState>([])
 const priorityColumns: ColumnDef<any>[] = [
     { accessorKey: 'type', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }), cell: ({ row }) => h('div', { class: 'font-medium truncate max-w-[200px]' }, row.getValue('type')) },
-    { accessorKey: 'severity', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }), cell: ({ row }) => h(Badge, { variant: getSeverityBadge(row.getValue('severity')) }, () => row.getValue('severity')) },
+    {
+        accessorKey: 'severity',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
+        cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity'))
+    },
     { accessorKey: 'endpoint', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Endpoint' }), cell: ({ row }) => h('div', { class: 'truncate max-w-[150px]' }, row.getValue('endpoint')) },
 ]
 const priorityTable = useVueTable({ get data() { return transformedData.value?.priorities || [] }, get columns() { return priorityColumns }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), onSortingChange: (u) => prioritySorting.value = typeof u === 'function' ? u(prioritySorting.value) : u, state: { get sorting() { return prioritySorting.value } } })
@@ -201,7 +234,12 @@ const basicVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const basicFilter = ref('')
 const basicVulnColumns: ColumnDef<any>[] = [
     { accessorKey: 'category', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Category' }), cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue('category')) },
-    { accessorKey: 'severity', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }), cell: ({ row }) => h(Badge, { variant: getSeverityBadge(row.getValue('severity')) }, () => row.getValue('severity')), sortingFn: (a, b) => b.original.level - a.original.level },
+    {
+        accessorKey: 'severity',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
+        cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity')),
+        sortingFn: (a, b) => b.original.level - a.original.level
+    },
     { accessorKey: 'path', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Path' }), cell: ({ row }) => h('div', { class: 'max-w-[250px] truncate font-mono text-xs' }, row.getValue('path')) },
     {
         id: 'actions',
@@ -219,7 +257,11 @@ const fullVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const fullFilter = ref('')
 const fullVulnColumns: ColumnDef<any>[] = [
     { accessorKey: 'type', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }), cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue('type')) },
-    { accessorKey: 'severity', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }), cell: ({ row }) => h(Badge, { variant: getSeverityBadge(row.getValue('severity')) }, () => row.getValue('severity')) },
+    {
+        accessorKey: 'severity',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
+        cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity'))
+    },
     { accessorKey: 'scanner', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Scanner' }) },
     { accessorKey: 'endpoint', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Endpoint' }), cell: ({ row }) => h('div', { class: 'max-w-[150px] truncate' }, row.getValue('endpoint')) },
     { id: 'actions', cell: ({ row }) => h(Button, { variant: 'ghost', size: 'sm', type: 'button', onClick: () => { selectedFullVuln.value = row.original; fullDrawerOpen.value = true } }, () => 'Details') },
@@ -283,18 +325,18 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
                         </CardContent>
                     </Card>
 
-                    <Card v-if="transformedData.aiSummary">
-                        <CardHeader>
-                            <div class="flex items-center justify-between">
-                                <CardTitle class="flex items-center gap-2"><Sparkles class="h-5 w-5 text-primary" /><span>AI Summary & Recommendations</span></CardTitle>
-                                <Badge variant="outline" class="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border-indigo-200"> Powered by Gemini </Badge>
-                            </div>
-                        </CardHeader>
-                        <CardContent class="space-y-4 text-sm">
-                            <div><h4 class="font-semibold mb-2">Overall Assessment</h4><p class="text-muted-foreground">{{ transformedData.aiSummary.assessment }}</p></div>
-                            <div><h4 class="font-semibold mb-2">Key Findings</h4><ul class="list-disc pl-5 space-y-1 text-muted-foreground"><li v-for="(finding, idx) in transformedData.aiSummary.keyFindings" :key="`f-${idx}`">{{ finding }}</li></ul></div>
-                        </CardContent>
-                    </Card>
+<!--                    <Card v-if="transformedData.aiSummary">-->
+<!--                        <CardHeader>-->
+<!--                            <div class="flex items-center justify-between">-->
+<!--                                <CardTitle class="flex items-center gap-2"><Sparkles class="h-5 w-5 text-primary" /><span>AI Summary & Recommendations</span></CardTitle>-->
+<!--                                <Badge variant="outline" class="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border-indigo-200"> Powered by Gemini </Badge>-->
+<!--                            </div>-->
+<!--                        </CardHeader>-->
+<!--                        <CardContent class="space-y-4 text-sm">-->
+<!--                            <div><h4 class="font-semibold mb-2">Overall Assessment</h4><p class="text-muted-foreground">{{ transformedData.aiSummary.assessment }}</p></div>-->
+<!--                            <div><h4 class="font-semibold mb-2">Key Findings</h4><ul class="list-disc pl-5 space-y-1 text-muted-foreground"><li v-for="(finding, idx) in transformedData.aiSummary.keyFindings" :key="`f-${idx}`">{{ finding }}</li></ul></div>-->
+<!--                        </CardContent>-->
+<!--                    </Card>-->
 
                     <div v-if="scanType === 'basic'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Card><CardHeader><CardTitle>Top Vulnerabilities</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow v-for="hg in priorityTable.getHeaderGroups()" :key="hg.id"><TableHead v-for="h in hg.headers" :key="h.id"><FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/></TableHead></TableRow></TableHeader><TableBody><TableRow v-if="!priorityTable.getRowModel().rows.length"><TableCell :colSpan="priorityColumns.length" class="h-24 text-center">No high or medium risks found.</TableCell></TableRow><TableRow v-for="row in priorityTable.getRowModel().rows" :key="row.id"><TableCell v-for="cell in row.getVisibleCells()" :key="cell.id"><FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/></TableCell></TableRow></TableBody></Table></CardContent></Card>
