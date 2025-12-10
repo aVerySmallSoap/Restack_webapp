@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import Navigation from '@/components/custom/Navigation.vue'
 import { Head } from '@inertiajs/vue3'
 import {
@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Loader2, Clock, CalendarClock } from 'lucide-vue-next'
+import { Plus, Loader2, Clock, CalendarClock, Calendar } from 'lucide-vue-next'
 import type { ScheduledScan } from '@/lib/restack/restack.types'
 import ScheduledScansTable from '@/components/custom/Scan/ScheduledScanTable.vue'
 import { toast } from 'vue-sonner'
@@ -49,17 +49,18 @@ const form = ref({
     intervalMinutes: 0,
     intervalSeconds: 0,
 
-    // Cron Config (Singular)
-    cronMonth: '*',
-    cronDay: '*',
-    cronYear: '*',
-    cronHour: '0',
-    cronMinute: '0',
-    cronSecond: '0'
+    // Cron Config - Date/Time Format
+    cronDate: '', // MM/DD/YYYY
+    cronTime: '', // HH:MM:SS
+    cronRecurring: true, // If false, runs once at specific date/time
 })
 
 // --- Helpers ---
 const resetForm = () => {
+    const now = new Date()
+    const date = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`
+
     form.value = {
         codename: '',
         url: '',
@@ -69,14 +70,102 @@ const resetForm = () => {
         intervalHours: 0,
         intervalMinutes: 0,
         intervalSeconds: 0,
-        cronMonth: '*',
-        cronDay: '*',
-        cronYear: '*',
-        cronHour: '0',
-        cronMinute: '0',
-        cronSecond: '0'
+        cronDate: date,
+        cronTime: time,
+        cronRecurring: true,
     }
     editingScheduleId.value = null
+}
+
+// Parse MM/DD/YYYY to month and day
+const parseDateString = (dateStr: string) => {
+    const parts = dateStr.split('/')
+    if (parts.length !== 3) return { month: '*', day: '*', year: '*' }
+
+    const [month, day, year] = parts
+    return {
+        month: form.value.cronRecurring ? '*' : month,
+        day: form.value.cronRecurring ? day : day,
+        year: form.value.cronRecurring ? '*' : year
+    }
+}
+
+// Parse HH:MM:SS to hour, minute, second
+const parseTimeString = (timeStr: string) => {
+    const parts = timeStr.split(':')
+    if (parts.length < 2) return { hour: '0', minute: '0', second: '0' }
+
+    const [hour, minute, second = '0'] = parts
+    return { hour, minute, second }
+}
+
+// Convert user-friendly date/time to cron config
+const buildCronConfig = () => {
+    const dateComponents = parseDateString(form.value.cronDate)
+    const timeComponents = parseTimeString(form.value.cronTime)
+
+    return {
+        second: timeComponents.second,
+        minute: timeComponents.minute,
+        hour: timeComponents.hour,
+        day: dateComponents.day,
+        month: dateComponents.month,
+        year: dateComponents.year
+    }
+}
+
+// Parse cron config back to date/time format
+const parseCronConfig = (config: any) => {
+    const month = config.month !== '*' ? config.month : String(new Date().getMonth() + 1).padStart(2, '0')
+    const day = config.day !== '*' ? config.day : String(new Date().getDate()).padStart(2, '0')
+    const year = config.year !== '*' ? config.year : new Date().getFullYear()
+
+    form.value.cronDate = `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`
+
+    const hour = String(config.hour || '0').padStart(2, '0')
+    const minute = String(config.minute || '0').padStart(2, '0')
+    const second = String(config.second || '0').padStart(2, '0')
+
+    form.value.cronTime = `${hour}:${minute}:${second}`
+
+    // Determine if recurring (day is set but month/year are wildcards)
+    form.value.cronRecurring = config.month === '*' && config.year === '*'
+}
+
+// Generate human-readable description for cron
+const getCronDescription = computed(() => {
+    const dateComponents = parseDateString(form.value.cronDate)
+    const timeComponents = parseTimeString(form.value.cronTime)
+
+    if (form.value.cronRecurring) {
+        return `Every month on day ${dateComponents.day} at ${form.value.cronTime}`
+    } else {
+        return `Once on ${form.value.cronDate} at ${form.value.cronTime}`
+    }
+})
+
+// Generate human-readable description for interval
+const getIntervalDescription = computed(() => {
+    const parts = []
+    if (form.value.intervalWeeks > 0) parts.push(`${form.value.intervalWeeks} week${form.value.intervalWeeks > 1 ? 's' : ''}`)
+    if (form.value.intervalDays > 0) parts.push(`${form.value.intervalDays} day${form.value.intervalDays > 1 ? 's' : ''}`)
+    if (form.value.intervalHours > 0) parts.push(`${form.value.intervalHours} hour${form.value.intervalHours > 1 ? 's' : ''}`)
+    if (form.value.intervalMinutes > 0) parts.push(`${form.value.intervalMinutes} minute${form.value.intervalMinutes > 1 ? 's' : ''}`)
+    if (form.value.intervalSeconds > 0) parts.push(`${form.value.intervalSeconds} second${form.value.intervalSeconds > 1 ? 's' : ''}`)
+
+    return parts.length > 0 ? `Runs every ${parts.join(', ')}` : 'No interval set'
+})
+
+// Validate date format (MM/DD/YYYY)
+const validateDate = () => {
+    const pattern = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/
+    return pattern.test(form.value.cronDate)
+}
+
+// Validate time format (HH:MM:SS)
+const validateTime = () => {
+    const pattern = /^([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/
+    return pattern.test(form.value.cronTime)
 }
 
 // --- API Actions ---
@@ -88,16 +177,14 @@ const fetchSchedules = async () => {
 
         if (res.ok) {
             const json = await res.json()
-
-            // ✅ FIXED: API returns { schedules: [...], count: N }
             const dataArray = json.schedules || []
 
             scans.value = dataArray.map((s: any) => ({
                 id: s.id,
-                codename: s.name,        // ✅ API uses 'name'
-                url: s.target,           // ✅ API uses 'target'
-                jobType: s.job_type,     // ✅ API uses 'job_type'
-                configuration: s.configuration  // ✅ Keep as object
+                codename: s.name,
+                url: s.target,
+                jobType: s.job_type,
+                configuration: s.configuration
             }))
         } else {
             const errorData = await res.json().catch(() => ({}))
@@ -113,44 +200,43 @@ const fetchSchedules = async () => {
 }
 
 const handleCreate = async () => {
-    // Validation
     if (!form.value.url || !form.value.codename) {
         toast.error('Please fill in all required fields')
         return
     }
 
-    // Auto-fix URL if missing protocol
+    // Validate cron date/time if using cron
+    if (form.value.type === 'cron') {
+        if (!validateDate()) {
+            toast.error('Invalid date format. Use MM/DD/YYYY')
+            return
+        }
+        if (!validateTime()) {
+            toast.error('Invalid time format. Use HH:MM:SS')
+            return
+        }
+    }
+
     if (!form.value.url.startsWith('http')) {
         form.value.url = 'https://' + form.value.url
     }
 
     isSubmitting.value = true
 
-    // 1. Construct the configuration object
     let schedulerConfig: Record<string, any> = {}
 
     if (form.value.type === 'interval') {
-        // Build interval config with only non-zero values
         if (form.value.intervalWeeks > 0) schedulerConfig.weeks = form.value.intervalWeeks
         if (form.value.intervalDays > 0) schedulerConfig.days = form.value.intervalDays
         if (form.value.intervalHours > 0) schedulerConfig.hours = form.value.intervalHours
         if (form.value.intervalMinutes > 0) schedulerConfig.minutes = form.value.intervalMinutes
         if (form.value.intervalSeconds > 0) schedulerConfig.seconds = form.value.intervalSeconds
 
-        // Ensure at least one interval value
         if (Object.keys(schedulerConfig).length === 0) {
             schedulerConfig.days = 1
         }
     } else {
-        // Build cron config
-        schedulerConfig = {
-            year: form.value.cronYear,
-            month: form.value.cronMonth,
-            day: form.value.cronDay,
-            hour: form.value.cronHour,
-            minute: form.value.cronMinute,
-            second: form.value.cronSecond
-        }
+        schedulerConfig = buildCronConfig()
     }
 
     try {
@@ -182,7 +268,6 @@ const handleCreate = async () => {
             const errorData = await res.json().catch(() => ({ detail: 'Unknown error' }))
             console.error("API Error:", errorData)
 
-            // Better error message parsing
             const errorMessage = typeof errorData.detail === 'string'
                 ? errorData.detail
                 : JSON.stringify(errorData.detail || errorData)
@@ -199,20 +284,16 @@ const handleCreate = async () => {
 
 const handleEdit = (scan: ScheduledScan) => {
     try {
-        // Parse configuration
         const config = typeof scan.configuration === 'string'
             ? JSON.parse(scan.configuration)
             : scan.configuration
 
-        // Reset form first
         resetForm()
 
-        // Set basic values
         form.value.codename = scan.codename
         form.value.url = scan.url
         form.value.type = scan.jobType
 
-        // Set configuration based on type
         if (scan.jobType === 'interval') {
             form.value.intervalWeeks = config.weeks || 0
             form.value.intervalDays = config.days || 0
@@ -220,15 +301,9 @@ const handleEdit = (scan: ScheduledScan) => {
             form.value.intervalMinutes = config.minutes || 0
             form.value.intervalSeconds = config.seconds || 0
         } else if (scan.jobType === 'cron') {
-            form.value.cronYear = config.year || '*'
-            form.value.cronMonth = config.month || '*'
-            form.value.cronDay = config.day || '*'
-            form.value.cronHour = config.hour || '0'
-            form.value.cronMinute = config.minute || '0'
-            form.value.cronSecond = config.second || '0'
+            parseCronConfig(config)
         }
 
-        // Set editing ID and open dialog
         editingScheduleId.value = scan.id
         isDialogOpen.value = true
 
@@ -251,7 +326,6 @@ const handleDelete = async (id: string) => {
 
         if (res.ok) {
             toast.success('Schedule deleted successfully')
-            // Remove from local state immediately
             scans.value = scans.value.filter(s => s.id !== id)
         } else {
             const errorData = await res.json().catch(() => ({ detail: 'Unknown error' }))
@@ -277,6 +351,7 @@ const handleDialogOpenChange = (open: boolean) => {
 
 onMounted(() => {
     fetchSchedules()
+    resetForm() // Initialize with current date/time
 })
 </script>
 
@@ -305,7 +380,7 @@ onMounted(() => {
                                 {{ editingScheduleId ? 'Edit' : 'Create' }} Scheduled Scan
                             </DialogTitle>
                             <DialogDescription>
-                                Configure a recurring scan job using Interval or Cron syntax.
+                                Configure a recurring scan job with a simple or date/time schedule.
                             </DialogDescription>
                         </DialogHeader>
 
@@ -327,82 +402,153 @@ onMounted(() => {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="interval">Interval (Simple)</SelectItem>
-                                        <SelectItem value="cron">Cron (Advanced)</SelectItem>
+                                        <SelectItem value="interval">Interval (Run every X time)</SelectItem>
+                                        <SelectItem value="cron">Date/Time (Run at specific date/time)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             <div class="border-t my-2"></div>
 
+                            <!-- INTERVAL CONFIGURATION -->
                             <div v-if="form.type === 'interval'" class="space-y-4 animate-in fade-in slide-in-from-top-1">
                                 <div class="flex items-center gap-2 mb-2">
                                     <Clock class="h-4 w-4 text-primary" />
                                     <h4 class="font-medium text-sm">Run every...</h4>
                                 </div>
-                                <div class="grid grid-cols-5 gap-3">
-                                    <div class="grid gap-1.5">
-                                        <Label class="text-xs text-muted-foreground">Weeks</Label>
-                                        <Input type="number" min="0" v-model.number="form.intervalWeeks" />
+
+                                <!-- Quick Presets -->
+                                <div class="grid gap-2">
+                                    <Label>Quick Presets</Label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            @click="() => { form.intervalWeeks = 0; form.intervalDays = 0; form.intervalHours = 1; form.intervalMinutes = 0; form.intervalSeconds = 0 }"
+                                            class="justify-start"
+                                        >
+                                            <Clock class="mr-2 h-4 w-4" />
+                                            Every Hour
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            @click="() => { form.intervalWeeks = 0; form.intervalDays = 0; form.intervalHours = 6; form.intervalMinutes = 0; form.intervalSeconds = 0 }"
+                                            class="justify-start"
+                                        >
+                                            <Clock class="mr-2 h-4 w-4" />
+                                            Every 6 Hours
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            @click="() => { form.intervalWeeks = 0; form.intervalDays = 1; form.intervalHours = 0; form.intervalMinutes = 0; form.intervalSeconds = 0 }"
+                                            class="justify-start"
+                                        >
+                                            <Calendar class="mr-2 h-4 w-4" />
+                                            Daily
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            @click="() => { form.intervalWeeks = 1; form.intervalDays = 0; form.intervalHours = 0; form.intervalMinutes = 0; form.intervalSeconds = 0 }"
+                                            class="justify-start"
+                                        >
+                                            <Calendar class="mr-2 h-4 w-4" />
+                                            Weekly
+                                        </Button>
                                     </div>
+                                </div>
+
+                                <div class="relative">
+                                    <div class="absolute inset-0 flex items-center">
+                                        <span class="w-full border-t" />
+                                    </div>
+                                    <div class="relative flex justify-center text-xs uppercase">
+                                        <span class="bg-background px-2 text-muted-foreground">Or Custom</span>
+                                    </div>
+                                </div>
+
+                                <!-- Custom Interval -->
+                                <div class="grid grid-cols-3 gap-3">
                                     <div class="grid gap-1.5">
                                         <Label class="text-xs text-muted-foreground">Days</Label>
                                         <Input type="number" min="0" v-model.number="form.intervalDays" />
                                     </div>
                                     <div class="grid gap-1.5">
                                         <Label class="text-xs text-muted-foreground">Hours</Label>
-                                        <Input type="number" min="0" v-model.number="form.intervalHours" />
+                                        <Input type="number" min="0" max="23" v-model.number="form.intervalHours" />
                                     </div>
                                     <div class="grid gap-1.5">
                                         <Label class="text-xs text-muted-foreground">Minutes</Label>
-                                        <Input type="number" min="0" v-model.number="form.intervalMinutes" />
-                                    </div>
-                                    <div class="grid gap-1.5">
-                                        <Label class="text-xs text-muted-foreground">Seconds</Label>
-                                        <Input type="number" min="0" v-model.number="form.intervalSeconds" />
+                                        <Input type="number" min="0" max="59" v-model.number="form.intervalMinutes" />
                                     </div>
                                 </div>
-                                <p class="text-[11px] text-muted-foreground">
-                                    Example: 1 Day = Daily scan. 30 Minutes = Every 30 mins.
-                                </p>
+
+                                <!-- Preview -->
+                                <div class="rounded-lg bg-muted p-3 mt-2">
+                                    <p class="text-xs text-muted-foreground mb-1">Interval Preview:</p>
+                                    <p class="text-sm font-medium">{{ getIntervalDescription }}</p>
+                                </div>
                             </div>
 
+                            <!-- DATE/TIME CONFIGURATION -->
                             <div v-else class="space-y-4 animate-in fade-in slide-in-from-top-1">
                                 <div class="flex items-center gap-2 mb-2">
                                     <CalendarClock class="h-4 w-4 text-primary" />
-                                    <h4 class="font-medium text-sm">Cron Configuration</h4>
+                                    <h4 class="font-medium text-sm">Date & Time Configuration</h4>
                                 </div>
-                                <div class="grid grid-cols-3 gap-3">
-                                    <div class="grid gap-1.5">
-                                        <Label class="text-xs text-muted-foreground">Month</Label>
-                                        <Input v-model="form.cronMonth" placeholder="*" />
+
+                                <!-- Date Input -->
+                                <div class="grid gap-2">
+                                    <Label>Date (MM/DD/YYYY)</Label>
+                                    <div class="flex items-center gap-2">
+                                        <Calendar class="h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            v-model="form.cronDate"
+                                            placeholder="MM/DD/YYYY"
+                                            :class="{ 'border-destructive': form.cronDate && !validateDate() }"
+                                        />
                                     </div>
-                                    <div class="grid gap-1.5">
-                                        <Label class="text-xs text-muted-foreground">Day</Label>
-                                        <Input v-model="form.cronDay" placeholder="*" />
-                                    </div>
-                                    <div class="grid gap-1.5">
-                                        <Label class="text-xs text-muted-foreground">Year</Label>
-                                        <Input v-model="form.cronYear" placeholder="*" />
-                                    </div>
+                                    <p class="text-[11px] text-muted-foreground">
+                                        Example: 12/25/2025 for December 25, 2025
+                                    </p>
                                 </div>
-                                <div class="grid grid-cols-3 gap-3">
-                                    <div class="grid gap-1.5">
-                                        <Label class="text-xs text-muted-foreground">Hour (0-23)</Label>
-                                        <Input v-model="form.cronHour" placeholder="0" />
+
+                                <!-- Time Input -->
+                                <div class="grid gap-2">
+                                    <Label>Time (HH:MM:SS)</Label>
+                                    <div class="flex items-center gap-2">
+                                        <Clock class="h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            v-model="form.cronTime"
+                                            placeholder="HH:MM:SS"
+                                            :class="{ 'border-destructive': form.cronTime && !validateTime() }"
+                                        />
                                     </div>
-                                    <div class="grid gap-1.5">
-                                        <Label class="text-xs text-muted-foreground">Minute (0-59)</Label>
-                                        <Input v-model="form.cronMinute" placeholder="0" />
-                                    </div>
-                                    <div class="grid gap-1.5">
-                                        <Label class="text-xs text-muted-foreground">Second (0-59)</Label>
-                                        <Input v-model="form.cronSecond" placeholder="0" />
-                                    </div>
+                                    <p class="text-[11px] text-muted-foreground">
+                                        Example: 14:30:00 for 2:30 PM (24-hour format)
+                                    </p>
                                 </div>
-                                <p class="text-[11px] text-muted-foreground">
-                                    Accepts standard cron syntax (e.g., "*", "*/5", "1,15").
-                                </p>
+
+                                <!-- Recurring Toggle -->
+                                <div class="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        id="recurring"
+                                        v-model="form.cronRecurring"
+                                        class="h-4 w-4 rounded border-gray-300"
+                                    />
+                                    <Label for="recurring" class="text-sm font-normal cursor-pointer">
+                                        Repeat every month on this day
+                                    </Label>
+                                </div>
+
+                                <!-- Preview -->
+                                <div class="rounded-lg bg-muted p-3 mt-2">
+                                    <p class="text-xs text-muted-foreground mb-1">Schedule Preview:</p>
+                                    <p class="text-sm font-medium">{{ getCronDescription }}</p>
+                                </div>
                             </div>
                         </div>
 

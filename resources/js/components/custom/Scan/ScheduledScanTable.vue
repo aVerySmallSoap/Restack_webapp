@@ -59,7 +59,7 @@ const getFrequencyLabel = (type: string) => {
         weekly: 'Weekly',
         monthly: 'Monthly',
         interval: 'Interval',
-        cron: 'Cron'
+        cron: 'Scheduled'
     }
     return map[type] || type
 }
@@ -70,8 +70,6 @@ const formatConfiguration = (config: any, jobType: string) => {
         if (!config || typeof config !== 'object') {
             return 'No configuration'
         }
-
-        const ignoredKeys = ['profile']
 
         if (jobType === 'interval') {
             // Format interval configuration into a readable string
@@ -84,25 +82,30 @@ const formatConfiguration = (config: any, jobType: string) => {
 
             return parts.length > 0 ? `Every ${parts.join(' ')}` : 'Not configured'
         } else if (jobType === 'cron') {
-            // Format cron configuration
-            const cronParts = [
-                config.second || '0',
-                config.minute || '0',
-                config.hour || '0',
-                config.day || '*',
-                config.month || '*',
-                config.year || '*'
-            ]
-            return cronParts.join(' ')
+            // Format cron configuration as date/time
+            const month = config.month !== '*' ? String(config.month).padStart(2, '0') : 'XX'
+            const day = config.day !== '*' ? String(config.day).padStart(2, '0') : 'XX'
+            const year = config.year !== '*' ? config.year : 'XXXX'
+            const hour = String(config.hour || '0').padStart(2, '0')
+            const minute = String(config.minute || '0').padStart(2, '0')
+            const second = String(config.second || '0').padStart(2, '0')
+
+            // Determine if it's recurring or one-time
+            const isRecurring = config.month === '*' && config.year === '*'
+
+            if (isRecurring) {
+                // Recurring monthly schedule
+                return `Every month on day ${day} at ${hour}:${minute}:${second}`
+            } else {
+                // One-time or specific date
+                const dateStr = `${month}/${day}/${year}`
+                const timeStr = `${hour}:${minute}:${second}`
+                return `${dateStr} ${timeStr}`
+            }
         }
 
         // Fallback for other types
-        const entries = Object.entries(config)
-            .filter(([key]) => !ignoredKeys.includes(key))
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(', ')
-
-        return entries || 'No configuration'
+        return 'Unknown schedule type'
     } catch (e) {
         console.error('Error formatting configuration:', e)
         return 'Invalid configuration'
@@ -222,12 +225,12 @@ const table = useVueTable({
                                         </div>
                                     </template>
 
-                                    <!-- Configuration Column - IMPROVED -->
+                                    <!-- Configuration Column - IMPROVED DATE/TIME FORMAT -->
                                     <template v-else-if="cell.column.id === 'configuration'">
                                         <div class="flex items-center gap-2">
-                                            <code class="relative rounded bg-muted px-3 py-1.5 font-mono text-xs">
+                                            <span class="text-sm text-foreground">
                                                 {{ formatConfiguration(cell.getValue(), row.original.jobType) }}
-                                            </code>
+                                            </span>
                                         </div>
                                     </template>
 
