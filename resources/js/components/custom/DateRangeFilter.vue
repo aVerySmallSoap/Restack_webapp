@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { CalendarIcon, X } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
+import { RangeCalendar } from '@/components/ui/range-calendar'
 import {
     Popover,
     PopoverContent,
@@ -19,7 +19,10 @@ interface DateRangeFilterProps {
 
 const props = defineProps<DateRangeFilterProps>()
 
-const dateRange = ref()
+const dateRange = ref({
+    start: undefined,
+    end: undefined,
+})
 
 const df = new DateFormatter('en-US', {
     dateStyle: 'medium',
@@ -35,22 +38,22 @@ const displayValue = computed(() => {
     return 'Pick a date range'
 })
 
-function handleSelect(range: any) {
-    dateRange.value = range
-
-    // Apply filter to column
-    if (range?.start || range?.end) {
-        const fromDate = range.start ? range.start.toDate(getLocalTimeZone()) : undefined
-        const toDate = range.end ? range.end.toDate(getLocalTimeZone()) : undefined
+// Watch for changes and apply filter
+watch(dateRange, (newRange) => {
+    if (newRange?.start || newRange?.end) {
+        const fromDate = newRange.start ? newRange.start.toDate(getLocalTimeZone()) : undefined
+        const toDate = newRange.end ? newRange.end.toDate(getLocalTimeZone()) : undefined
         props.column?.setFilterValue([fromDate, toDate])
     } else {
         props.column?.setFilterValue(undefined)
     }
-}
+}, { deep: true })
 
 function clearFilter() {
-    dateRange.value = undefined
-    props.column?.setFilterValue(undefined)
+    dateRange.value = {
+        start: undefined,
+        end: undefined,
+    }
 }
 
 const hasFilter = computed(() => dateRange.value?.start || dateRange.value?.end)
@@ -73,11 +76,10 @@ const hasFilter = computed(() => dateRange.value?.start || dateRange.value?.end)
                 </Button>
             </PopoverTrigger>
             <PopoverContent class="w-auto p-0" align="start">
-                <Calendar
+                <RangeCalendar
                     v-model="dateRange"
-                    mode="range"
                     :number-of-months="2"
-                    @update:model-value="handleSelect"
+                    initial-focus
                 />
             </PopoverContent>
         </Popover>
