@@ -27,14 +27,6 @@ const setCookie = (name: string, value: string, days = 365) => {
     document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
 };
 
-const mediaQuery = () => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    return window.matchMedia('(prefers-color-scheme: dark)');
-};
-
 const getStoredAppearance = () => {
     if (typeof window === 'undefined') {
         return null;
@@ -45,21 +37,29 @@ const getStoredAppearance = () => {
 
 const handleSystemThemeChange = () => {
     const currentAppearance = getStoredAppearance();
-
-    updateTheme(currentAppearance || 'system');
+    // Only update if the user is currently on 'system' mode
+    if (!currentAppearance || currentAppearance === 'system') {
+        updateTheme('system');
+    }
 };
+
+// Keep a persistent reference to prevent garbage collection of the listener
+let mediaQueryList: MediaQueryList | null = null;
 
 export function initializeTheme() {
     if (typeof window === 'undefined') {
         return;
     }
 
-    // Initialize theme from saved preference or default to system...
+    // Initialize theme from saved preference or default to system
     const savedAppearance = getStoredAppearance();
     updateTheme(savedAppearance || 'system');
 
-    // Set up system theme change listener...
-    mediaQuery()?.addEventListener('change', handleSystemThemeChange);
+    // Set up system theme change listener safely
+    if (!mediaQueryList) {
+        mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQueryList.addEventListener('change', handleSystemThemeChange);
+    }
 }
 
 export function useAppearance() {
@@ -76,10 +76,10 @@ export function useAppearance() {
     function updateAppearance(value: Appearance) {
         appearance.value = value;
 
-        // Store in localStorage for client-side persistence...
+        // Store in localStorage for client-side persistence
         localStorage.setItem('appearance', value);
 
-        // Store in cookie for SSR...
+        // Store in cookie for SSR
         setCookie('appearance', value);
 
         updateTheme(value);

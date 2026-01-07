@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Report;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 
 class HistoryController extends Controller
@@ -25,7 +26,7 @@ class HistoryController extends Controller
                     'totalFindings' => $report->total_vulnerabilities,
                     'criticalHigh' => $report->critical_count,
                     'date' => $report->scan_date->toISOString(),
-                    'duration' => $scan->scan_duration ?? 0, // Added duration
+                    'duration' => $scan->scan_duration ?? 0,
                     'status' => 'Completed',
                 ];
             });
@@ -46,11 +47,24 @@ class HistoryController extends Controller
         ]);
     }
 
-    // Delete a report
+    // Delete a report via the Python API to ensure full cleanup
     public function destroy(string $id)
     {
-        Report::findOrFail($id)->delete();
-        return to_route('history.index');
+        try {
+            // Call the Python API to handle deletion (DB + Files)
+            // Using the port 25565 as specified
+            $response = Http::delete("http://127.0.0.1:25565/v1/history/{$id}");
+
+            if ($response->successful()) {
+                return to_route('history.index');
+            }
+
+            // Fallback: If API fails, notify the user rather than force deleting locally
+            return back()->with('error', 'Failed to delete report from analysis engine.');
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Could not connect to analysis engine.');
+        }
     }
 
     // Helper to make scan types look nice (e.g., "wapiti scan" -> "Basic")

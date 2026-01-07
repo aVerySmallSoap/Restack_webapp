@@ -31,7 +31,7 @@
     },
     "dependencies": {
         "@inertiajs/vue3": "^2.0.0",
-        "@internationalized/date": "^3.10.0",
+        "@internationalized/date": "^3.10.1",
         "@tailwindcss/vite": "^4.1.1",
         "@tanstack/table-core": "^8.21.3",
         "@tanstack/vue-table": "^8.21.3",
@@ -52,7 +52,7 @@
         "ogl": "^1.0.11",
         "plotly.js-dist-min": "^3.3.0",
         "radix-vue": "^1.9.17",
-        "reka-ui": "^2.6.1",
+        "reka-ui": "^2.7.0",
         "tailwind-merge": "^3.4.0",
         "tailwindcss": "^4.1.1",
         "typescript": "^5.2.2",
