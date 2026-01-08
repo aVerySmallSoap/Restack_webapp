@@ -7,12 +7,14 @@ import {
     getFilteredRowModel,
     getPaginationRowModel,
     getSortedRowModel,
+    getFacetedRowModel,
+    getFacetedUniqueValues,
     FlexRender,
     type ColumnDef,
     type SortingState,
     type ColumnFiltersState,
 } from '@tanstack/vue-table'
-import { ArrowUpDown, MoreHorizontal, Trash2, Calendar, Clock, Edit, Copy } from 'lucide-vue-next'
+import { MoreHorizontal, Trash2, Calendar, Clock, Edit, Copy } from 'lucide-vue-next'
 
 // Components
 import { Button } from '@/components/ui/button'
@@ -30,6 +32,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue'
 import DataTablePagination from '@/components/custom/DataTablePagination.vue'
+import FacetedFilter from '@/components/custom/FacetedFilter.vue'
 
 // Types
 import type { ScheduledScan } from '@/lib/restack/restack.types'
@@ -64,6 +67,12 @@ const getFrequencyLabel = (type: string) => {
     return map[type] || type
 }
 
+// Filter options for job types
+const jobTypeOptions = [
+    { label: 'Interval', value: 'interval' },
+    { label: 'Scheduled (Cron)', value: 'cron' },
+]
+
 // Improved configuration formatter
 const formatConfiguration = (config: any, jobType: string) => {
     try {
@@ -72,7 +81,6 @@ const formatConfiguration = (config: any, jobType: string) => {
         }
 
         if (jobType === 'interval') {
-            // Format interval configuration into a readable string
             const parts = []
             if (config.weeks) parts.push(`${config.weeks}w`)
             if (config.days) parts.push(`${config.days}d`)
@@ -82,7 +90,6 @@ const formatConfiguration = (config: any, jobType: string) => {
 
             return parts.length > 0 ? `Every ${parts.join(' ')}` : 'Not configured'
         } else if (jobType === 'cron') {
-            // Format cron configuration as date/time
             const month = config.month !== '*' ? String(config.month).padStart(2, '0') : 'XX'
             const day = config.day !== '*' ? String(config.day).padStart(2, '0') : 'XX'
             const year = config.year !== '*' ? config.year : 'XXXX'
@@ -90,21 +97,17 @@ const formatConfiguration = (config: any, jobType: string) => {
             const minute = String(config.minute || '0').padStart(2, '0')
             const second = String(config.second || '0').padStart(2, '0')
 
-            // Determine if it's recurring or one-time
             const isRecurring = config.month === '*' && config.year === '*'
 
             if (isRecurring) {
-                // Recurring monthly schedule
                 return `Every month on day ${day} at ${hour}:${minute}:${second}`
             } else {
-                // One-time or specific date
                 const dateStr = `${month}/${day}/${year}`
                 const timeStr = `${hour}:${minute}:${second}`
                 return `${dateStr} ${timeStr}`
             }
         }
 
-        // Fallback for other types
         return 'Unknown schedule type'
     } catch (e) {
         console.error('Error formatting configuration:', e)
@@ -132,6 +135,9 @@ const columns: ColumnDef<ScheduledScan>[] = [
         accessorKey: 'jobType',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }),
         cell: ({ row }) => row.getValue('jobType'),
+        filterFn: (row, id, value) => {
+            return value.includes(row.getValue(id))
+        },
     },
     {
         accessorKey: 'configuration',
@@ -153,6 +159,8 @@ const table = useVueTable({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
     state: {
         get sorting() { return sorting.value },
         get columnFilters() { return columnFilters.value },
@@ -162,18 +170,38 @@ const table = useVueTable({
     onColumnFiltersChange: (updater) => columnFilters.value = typeof updater === 'function' ? updater(columnFilters.value) : updater,
     onGlobalFilterChange: (updater) => globalFilter.value = typeof updater === 'function' ? updater(globalFilter.value) : updater,
 })
+
+const isFiltered = computed(() => columnFilters.value.length > 0)
+
+function resetFilters() {
+    table.resetColumnFilters()
+}
 </script>
 
 <template>
     <Card>
         <CardContent class="p-6">
-            <div class="flex items-center justify-between py-4">
+            <div class="flex flex-wrap items-center gap-2 py-4">
                 <Input
-                    placeholder="Filter schedules..."
+                    placeholder="Search schedules..."
                     :model-value="globalFilter"
                     @update:model-value="globalFilter = String($event)"
-                    class="max-w-sm"
+                    class="h-8 w-[200px] lg:w-[250px]"
                 />
+                <FacetedFilter
+                    v-if="table.getColumn('jobType')"
+                    :column="table.getColumn('jobType')"
+                    title="Schedule Type"
+                    :options="jobTypeOptions"
+                />
+                <Button
+                    v-if="isFiltered"
+                    variant="ghost"
+                    @click="resetFilters"
+                    class="h-8 px-2 lg:px-3"
+                >
+                    Reset
+                </Button>
             </div>
 
             <div class="rounded-md border">
@@ -225,7 +253,7 @@ const table = useVueTable({
                                         </div>
                                     </template>
 
-                                    <!-- Configuration Column - IMPROVED DATE/TIME FORMAT -->
+                                    <!-- Configuration Column -->
                                     <template v-else-if="cell.column.id === 'configuration'">
                                         <div class="flex items-center gap-2">
                                             <span class="text-sm text-foreground">

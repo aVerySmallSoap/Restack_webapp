@@ -6,9 +6,12 @@ import {
     getSortedRowModel,
     getPaginationRowModel,
     getFilteredRowModel,
+    getFacetedRowModel,
+    getFacetedUniqueValues,
     FlexRender,
     type ColumnDef,
     type SortingState,
+    type ColumnFiltersState,
 } from '@tanstack/vue-table'
 import { Sparkles, AlertCircle, Download, FileSpreadsheet, FileText } from 'lucide-vue-next'
 import Navigation from '@/components/custom/Navigation.vue'
@@ -16,6 +19,7 @@ import FullScanDetailDrawer from '@/components/custom/FullScanDetailDrawer.vue'
 import BasicScanDetailDrawer from '@/components/custom/BasicScanDetailDrawer.vue'
 import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue'
 import DataTablePagination from '@/components/custom/DataTablePagination.vue'
+import FacetedFilter from '@/components/custom/FacetedFilter.vue'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
@@ -218,6 +222,25 @@ const transformedData = computed(() => {
     }
 })
 
+// --- FILTER OPTIONS ---
+const severityOptions = [
+    { label: 'Critical', value: 'critical' },
+    { label: 'High', value: 'high' },
+    { label: 'Medium', value: 'medium' },
+    { label: 'Low', value: 'low' },
+    { label: 'Informational', value: 'informational' },
+]
+
+const scannerOptions = computed(() => {
+    if (!transformedData.value?.vulns) return []
+    const scanners = new Set(transformedData.value.vulns.map((v: any) => v.scanner).filter(Boolean))
+    return Array.from(scanners).sort().map(scanner => ({
+        label: scanner,
+        value: scanner
+    }))
+})
+
+// --- TABLE SETUP ---
 const prioritySorting = ref<SortingState>([])
 const priorityColumns: ColumnDef<any>[] = [
     { accessorKey: 'type', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }), cell: ({ row }) => h('div', { class: 'font-medium truncate max-w-[200px]' }, row.getValue('type')) },
@@ -230,15 +253,19 @@ const priorityColumns: ColumnDef<any>[] = [
 ]
 const priorityTable = useVueTable({ get data() { return transformedData.value?.priorities || [] }, get columns() { return priorityColumns }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), onSortingChange: (u) => prioritySorting.value = typeof u === 'function' ? u(prioritySorting.value) : u, state: { get sorting() { return prioritySorting.value } } })
 
+// BASIC SCAN TABLE
 const basicVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const basicFilter = ref('')
+const basicColumnFilters = ref<ColumnFiltersState>([])
+
 const basicVulnColumns: ColumnDef<any>[] = [
     { accessorKey: 'category', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Category' }), cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue('category')) },
     {
         accessorKey: 'severity',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
         cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity')),
-        sortingFn: (a, b) => b.original.level - a.original.level
+        sortingFn: (a, b) => b.original.level - a.original.level,
+        filterFn: (row, id, value) => value.includes(row.getValue(id)?.toLowerCase())
     },
     { accessorKey: 'path', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Path' }), cell: ({ row }) => h('div', { class: 'max-w-[250px] truncate font-mono text-xs' }, row.getValue('path')) },
     {
@@ -251,22 +278,64 @@ const basicVulnColumns: ColumnDef<any>[] = [
         }, () => 'Details')
     },
 ]
-const basicTable = useVueTable({ get data() { return transformedData.value?.allVulns || [] }, get columns() { return basicVulnColumns }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(), onSortingChange: (u) => basicVulnSorting.value = typeof u === 'function' ? u(basicVulnSorting.value) : u, onGlobalFilterChange: (u) => basicFilter.value = typeof u === 'function' ? u(basicFilter.value) : u, state: { get sorting() { return basicVulnSorting.value }, get globalFilter() { return basicFilter.value } } })
+const basicTable = useVueTable({
+    get data() { return transformedData.value?.allVulns || [] },
+    get columns() { return basicVulnColumns },
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    onSortingChange: (u) => basicVulnSorting.value = typeof u === 'function' ? u(basicVulnSorting.value) : u,
+    onGlobalFilterChange: (u) => basicFilter.value = typeof u === 'function' ? u(basicFilter.value) : u,
+    onColumnFiltersChange: (u) => basicColumnFilters.value = typeof u === 'function' ? u(basicColumnFilters.value) : u,
+    state: {
+        get sorting() { return basicVulnSorting.value },
+        get globalFilter() { return basicFilter.value },
+        get columnFilters() { return basicColumnFilters.value }
+    }
+})
 
+// FULL SCAN TABLE
 const fullVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const fullFilter = ref('')
+const fullColumnFilters = ref<ColumnFiltersState>([])
+
 const fullVulnColumns: ColumnDef<any>[] = [
     { accessorKey: 'type', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }), cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue('type')) },
     {
         accessorKey: 'severity',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
-        cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity'))
+        cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity')),
+        filterFn: (row, id, value) => value.includes(row.getValue(id)?.toLowerCase())
     },
-    { accessorKey: 'scanner', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Scanner' }) },
+    {
+        accessorKey: 'scanner',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Scanner' }),
+        filterFn: (row, id, value) => value.includes(row.getValue(id))
+    },
     { accessorKey: 'endpoint', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Endpoint' }), cell: ({ row }) => h('div', { class: 'max-w-[150px] truncate' }, row.getValue('endpoint')) },
     { id: 'actions', cell: ({ row }) => h(Button, { variant: 'ghost', size: 'sm', type: 'button', onClick: () => { selectedFullVuln.value = row.original; fullDrawerOpen.value = true } }, () => 'Details') },
 ]
-const fullTable = useVueTable({ get data() { return transformedData.value?.vulns || [] }, get columns() { return fullVulnColumns }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(), onSortingChange: (u) => fullVulnSorting.value = typeof u === 'function' ? u(fullVulnSorting.value) : u, onGlobalFilterChange: (u) => fullFilter.value = typeof u === 'function' ? u(fullFilter.value) : u, state: { get sorting() { return fullVulnSorting.value }, get globalFilter() { return fullFilter.value } } })
+const fullTable = useVueTable({
+    get data() { return transformedData.value?.vulns || [] },
+    get columns() { return fullVulnColumns },
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    onSortingChange: (u) => fullVulnSorting.value = typeof u === 'function' ? u(fullVulnSorting.value) : u,
+    onGlobalFilterChange: (u) => fullFilter.value = typeof u === 'function' ? u(fullFilter.value) : u,
+    onColumnFiltersChange: (u) => fullColumnFilters.value = typeof u === 'function' ? u(fullColumnFilters.value) : u,
+    state: {
+        get sorting() { return fullVulnSorting.value },
+        get globalFilter() { return fullFilter.value },
+        get columnFilters() { return fullColumnFilters.value }
+    }
+})
 
 const techFilter = ref('')
 const techColumns: ColumnDef<any>[] = [
@@ -274,6 +343,21 @@ const techColumns: ColumnDef<any>[] = [
     { accessorKey: 'version', header: 'Version' },
 ]
 const techTable = useVueTable({ get data() { return transformedData.value?.technologies || [] }, get columns() { return techColumns }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), getFilteredRowModel: getFilteredRowModel(), onGlobalFilterChange: (u) => techFilter.value = typeof u === 'function' ? u(techFilter.value) : u, state: { get globalFilter() { return techFilter.value } } })
+
+// Helper to determine active filters state for reset button
+const isFiltered = computed(() => {
+    return scanType.value === 'basic'
+        ? basicColumnFilters.value.length > 0
+        : fullColumnFilters.value.length > 0
+})
+
+function resetFilters() {
+    if (scanType.value === 'basic') {
+        basicTable.resetColumnFilters()
+    } else {
+        fullTable.resetColumnFilters()
+    }
+}
 </script>
 
 <template>
@@ -325,19 +409,6 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
                         </CardContent>
                     </Card>
 
-<!--                    <Card v-if="transformedData.aiSummary">-->
-<!--                        <CardHeader>-->
-<!--                            <div class="flex items-center justify-between">-->
-<!--                                <CardTitle class="flex items-center gap-2"><Sparkles class="h-5 w-5 text-primary" /><span>AI Summary & Recommendations</span></CardTitle>-->
-<!--                                <Badge variant="outline" class="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border-indigo-200"> Powered by Gemini </Badge>-->
-<!--                            </div>-->
-<!--                        </CardHeader>-->
-<!--                        <CardContent class="space-y-4 text-sm">-->
-<!--                            <div><h4 class="font-semibold mb-2">Overall Assessment</h4><p class="text-muted-foreground">{{ transformedData.aiSummary.assessment }}</p></div>-->
-<!--                            <div><h4 class="font-semibold mb-2">Key Findings</h4><ul class="list-disc pl-5 space-y-1 text-muted-foreground"><li v-for="(finding, idx) in transformedData.aiSummary.keyFindings" :key="`f-${idx}`">{{ finding }}</li></ul></div>-->
-<!--                        </CardContent>-->
-<!--                    </Card>-->
-
                     <div v-if="scanType === 'basic'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Card><CardHeader><CardTitle>Top Vulnerabilities</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow v-for="hg in priorityTable.getHeaderGroups()" :key="hg.id"><TableHead v-for="h in hg.headers" :key="h.id"><FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/></TableHead></TableRow></TableHeader><TableBody><TableRow v-if="!priorityTable.getRowModel().rows.length"><TableCell :colSpan="priorityColumns.length" class="h-24 text-center">No high or medium risks found.</TableCell></TableRow><TableRow v-for="row in priorityTable.getRowModel().rows" :key="row.id"><TableCell v-for="cell in row.getVisibleCells()" :key="cell.id"><FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/></TableCell></TableRow></TableBody></Table></CardContent></Card>
                         <SeverityPieChart :vulnerabilities="transformedData.allVulns" />
@@ -363,9 +434,54 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
 
                     <Card>
                         <CardHeader><CardTitle>Vulnerabilities Detected</CardTitle></CardHeader>
-                        <CardContent class="space-y-2">
-                            <Input v-if="scanType === 'basic'" placeholder="Filter vulnerabilities..." :model-value="basicFilter" @update:modelValue="basicFilter = $event" class="h-8" />
-                            <Input v-else placeholder="Filter..." :model-value="fullFilter" @update:modelValue="fullFilter = $event" class="h-8" />
+                        <CardContent class="space-y-4">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <Input
+                                    v-if="scanType === 'basic'"
+                                    placeholder="Filter vulnerabilities..."
+                                    :model-value="basicFilter"
+                                    @update:modelValue="basicFilter = String($event)"
+                                    class="h-8 w-[200px] lg:w-[250px]"
+                                />
+                                <Input
+                                    v-else
+                                    placeholder="Filter..."
+                                    :model-value="fullFilter"
+                                    @update:modelValue="fullFilter = String($event)"
+                                    class="h-8 w-[200px] lg:w-[250px]"
+                                />
+                                <template v-if="scanType === 'basic'">
+                                    <FacetedFilter
+                                        v-if="basicTable.getColumn('severity')"
+                                        :column="basicTable.getColumn('severity')"
+                                        title="Severity"
+                                        :options="severityOptions"
+                                    />
+                                </template>
+                                <template v-else>
+                                    <FacetedFilter
+                                        v-if="fullTable.getColumn('severity')"
+                                        :column="fullTable.getColumn('severity')"
+                                        title="Severity"
+                                        :options="severityOptions"
+                                    />
+                                    <FacetedFilter
+                                        v-if="fullTable.getColumn('scanner') && scannerOptions.length > 1"
+                                        :column="fullTable.getColumn('scanner')"
+                                        title="Scanner"
+                                        :options="scannerOptions"
+                                    />
+                                </template>
+                                <Button
+                                    v-if="isFiltered"
+                                    variant="ghost"
+                                    @click="resetFilters"
+                                    class="h-8 px-2 lg:px-3"
+                                >
+                                    Reset Filters
+                                </Button>
+                            </div>
+
                             <div class="border rounded-md"><Table><TableHeader><TableRow v-for="hg in (scanType === 'basic' ? basicTable : fullTable).getHeaderGroups()" :key="hg.id"><TableHead v-for="h in hg.headers" :key="h.id"><FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/></TableHead></TableRow></TableHeader><TableBody><TableRow v-if="!(scanType === 'basic' ? basicTable : fullTable).getRowModel().rows.length"><TableCell :colSpan="(scanType === 'basic' ? basicVulnColumns : fullVulnColumns).length" class="h-24 text-center">No results.</TableCell></TableRow><TableRow v-for="row in (scanType === 'basic' ? basicTable : fullTable).getRowModel().rows" :key="row.id"><TableCell v-for="cell in row.getVisibleCells()" :key="cell.id"><FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/></TableCell></TableRow></TableBody></Table></div>
                             <DataTablePagination :table="scanType === 'basic' ? basicTable : fullTable" />
                         </CardContent>
@@ -374,7 +490,7 @@ const techTable = useVueTable({ get data() { return transformedData.value?.techn
                     <Card>
                         <CardHeader><CardTitle>Technologies</CardTitle></CardHeader>
                         <CardContent>
-                            <Input placeholder="Filter technologies..." :model-value="techFilter" @update:modelValue="techFilter = $event" class="h-8 mb-2" />
+                            <Input placeholder="Filter technologies..." :model-value="techFilter" @update:modelValue="techFilter = String($event)" class="h-8 mb-2" />
                             <div class="border rounded-md">
                                 <Table>
                                     <TableHeader>

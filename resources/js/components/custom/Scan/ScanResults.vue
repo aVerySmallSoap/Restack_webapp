@@ -13,14 +13,18 @@ import {
     getFilteredRowModel,
     getPaginationRowModel,
     getSortedRowModel,
+    getFacetedRowModel,
+    getFacetedUniqueValues,
     useVueTable,
     type ColumnDef,
+    type ColumnFiltersState,
 } from '@tanstack/vue-table'
 
 import SeverityPieChart from '@/components/custom/Charts/SeverityPieChart.vue'
 import ScannerBarChart from '@/components/custom/Charts/ScannerBarChart.vue'
 import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue'
 import DataTablePagination from '@/components/custom/DataTablePagination.vue'
+import FacetedFilter from '@/components/custom/FacetedFilter.vue'
 import BasicScanDetailDrawer from '@/components/custom/BasicScanDetailDrawer.vue'
 import FullScanDetailDrawer from '@/components/custom/FullScanDetailDrawer.vue'
 import { getSeverityColor } from '@/lib/colors'
@@ -102,6 +106,23 @@ const priorityTable = useVueTable({
     getSortedRowModel: getSortedRowModel(),
 })
 
+// Get unique scanners for filter options
+const scannerOptions = computed(() => {
+    const scanners = new Set(safeData.value.vulnerabilities.map(v => v.scanner).filter(Boolean))
+    return Array.from(scanners).sort().map(scanner => ({
+        label: scanner,
+        value: scanner
+    }))
+})
+
+const severityOptions = [
+    { label: 'Critical', value: 'critical' },
+    { label: 'High', value: 'high' },
+    { label: 'Medium', value: 'medium' },
+    { label: 'Low', value: 'low' },
+    { label: 'Informational', value: 'informational' },
+]
+
 const vulnerabilityColumns: ColumnDef<Vulnerability>[] = [
     {
         accessorKey: 'type',
@@ -113,8 +134,17 @@ const vulnerabilityColumns: ColumnDef<Vulnerability>[] = [
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
         cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity')),
         sortingFn: (a, b) => mapSeverityToNumber(b.original.severity) - mapSeverityToNumber(a.original.severity),
+        filterFn: (row, id, value) => {
+            return value.includes(row.getValue(id)?.toLowerCase())
+        },
     },
-    { accessorKey: 'scanner', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Scanner' }) },
+    {
+        accessorKey: 'scanner',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Scanner' }),
+        filterFn: (row, id, value) => {
+            return value.includes(row.getValue(id))
+        },
+    },
     {
         accessorKey: 'endpoint',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Path' }),
@@ -130,6 +160,8 @@ const vulnerabilityColumns: ColumnDef<Vulnerability>[] = [
 ]
 
 const globalFilter = ref('')
+const columnFilters = ref<ColumnFiltersState>([])
+
 const vulnerabilitiesTable = useVueTable({
     get data() { return safeData.value.vulnerabilities },
     get columns() { return vulnerabilityColumns },
@@ -137,9 +169,23 @@ const vulnerabilitiesTable = useVueTable({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    state: { get globalFilter() { return globalFilter.value } },
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    state: {
+        get globalFilter() { return globalFilter.value },
+        get columnFilters() { return columnFilters.value }
+    },
     onGlobalFilterChange: (u) => (globalFilter.value = typeof u === 'function' ? u(globalFilter.value) : u),
+    onColumnFiltersChange: (updater) => {
+        columnFilters.value = typeof updater === 'function' ? updater(columnFilters.value) : updater
+    },
 })
+
+const isFiltered = computed(() => columnFilters.value.length > 0)
+
+function resetFilters() {
+    vulnerabilitiesTable.resetColumnFilters()
+}
 
 const techColumns: ColumnDef<Technology>[] = [
     { accessorKey: 'name', header: 'Technology' },
@@ -285,8 +331,36 @@ const techTable = useVueTable({
 
         <Card>
             <CardHeader><CardTitle>Vulnerabilities Detected</CardTitle></CardHeader>
-            <CardContent class="space-y-2">
-                <Input placeholder="Filter vulnerabilities..." v-model="globalFilter" class="h-8" />
+            <CardContent class="space-y-4">
+                <!-- Filter Controls -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <Input
+                        placeholder="Search vulnerabilities..."
+                        v-model="globalFilter"
+                        class="h-8 w-[200px] lg:w-[250px]"
+                    />
+                    <FacetedFilter
+                        v-if="vulnerabilitiesTable.getColumn('severity')"
+                        :column="vulnerabilitiesTable.getColumn('severity')"
+                        title="Severity"
+                        :options="severityOptions"
+                    />
+                    <FacetedFilter
+                        v-if="vulnerabilitiesTable.getColumn('scanner') && scannerOptions.length > 1"
+                        :column="vulnerabilitiesTable.getColumn('scanner')"
+                        title="Scanner"
+                        :options="scannerOptions"
+                    />
+                    <Button
+                        v-if="isFiltered"
+                        variant="ghost"
+                        @click="resetFilters"
+                        class="h-8 px-2 lg:px-3"
+                    >
+                        Reset Filters
+                    </Button>
+                </div>
+
                 <div class="rounded-md border">
                     <Table>
                         <TableHeader>
@@ -298,7 +372,7 @@ const techTable = useVueTable({
                         </TableHeader>
                         <TableBody>
                             <TableRow v-if="!vulnerabilitiesTable.getRowModel().rows.length">
-                                <TableCell :colSpan="vulnerabilityColumns.length" class="h-24 text-center">No results.</TableCell>
+                                <TableCell :colSpan="vulnerabilityColumns.length" class="h-24 text-center">No results found.</TableCell>
                             </TableRow>
                             <TableRow v-for="row in vulnerabilitiesTable.getRowModel().rows" :key="row.id" class="cursor-pointer hover:bg-muted/50" @click="showVulnDetail(row.original)">
                                 <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
