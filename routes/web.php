@@ -93,10 +93,17 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
 
 
     // -- Admin User Management --
-
     Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+
+        // Add these new routes:
+        Route::post('/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+        Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
+
+        // This one was likely outside the group before, but it's cleaner inside or right after:
+        Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
     });
+
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
 
     Route::get('/history', [HistoryController::class, 'index'])->name('history.index');

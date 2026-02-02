@@ -25,10 +25,11 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
-import { MoreHorizontal, LoaderCircle, Trash2, Plus } from 'lucide-vue-next';
+import { MoreHorizontal, LoaderCircle, Trash2, Plus, Pencil, ShieldCheck } from 'lucide-vue-next';
 
 interface User {
     id: number;
@@ -43,22 +44,57 @@ defineProps<{
 }>();
 
 const isDialogOpen = ref(false);
+const isEditing = ref(false);
+const editingUserId = ref<number | null>(null);
 
 const form = useForm({
     name: '',
     email: '',
     password: '',
     password_confirmation: '',
+    is_admin: false,
 });
 
-const submitCreate = () => {
-    form.post(route('register'), {
-        onSuccess: () => {
-            form.reset();
-            isDialogOpen.value = false;
-        },
-        onFinish: () => form.reset('password', 'password_confirmation'),
-    });
+const openCreateDialog = () => {
+    isEditing.value = false;
+    form.reset();
+    form.clearErrors();
+    isDialogOpen.value = true;
+};
+
+const openEditDialog = (user: User) => {
+    isEditing.value = true;
+    editingUserId.value = user.id;
+    form.clearErrors();
+
+    // Populate form but leave passwords empty
+    form.name = user.name;
+    form.email = user.email;
+    form.is_admin = !!user.is_admin;
+    form.password = '';
+    form.password_confirmation = '';
+
+    isDialogOpen.value = true;
+};
+
+const submit = () => {
+    if (isEditing.value && editingUserId.value) {
+        form.put(route('admin.users.update', editingUserId.value), {
+            onSuccess: () => {
+                form.reset();
+                isDialogOpen.value = false;
+            },
+            onFinish: () => form.reset('password', 'password_confirmation'),
+        });
+    } else {
+        form.post(route('admin.users.store'), {
+            onSuccess: () => {
+                form.reset();
+                isDialogOpen.value = false;
+            },
+            onFinish: () => form.reset('password', 'password_confirmation'),
+        });
+    }
 };
 
 const deleteUser = (user: User) => {
@@ -76,50 +112,60 @@ const deleteUser = (user: User) => {
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight">User Management</h1>
-                    <p class="text-muted-foreground">Manage access for your team members.</p>
+                    <p class="text-muted-foreground">Manage access and roles for your team.</p>
                 </div>
 
                 <Dialog v-model:open="isDialogOpen">
                     <DialogTrigger as-child>
-                        <Button>
+                        <Button @click="openCreateDialog">
                             <Plus class="mr-2 h-4 w-4" />
                             Add User
                         </Button>
                     </DialogTrigger>
                     <DialogContent class="sm:max-w-[425px]">
                         <DialogHeader>
-                            <DialogTitle>Add New User</DialogTitle>
+                            <DialogTitle>{{ isEditing ? 'Edit User' : 'Add New User' }}</DialogTitle>
                             <DialogDescription>
-                                Create a new account for a team member.
+                                {{ isEditing ? 'Update user details and permissions.' : 'Create a new account for a team member.' }}
                             </DialogDescription>
                         </DialogHeader>
 
-                        <form @submit.prevent="submitCreate" class="grid gap-4 py-4">
+                        <form @submit.prevent="submit" class="grid gap-4 py-4">
                             <div class="grid gap-2">
                                 <Label for="name">Name</Label>
                                 <Input id="name" v-model="form.name" placeholder="Full Name" required />
                                 <InputError :message="form.errors.name" />
                             </div>
+
                             <div class="grid gap-2">
                                 <Label for="email">Email</Label>
                                 <Input id="email" type="email" v-model="form.email" placeholder="email@example.com" required />
                                 <InputError :message="form.errors.email" />
                             </div>
+
+                            <div class="flex items-center space-x-2 py-2">
+                                <Checkbox id="is_admin" :checked="form.is_admin" @update:checked="val => form.is_admin = val" />
+                                <Label for="is_admin" class="font-normal cursor-pointer">
+                                    Grant Admin Privileges
+                                </Label>
+                            </div>
+
                             <div class="grid gap-2">
-                                <Label for="password">Password</Label>
-                                <Input id="password" type="password" v-model="form.password" required />
+                                <Label for="password">{{ isEditing ? 'New Password (Optional)' : 'Password' }}</Label>
+                                <Input id="password" type="password" v-model="form.password" :required="!isEditing" />
                                 <InputError :message="form.errors.password" />
                             </div>
+
                             <div class="grid gap-2">
                                 <Label for="confirm">Confirm Password</Label>
-                                <Input id="confirm" type="password" v-model="form.password_confirmation" required />
+                                <Input id="confirm" type="password" v-model="form.password_confirmation" :required="!isEditing && form.password.length > 0" />
                                 <InputError :message="form.errors.password_confirmation" />
                             </div>
 
                             <div class="flex justify-end pt-4">
                                 <Button type="submit" :disabled="form.processing">
                                     <LoaderCircle v-if="form.processing" class="mr-2 h-4 w-4 animate-spin" />
-                                    Create Account
+                                    {{ isEditing ? 'Save Changes' : 'Create Account' }}
                                 </Button>
                             </div>
                         </form>
@@ -132,6 +178,7 @@ const deleteUser = (user: User) => {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Name</TableHead>
+                            <TableHead>Role</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Created At</TableHead>
                             <TableHead class="w-[70px]"></TableHead>
@@ -139,9 +186,13 @@ const deleteUser = (user: User) => {
                     </TableHeader>
                     <TableBody>
                         <TableRow v-for="user in users" :key="user.id">
-                            <TableCell class="font-medium">
-                                {{ user.name }}
-                                <span v-if="user.is_admin" class="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Admin</span>
+                            <TableCell class="font-medium">{{ user.name }}</TableCell>
+                            <TableCell>
+                                <div v-if="user.is_admin" class="flex items-center text-xs font-medium text-primary">
+                                    <ShieldCheck class="w-3 h-3 mr-1" />
+                                    Admin
+                                </div>
+                                <div v-else class="text-xs text-muted-foreground">User</div>
                             </TableCell>
                             <TableCell>{{ user.email }}</TableCell>
                             <TableCell>{{ new Date(user.created_at).toLocaleDateString() }}</TableCell>
@@ -154,6 +205,10 @@ const deleteUser = (user: User) => {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                        <DropdownMenuItem @click="openEditDialog(user)">
+                                            <Pencil class="mr-2 h-4 w-4" />
+                                            Edit Details
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem @click="deleteUser(user)" class="text-red-600">
                                             <Trash2 class="mr-2 h-4 w-4" />
                                             Delete User

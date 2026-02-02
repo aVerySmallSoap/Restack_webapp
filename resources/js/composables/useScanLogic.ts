@@ -55,7 +55,7 @@ export function useScan() {
         progress.value = 100;
     };
 
-    const runScan = async (rawUrl: string, type: 'basic' | 'full', config?: any) => {
+    const runScan = async (rawUrl: string, type: 'basic' | 'full', userId: number, config?: any) => {
         const target = formatUrl(rawUrl);
         if (!target) {
             toast.error('Please enter a valid URL');
@@ -65,15 +65,17 @@ export function useScan() {
         resetState();
         scanning.value = true;
 
-        // Start progress animation (basic: 15s, full: 45s)
         const estimatedDuration = type === 'basic' ? 15000 : 45000;
         startMockProgress(estimatedDuration);
 
-        // Simple endpoint selection
         const endpoint = type === 'basic' ? '/api/v1/wapiti/scan/quick' : '/api/v1/scan/';
 
         try {
-            const payload: any = { url: target };
+            const payload: any = {
+                url: target,
+                user_id: userId
+            };
+
             if (type === 'full' && config) {
                 payload.config = config;
             }

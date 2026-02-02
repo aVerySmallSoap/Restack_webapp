@@ -58,7 +58,7 @@ const textTypeColors = computed(() => (isDark.value ? ['#EDEDEC'] : ['#1b1b18'])
             <div class="mt-8">
                 <Link
                     v-if="!$page.props.auth.user"
-                    :href="route('register')"
+                    :href="route('login')"
                     class="group inline-flex items-center justify-center gap-2 border-b-2 border-black pb-1 text-lg font-semibold transition-all hover:border-blue-600 hover:text-blue-600 dark:border-white dark:hover:border-blue-500 dark:hover:text-blue-500"
                 >
                     Get Started <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />

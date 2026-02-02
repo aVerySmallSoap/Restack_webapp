@@ -11,14 +11,19 @@ class HistoryController extends Controller
 {
     public function index()
     {
-        // Fetch reports, sort by newest, and format for the frontend
-        $history = Report::with('scans')
-            ->orderBy('scan_date', 'desc')
+        $query = Report::with('scans');
+
+        // SCOPING: If not admin, only show reports linked to the user's scans
+        if (!auth()->user()->is_admin) {
+            $query->whereHas('scans', function ($q) {
+                $q->where('user_id', auth()->id());
+            });
+        }
+
+        $history = $query->orderBy('scan_date', 'desc')
             ->get()
             ->map(function ($report) {
-                // Get the first associated scan, if available
                 $scan = $report->scans->first();
-
                 return [
                     'id' => $report->id,
                     'target' => $scan->target_url ?? 'Unknown Target',
@@ -28,6 +33,7 @@ class HistoryController extends Controller
                     'date' => $report->scan_date->toISOString(),
                     'duration' => $scan->scan_duration ?? 0,
                     'status' => 'Completed',
+                    'owner' => $scan->user->name ?? 'Unknown',
                 ];
             });
 
