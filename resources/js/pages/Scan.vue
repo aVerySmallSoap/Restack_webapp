@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import Navigation from '@/components/custom/Navigation.vue'
-import ScanForm from '@/components/custom/scan/ScanForm.vue'
-import ScanResults from '@/components/custom/scan/ScanResults.vue'
+import ScanForm from '@/components/custom/Scan/ScanForm.vue'
+import ScanResults from '@/components/custom/Scan/ScanResults.vue'
 import { useScan } from '@/composables/useScanLogic'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
-// Logic extracted to composable
+// Destructure 'progress' instead of 'currentPhase'
 const { scanData, scanning, errorMsg, progress, runScan, resetState } = useScan()
 
 function handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; config?: any }) {
-    runScan(payload.url, payload.type, payload.config)
+    runScan(payload.url, payload.type, 1, payload.config)
 }
 </script>
 

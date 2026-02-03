@@ -27,6 +27,8 @@ import DataTablePagination from '@/components/custom/DataTablePagination.vue'
 import FacetedFilter from '@/components/custom/FacetedFilter.vue'
 import BasicScanDetailDrawer from '@/components/custom/BasicScanDetailDrawer.vue'
 import FullScanDetailDrawer from '@/components/custom/FullScanDetailDrawer.vue'
+import ScanAISummary from '@/components/custom/Scan/ScanAISummary.vue'
+import PriorityMatrix from '@/components/custom/Scan/PriorityMatrix.vue'
 import { getSeverityColor } from '@/lib/colors'
 
 import type { ScanResult, Vulnerability, Technology } from '@/lib/restack/restack.types'
@@ -46,6 +48,7 @@ const safeData = computed(() => ({
     technologies: props.data?.technologies || [],
     priorities: props.data?.priorities || [],
     vulnerabilities: props.data?.vulnerabilities || [],
+    matrix: props.data?.matrix || null,
     aiSummary: props.data?.aiSummary || null,
     summaryStats: props.data?.summaryStats || null
 }))
@@ -275,29 +278,16 @@ const techTable = useVueTable({
             </CardContent>
         </Card>
 
-        <Card v-if="safeData.aiSummary">
-            <CardHeader>
-                <div class="flex items-center justify-between">
-                    <CardTitle class="flex items-center gap-2">
-                        <Sparkles class="text-primary h-5 w-5" />
-                        <span>AI Summary & Recommendations</span>
-                    </CardTitle>
-                    <Badge variant="outline" class="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border-indigo-200"> Powered by Gemini </Badge>
-                </div>
-            </CardHeader>
-            <CardContent class="space-y-4 text-sm">
-                <div>
-                    <h4 class="mb-2 font-semibold">Overall Assessment</h4>
-                    <p class="text-muted-foreground">{{ safeData.aiSummary.assessment }}</p>
-                </div>
-                <div>
-                    <h4 class="mb-2 font-semibold">Key Findings</h4>
-                    <ul class="text-muted-foreground list-disc space-y-1 pl-5">
-                        <li v-for="(finding, idx) in safeData.aiSummary.keyFindings" :key="`f-${idx}`">{{ finding }}</li>
-                    </ul>
-                </div>
-            </CardContent>
-        </Card>
+        <div v-if="safeData.aiSummary || safeData.matrix" class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+            <div :class="safeData.matrix ? 'lg:col-span-2' : 'lg:col-span-3'">
+                <ScanAISummary v-if="safeData.aiSummary" :summary="safeData.aiSummary" />
+            </div>
+
+            <div v-if="safeData.matrix" class="lg:col-span-1">
+                <PriorityMatrix :matrix="safeData.matrix" />
+            </div>
+        </div>
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
             <SeverityPieChart :vulnerabilities="safeData.vulnerabilities" />

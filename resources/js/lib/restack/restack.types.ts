@@ -2,7 +2,8 @@ export interface Vulnerability {
     id: string;
     type: string;
     severity: string;
-    scanner: string;
+    // Updated scanner to include Nuclei
+    scanner: 'ZAP' | 'Wapiti' | 'WhatWeb' | 'Nuclei' | 'Unknown' | string;
     confidence: string;
     method: string;
     endpoint: string;
@@ -37,9 +38,24 @@ export interface ScanResult {
     country: string;
     ip: string;
     aiSummary: {
-        assessment: string;
-        keyFindings: string[];
-        recommendations: string[];
+        summary: {
+            vulnerabilities: string;
+            tech: string;
+        }
+    } | null;
+    matrix?: {
+        matrix: {
+            high_severity_high_confidence: any[];
+            high_severity_low_confidence: any[];
+            low_severity_high_confidence: any[];
+            low_severity_low_confidence: any[];
+        };
+        quadrant_counts: {
+            high_severity_high_confidence: number;
+            high_severity_low_confidence: number;
+            low_severity_high_confidence: number;
+            low_severity_low_confidence: number;
+        };
     } | null;
     summaryStats?: {
         scannerAgreementRate: string | null;
@@ -77,7 +93,7 @@ export interface FullVulnerability {
     method: string;
     endpoint: string;
     exploit: string; // Evidence
-    scanner: 'ZAP' | 'Wapiti' | 'WhatWeb' | 'Unknown';
+    scanner: 'ZAP' | 'Wapiti' | 'WhatWeb' | 'Nuclei' | 'Unknown';
     reference: string;
 }
 

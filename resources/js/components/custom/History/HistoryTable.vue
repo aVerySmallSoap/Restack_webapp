@@ -42,7 +42,7 @@ const globalFilter = ref('')
 // Filter options
 const scanTypeOptions = [
     { label: 'Full Scan', value: 'Full' },
-    { label: 'Quick Scan', value: 'Quick' },
+    { label: 'Basic Scan', value: 'Basic' },
 ]
 
 const severityOptions = [

@@ -63,7 +63,7 @@ function onTabChange(value: string) {
                                     <span class="text-muted-foreground text-sm">
                                         {{ type === 'basic'
                                         ? 'Runs a fast, preconfigured Wapiti scan.'
-                                        : 'Comprehensive scan using Wapiti, ZAP, and SearchVuln.'
+                                        : 'Comprehensive scan using Wapiti, ZAP, and Nuclei.'
                                         }}
                                     </span>
                                 </CardContent>

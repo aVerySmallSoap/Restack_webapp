@@ -100,14 +100,12 @@ export function parseBasicScan(data: any, targetUrl: string): ScanResult {
         const ruleId = result.ruleId;
         const rule = rulesMap.get(ruleId);
 
-        // FIX: Prioritize raw numeric level from properties if available (Matches History logic)
         let severity = 'Informational';
         const rawLevel = result.properties?.level;
 
         if (rawLevel !== undefined) {
             severity = mapBasicSeverity(rawLevel);
         } else if (result.level) {
-            // Fallback to SARIF level mapping
             switch (result.level.toLowerCase()) {
                 case 'error': severity = 'High'; break;
                 case 'warning': severity = 'Medium'; break;
@@ -128,8 +126,9 @@ export function parseBasicScan(data: any, targetUrl: string): ScanResult {
         allVulns.push({
             id: `basic-${index}`,
             type: ruleId || 'Unknown',
-            // Explicitly set category/name to help Drawer title resolution
+            // @ts-ignore
             name: ruleId,
+            // @ts-ignore
             category: ruleId,
             severity,
             scanner: 'Wapiti',
@@ -153,7 +152,11 @@ export function parseBasicScan(data: any, targetUrl: string): ScanResult {
 
 export function parseFullScan(data: any, targetUrl: string): ScanResult {
     const allVulns: Vulnerability[] = [];
+
+    // 1. Get the lists from JSON
     const union = data.data?.union || [];
+    // FIX: This definition was likely missing, causing the ReferenceError
+    const intersection = data.data?.intersection || [];
     const rulesList = data.data?.rules || [];
 
     const getRule = (id: string) => {
@@ -163,7 +166,8 @@ export function parseFullScan(data: any, targetUrl: string): ScanResult {
         return null;
     };
 
-    const flatFindings = union.flat();
+    // 2. Combine Union (Unmatched) + Intersection (Verified)
+    const flatFindings = [...union.flat(), ...intersection];
 
     flatFindings.forEach((finding: any, idx: number) => {
         const ruleId = finding.ruleId;
@@ -177,8 +181,20 @@ export function parseFullScan(data: any, targetUrl: string): ScanResult {
 
         const ruleName = effectiveRule.name || ruleId;
 
+        // --- SCANNER DETECTION ---
+        let scanner = 'Wapiti';
+        if (finding.properties?.zapId) {
+            scanner = 'ZAP';
+        } else if (finding.properties?.['matched-at'] || finding.properties?.['curl-command']) {
+            scanner = 'Nuclei';
+        }
+
+        // --- SEVERITY LOGIC ---
         let severity = 'Informational';
-        if (finding.level) severity = mapFullSeverity(finding.level);
+        if (scanner === 'Nuclei' && finding.properties?.severity) {
+            severity = mapFullSeverity(finding.properties.severity);
+        }
+        else if (finding.level) severity = mapFullSeverity(finding.level);
         else if (finding.properties?.severity) severity = mapFullSeverity(finding.properties.severity);
         else if (finding.properties?.analytics?.severity) severity = mapFullSeverity(finding.properties.analytics.severity);
 
@@ -189,20 +205,23 @@ export function parseFullScan(data: any, targetUrl: string): ScanResult {
                 : Object.entries(effectiveRule.help.markdown).map(([k, v]) => `${k}: ${v}`).join('\n');
         }
 
+        const curlCommand = finding.properties?.curl_command || finding.properties?.['curl-command'] || '';
+        const evidence = finding.properties?.evidence || '';
+
         allVulns.push({
             id: `full-${idx}`,
             type: ruleName,
             severity,
-            scanner: finding.properties?.zapId ? 'ZAP' : 'Wapiti',
-            confidence: finding.properties?.confidence || 'Unknown',
+            scanner,
+            confidence: finding.properties?.confidence || finding.properties?.analytics?.confidence || 'Unknown',
             method: finding.properties?.method || 'GET',
             endpoint: finding.locations?.[0]?.physicalLocation?.artifactLocation?.uri || targetUrl,
             description: effectiveRule.fullDescription?.text || finding.message?.text || '',
             solution: effectiveRule.help?.text || '',
             reference,
-            exploit: finding.properties?.evidence || '',
+            exploit: evidence,
             http_request: finding.properties?.http_request || '',
-            curl_command: finding.properties?.curl_command || '',
+            curl_command: curlCommand,
             module: finding.properties?.module || '',
             wstg: effectiveRule.properties?.tags || []
         });
@@ -210,7 +229,20 @@ export function parseFullScan(data: any, targetUrl: string): ScanResult {
 
     const { technologies, country, ip } = processPlugins(data.plugins || {});
 
-    const result = buildScanResult(allVulns, technologies, targetUrl, 'Full Scan', country, ip);
+    // Extract new AI and Matrix Data
+    const aiSummary = data.summary?.ai || null;
+    const matrix = data.summary?.matrix || null;
+
+    const result = buildScanResult(
+        allVulns,
+        technologies,
+        targetUrl,
+        'Full Scan',
+        country,
+        ip,
+        aiSummary,
+        matrix
+    );
 
     if (data.summary?.stats) {
         result.summaryStats = {
@@ -231,7 +263,9 @@ function buildScanResult(
     target: string,
     type: string,
     country: string = 'Unknown',
-    ip: string = 'Unknown'
+    ip: string = 'Unknown',
+    aiSummary: any = null,
+    matrix: any = null
 ): ScanResult {
     vulns.sort((a, b) => mapSeverityToNumber(b.severity) - mapSeverityToNumber(a.severity));
 
@@ -240,8 +274,15 @@ function buildScanResult(
     ).length;
 
     const priorities = vulns.slice(0, 5);
-    const scanners = [...new Set(vulns.map(v => v.scanner))];
-    const tools = scanners.length > 0 ? scanners : ['Wapiti'];
+
+    // Force all scanners to appear in tool list if Full Scan
+    const scanners = new Set(vulns.map(v => v.scanner));
+    if (type === 'Full Scan') {
+        scanners.add('Nuclei');
+        scanners.add('ZAP');
+        scanners.add('Wapiti');
+    }
+    const tools = Array.from(scanners).filter(Boolean);
 
     return {
         target: target || 'Unknown',
@@ -255,6 +296,7 @@ function buildScanResult(
         technologies,
         country: country || 'Unknown',
         ip: ip || 'Unknown',
-        aiSummary: null
+        aiSummary,
+        matrix
     };
 }
