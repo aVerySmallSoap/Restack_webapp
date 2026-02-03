@@ -5,12 +5,15 @@ import ScanResults from '@/components/custom/Scan/ScanResults.vue'
 import { useScan } from '@/composables/useScanLogic'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePage } from '@inertiajs/vue3'
 
 // Destructure 'progress' instead of 'currentPhase'
 const { scanData, scanning, errorMsg, progress, runScan, resetState } = useScan()
+const page = usePage()
 
 function handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; config?: any }) {
-    runScan(payload.url, payload.type, 1, payload.config)
+    const userId = page.props.auth.user.id;
+    runScan(payload.url, payload.type, userId, payload.config)
 }
 </script>
 

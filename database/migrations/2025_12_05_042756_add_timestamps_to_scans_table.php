@@ -10,7 +10,9 @@ return new class extends Migration
     {
         Schema::table('scan', function (Blueprint $table) {
             // Add created_at and updated_at columns (nullable for existing records)
-            $table->timestamps();
+            if (!Schema::hasColumn('scan', 'created_at')) {
+                $table->timestamps();
+            }
         });
     }
 

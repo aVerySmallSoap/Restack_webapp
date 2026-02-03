@@ -33,17 +33,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue'
 import DataTablePagination from '@/components/custom/DataTablePagination.vue'
 import FacetedFilter from '@/components/custom/FacetedFilter.vue'
+import { usePage } from '@inertiajs/vue3'
 
 // Types
 import type { ScheduledScan } from '@/lib/restack/restack.types'
 
 const props = defineProps({
-    data: {
-        type: Array as PropType<ScheduledScan[]>,
-        required: true,
-        default: () => [],
-    },
+    data: { type: Array as PropType<ScheduledScan[]>, required: true },
+    users: { type: Array as PropType<{ label: string; value: string }[]>, default: () => [] }
 })
+
+const page = usePage()
+const isAdmin = page.props.auth.user.is_admin
 
 const emit = defineEmits<{
     (e: 'delete', id: string): void
@@ -68,19 +69,19 @@ const getFrequencyLabel = (type: string) => {
 }
 
 // Filter options for job types
-const jobTypeOptions = [
+const job_typeOptions = [
     { label: 'Interval', value: 'interval' },
     { label: 'Scheduled (Cron)', value: 'cron' },
 ]
 
 // Improved configuration formatter
-const formatConfiguration = (config: any, jobType: string) => {
+const formatConfiguration = (config: any, job_type: string) => {
     try {
         if (!config || typeof config !== 'object') {
             return 'No configuration'
         }
 
-        if (jobType === 'interval') {
+        if (job_type === 'interval') {
             const parts = []
             if (config.weeks) parts.push(`${config.weeks}w`)
             if (config.days) parts.push(`${config.days}d`)
@@ -89,7 +90,7 @@ const formatConfiguration = (config: any, jobType: string) => {
             if (config.seconds) parts.push(`${config.seconds}s`)
 
             return parts.length > 0 ? `Every ${parts.join(' ')}` : 'Not configured'
-        } else if (jobType === 'cron') {
+        } else if (job_type === 'cron') {
             const month = config.month !== '*' ? String(config.month).padStart(2, '0') : 'XX'
             const day = config.day !== '*' ? String(config.day).padStart(2, '0') : 'XX'
             const year = config.year !== '*' ? config.year : 'XXXX'
@@ -132,9 +133,9 @@ const columns: ColumnDef<ScheduledScan>[] = [
         cell: ({ row }) => row.getValue('url'),
     },
     {
-        accessorKey: 'jobType',
+        accessorKey: 'job_type',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }),
-        cell: ({ row }) => row.getValue('jobType'),
+        cell: ({ row }) => row.getValue('job_type'),
         filterFn: (row, id, value) => {
             return value.includes(row.getValue(id))
         },
@@ -144,6 +145,20 @@ const columns: ColumnDef<ScheduledScan>[] = [
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Schedule' }),
         cell: ({ row }) => row.getValue('configuration'),
     },
+    ...(isAdmin ? [{
+        accessorKey: 'user_id',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Owner' }),
+        cell: ({ row }) => {
+            const user = row.original.user
+            return h('div', { class: 'flex items-center gap-2' }, [
+                // Optional: Add Avatar here if you have it
+                h('span', { class: 'font-medium' }, user ? user.name : 'Unknown')
+            ])
+        },
+        filterFn: (row, id, value) => {
+            return value.includes(String(row.getValue(id)))
+        },
+    }] : []),
     {
         id: 'actions',
         enableHiding: false,
@@ -189,10 +204,16 @@ function resetFilters() {
                     class="h-8 w-[200px] lg:w-[250px]"
                 />
                 <FacetedFilter
-                    v-if="table.getColumn('jobType')"
-                    :column="table.getColumn('jobType')"
+                    v-if="table.getColumn('job_type')"
+                    :column="table.getColumn('job_type')"
                     title="Schedule Type"
-                    :options="jobTypeOptions"
+                    :options="job_typeOptions"
+                />
+                <FacetedFilter
+                    v-if="isAdmin && table.getColumn('user_id')"
+                    :column="table.getColumn('user_id')"
+                    title="Owner"
+                    :options="props.users"
                 />
                 <Button
                     v-if="isFiltered"
@@ -244,7 +265,7 @@ function resetFilters() {
                                     </template>
 
                                     <!-- Job Type Column -->
-                                    <template v-else-if="cell.column.id === 'jobType'">
+                                    <template v-else-if="cell.column.id === 'job_type'">
                                         <div class="flex items-center gap-2">
                                             <Clock class="h-3 w-3 text-muted-foreground" />
                                             <Badge variant="secondary" class="capitalize">
@@ -257,7 +278,7 @@ function resetFilters() {
                                     <template v-else-if="cell.column.id === 'configuration'">
                                         <div class="flex items-center gap-2">
                                             <span class="text-sm text-foreground">
-                                                {{ formatConfiguration(cell.getValue(), row.original.jobType) }}
+                                                {{ formatConfiguration(cell.getValue(), row.original.job_type) }}
                                             </span>
                                         </div>
                                     </template>

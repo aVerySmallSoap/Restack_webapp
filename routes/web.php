@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HistoryController;
+use App\Http\Controllers\ScheduledScanController;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -96,11 +98,9 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
     Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
 
-        // Add these new routes:
         Route::post('/users', [AdminUserController::class, 'store'])->name('admin.users.store');
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
 
-        // This one was likely outside the group before, but it's cleaner inside or right after:
         Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
     });
 
@@ -139,9 +139,9 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         }
     });
 
-    Route::get('/scheduled', function(){
-        return Inertia::render('scan/ScheduledScan');
-    });
+    Route::get('/scheduled', [ScheduledScanController::class, 'index'])->name('scheduled.index');
+    Route::post('/scheduled', [ScheduledScanController::class, 'store'])->name('scheduled.store');
+    Route::delete('/scheduled/{id}', [ScheduledScanController::class, 'destroy'])->name('scheduled.destroy');
 
 //    Route::get('/domain-dashboard', function(){
 //        return Inertia::render('DomainDashboard');
