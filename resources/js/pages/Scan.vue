@@ -7,8 +7,8 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePage } from '@inertiajs/vue3'
 
-// Destructure 'progress' instead of 'currentPhase'
-const { scanData, scanning, errorMsg, progress, runScan, resetState } = useScan()
+// Destructure 'scanStatus' instead of 'progress'
+const { scanData, scanning, errorMsg, scanStatus, runScan, resetState } = useScan()
 const page = usePage()
 
 function handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; config?: any }) {
@@ -27,7 +27,7 @@ function handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; config
 
             <ScanForm
                 :scanning="scanning"
-                :progress="progress"
+                :scan-status="scanStatus"
                 @submit="handleScanSubmit"
                 @clear="resetState"
             />

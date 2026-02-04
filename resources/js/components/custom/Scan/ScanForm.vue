@@ -4,14 +4,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
 
 const props = withDefaults(defineProps<{
     scanning?: boolean
-    progress?: number
+    scanStatus?: string
 }>(), {
     scanning: false,
-    progress: 0
+    scanStatus: ''
 })
 
 const emit = defineEmits<{
@@ -28,6 +28,14 @@ const useZap = ref(true)
 const previewUrl = computed(() => {
     if (!url.value) return ''
     return /^https?:\/\//i.test(url.value) ? url.value : `http://${url.value}`
+})
+
+// Helper to get badge variant based on status
+const statusVariant = computed(() => {
+    if (!props.scanStatus) return 'secondary'
+    if (props.scanStatus.includes('Success')) return 'default'
+    if (props.scanStatus.includes('Failed') || props.scanStatus.includes('Error')) return 'destructive'
+    return 'secondary'
 })
 
 function onSubmit() {
@@ -88,11 +96,21 @@ function onTabChange(value: string) {
                                     Clear
                                 </Button>
                             </div>
-                            <div v-if="props.scanning && props.progress !== undefined" class="mt-2">
-                                <Progress :model-value="props.progress" class="h-2" />
-                                <p class="text-xs text-muted-foreground mt-1 text-center">
-                                    {{ Math.round(props.progress) }}%
-                                </p>
+
+                            <!-- Status Display (replaces progress bar) -->
+                            <div v-if="props.scanning && props.scanStatus" class="mt-2">
+                                <div class="flex items-center justify-center gap-3 rounded-lg border bg-muted/50 p-3">
+                                    <!-- Animated spinner -->
+                                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+
+                                    <!-- Status badge -->
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-medium">Status:</span>
+                                        <Badge :variant="statusVariant">
+                                            {{ props.scanStatus }}
+                                        </Badge>
+                                    </div>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
