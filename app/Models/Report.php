@@ -32,4 +32,5 @@ class Report extends Model
     {
         return $this->hasMany(Vulnerability::class, 'report_id');
     }
+
 }

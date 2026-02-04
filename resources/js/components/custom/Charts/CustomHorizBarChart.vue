@@ -12,11 +12,14 @@ const chartData = computed(() => {
 
     return props.data.map(item => ({
         name: item.name || 'Unknown',
+        // Existing Stacked Data
         low: Number(item.low || 0),
         medium: Number(item.medium || 0),
         high: Number(item.high || 0),
         critical: Number(item.critical || 0),
-        total: Number(item.total || 0)
+        // Simple/Total Data
+        total: Number(item.total || item.value || item.count || 0),
+        color: item.color // <--- Preserve the color passed from backend
     }))
 })
 
@@ -36,6 +39,11 @@ const getBarWidth = (value: number) => {
 const truncateName = (name: string, maxLen: number = 30) => {
     return name.length > maxLen ? name.substring(0, maxLen - 3) + '...' : name
 }
+
+// Check if row has detailed severity breakdown
+const hasBreakdown = (item: any) => {
+    return (item.critical + item.high + item.medium + item.low) > 0
+}
 </script>
 
 <template>
@@ -47,22 +55,33 @@ const truncateName = (name: string, maxLen: number = 30) => {
             </div>
 
             <div class="h-2 w-full bg-muted rounded-full overflow-hidden flex">
-                <div v-if="item.critical > 0"
-                     class="h-full"
-                     :style="{ width: getBarWidth(item.critical), backgroundColor: SEVERITY_COLORS.critical }">
-                </div>
-                <div v-if="item.high > 0"
-                     class="h-full"
-                     :style="{ width: getBarWidth(item.high), backgroundColor: SEVERITY_COLORS.high }">
-                </div>
-                <div v-if="item.medium > 0"
-                     class="h-full"
-                     :style="{ width: getBarWidth(item.medium), backgroundColor: SEVERITY_COLORS.medium }">
-                </div>
-                <div v-if="item.low > 0"
-                     class="h-full"
-                     :style="{ width: getBarWidth(item.low), backgroundColor: SEVERITY_COLORS.low }">
-                </div>
+                <template v-if="hasBreakdown(item)">
+                    <div v-if="item.critical > 0"
+                         class="h-full"
+                         :style="{ width: getBarWidth(item.critical), backgroundColor: SEVERITY_COLORS.critical }">
+                    </div>
+                    <div v-if="item.high > 0"
+                         class="h-full"
+                         :style="{ width: getBarWidth(item.high), backgroundColor: SEVERITY_COLORS.high }">
+                    </div>
+                    <div v-if="item.medium > 0"
+                         class="h-full"
+                         :style="{ width: getBarWidth(item.medium), backgroundColor: SEVERITY_COLORS.medium }">
+                    </div>
+                    <div v-if="item.low > 0"
+                         class="h-full"
+                         :style="{ width: getBarWidth(item.low), backgroundColor: SEVERITY_COLORS.low }">
+                    </div>
+                </template>
+
+                <template v-else>
+                    <div class="h-full"
+                         :style="{
+                             width: getBarWidth(item.total),
+                             backgroundColor: item.color || '#3b82f6'
+                         }">
+                    </div>
+                </template>
             </div>
         </div>
 

@@ -93,7 +93,6 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
 // -- Metrics --
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-
     // -- Admin User Management --
     Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
