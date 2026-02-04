@@ -39,7 +39,6 @@ export function useScan() {
         return formatted;
     };
 
-    // ✅ IMPROVED: Normalize URLs for comparison
     const normalizeUrl = (url: string): string => {
         try {
             const normalized = new URL(url);
@@ -80,7 +79,6 @@ export function useScan() {
                     if (currentSessionId && data[currentSessionId]) {
                         scanInfo = data[currentSessionId];
                     } else {
-                        // ✅ IMPROVED: Better URL matching with normalization
                         const normalizedTarget = normalizeUrl(targetUrl);
                         for (const sessionId in data) {
                             const scanTarget = data[sessionId].target;
@@ -142,18 +140,16 @@ export function useScan() {
         targetUrl = target;
         scanStatus.value = 'Initializing...';
 
-        // ✅ IMPROVED: Connect WebSocket with a small delay to ensure it's ready
         connectWebSocket();
 
-        // ✅ IMPROVED: Wait for WebSocket to connect before starting scan
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         const endpoint = type === 'basic' ? '/api/v1/wapiti/scan/quick' : '/api/v1/scan/';
 
         try {
             const payload: any = {
                 url: target,
-                user_id: userId
+                user_id: userId,
             };
 
             if (type === 'full' && config) {
@@ -171,9 +167,7 @@ export function useScan() {
                 try {
                     const err = await res.json();
                     if (err.detail) {
-                        errorMessage = Array.isArray(err.detail)
-                            ? err.detail.map((e: any) => e.msg || e).join(', ')
-                            : err.detail;
+                        errorMessage = Array.isArray(err.detail) ? err.detail.map((e: any) => e.msg || e).join(', ') : err.detail;
                     }
                 } catch (e) {
                     // Failed to parse error JSON
@@ -191,7 +185,6 @@ export function useScan() {
             } else {
                 console.warn('No session_id in response. Using URL matching for status updates.');
             }
-
 
             // Parse based on scan type
             let parsedResults: any;
@@ -213,7 +206,6 @@ export function useScan() {
             scanStatus.value = 'Success';
 
             toast.success(`${type === 'basic' ? 'Basic' : 'Full'} Scan completed!`);
-
         } catch (e: any) {
             console.error('Scan error:', e);
             errorMsg.value = e.message;
@@ -221,7 +213,6 @@ export function useScan() {
             toast.error('Scan Failed', { description: e.message });
         } finally {
             scanning.value = false;
-            // ✅ IMPROVED: Add small delay before disconnecting to catch final status
             setTimeout(() => {
                 disconnectWebSocket();
             }, 1000);
