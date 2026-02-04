@@ -34,7 +34,7 @@ import { getSeverityColor } from '@/lib/colors'
 import type { ScanResult, Vulnerability, Technology } from '@/lib/restack/restack.types'
 
 const props = defineProps<{
-    data: ScanResult
+    data: ScanResult & { id?: string;   session_id?: string }
 }>()
 
 const safeData = computed(() => ({
@@ -207,10 +207,30 @@ const techTable = useVueTable({
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
 })
+
+function downloadReport(format: 'excel' | 'pdf') {
+    console.log("Export triggered. Data object:", props.data);
+
+    const reportId = props.data.id;
+    if (!reportId) {
+        console.error("Report ID is missing from backend response");
+        return;
+    }
+    window.open(`http://127.0.0.1:25565/api/v1/report/${reportId}/export/${format}`, '_blank');
+}
 </script>
 
 <template>
     <div class="animate-fadein mt-2 space-y-4">
+        <div v-if="data" class="space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold">Scan Results</h2>
+                <div class="flex gap-2">
+                    <Button variant="outline" @click="downloadReport('excel')">Export Excel</Button>
+                    <Button variant="outline" @click="downloadReport('pdf')">Export PDF</Button>
+                </div>
+            </div>
+        </div>
         <Card>
             <CardHeader>
                 <CardTitle class="text-2xl">{{ safeData.scanType }} Report</CardTitle>

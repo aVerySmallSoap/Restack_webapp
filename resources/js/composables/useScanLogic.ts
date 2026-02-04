@@ -95,11 +95,11 @@ export function useScan() {
 
                     if (scanInfo) {
                         const step = scanInfo.step;
-                        scanStatus.value = step;
 
-                        console.log(`Scan status: ${step}`);
+                        if (scanStatus.value !== 'Success' && scanStatus.value !== 'Failed') {
+                            scanStatus.value = step;
+                        }
 
-                        // If scan is complete or failed, disconnect
                         if (step === "Success" || step === "Failed" || step === "Error") {
                             disconnectWebSocket();
                         }
@@ -185,7 +185,6 @@ export function useScan() {
 
             console.log('Raw scan response:', data);
 
-            // ✅ IMPROVED: Extract session ID and log for debugging
             if (data.session_id) {
                 currentSessionId = data.session_id;
                 console.log(`Session ID received: ${currentSessionId}`);
@@ -193,12 +192,21 @@ export function useScan() {
                 console.warn('No session_id in response. Using URL matching for status updates.');
             }
 
+
             // Parse based on scan type
+            let parsedResults: any;
             if (type === 'basic') {
-                scanData.value = parseBasicScan(data, target);
+                parsedResults = parseBasicScan(data, target);
             } else {
-                scanData.value = parseFullScan(data, target);
+                parsedResults = parseFullScan(data, target);
             }
+
+            if (data.id) {
+                parsedResults.id = data.id;
+                console.log(`Database Report ID attached: ${data.id}`);
+            }
+
+            scanData.value = parsedResults;
 
             console.log('Parsed scan data:', scanData.value);
 
