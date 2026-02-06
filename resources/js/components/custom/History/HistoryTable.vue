@@ -94,8 +94,22 @@ const columns: ColumnDef<ScanHistory>[] = [
     },
     {
         accessorKey: 'date',
-        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Date' }),
-        cell: ({ row }) => h('div', { class: 'text-xs text-muted-foreground' }, new Date(row.getValue('date')).toLocaleString()),
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Date (PH Time)' }), // Add (PH Time)
+        cell: ({ row }) => {
+            const date = new Date(row.getValue('date'))
+            // JavaScript will automatically use the browser's locale settings
+            return h('div', { class: 'text-xs text-muted-foreground' },
+                date.toLocaleString('en-PH', {
+                    timeZone: 'Asia/Manila',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                })
+            )
+        },
         filterFn: (row, id, value) => {
             const date = new Date(row.getValue(id))
             const [from, to] = value || []
@@ -110,6 +124,16 @@ const columns: ColumnDef<ScanHistory>[] = [
                 return date >= from && date <= to
             }
             return true
+        },
+    },
+    {
+        accessorKey: 'isAutomated',
+        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Source' }),
+        cell: ({ row }) => {
+            const isAutomated = row.getValue('isAutomated');
+            return h(Badge, {
+                variant: isAutomated ? 'secondary' : 'default'
+            }, () => isAutomated ? 'Scheduled' : 'Manual');
         },
     },
     {

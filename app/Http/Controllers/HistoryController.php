@@ -33,6 +33,7 @@ class HistoryController extends Controller
                     'duration' => $scan->scan_duration ?? 0,
                     'status' => 'Completed',
                     'owner' => $scan->user->name ?? 'Unknown',
+                    'isAutomated' => $scan->is_automated ?? false,
                 ];
             });
 
@@ -40,7 +41,6 @@ class HistoryController extends Controller
             'history' => $history,
         ]);
     }
-
     public function show(string $id)
     {
         $report = Report::with(['vulnerabilities', 'techDiscoveries', 'scans'])->findOrFail($id);

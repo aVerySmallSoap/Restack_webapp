@@ -105,8 +105,10 @@ export interface ScanHistory {
     criticalHigh: number
     date: string
     status: string
+    owner?: string
+    duration?: number
+    isAutomated?: boolean
 }
-
 export interface ScheduledScan {
     id: string
     url: string

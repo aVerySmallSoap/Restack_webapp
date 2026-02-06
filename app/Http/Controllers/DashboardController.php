@@ -88,7 +88,7 @@ class DashboardController extends Controller
                     'scanType' => ucfirst($report->scan_type),
                     'totalFindings' => $report->total_vulnerabilities,
                     'criticalHigh' => $report->critical_count,
-                    'date' => $report->scan_date->toISOString(),
+                    'date' => $report->scan_date->setTimezone('Asia/Manila')->toISOString(),
                     'status' => 'Completed',
                     'owner' => $scan?->user?->name
                 ];
