@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Report extends Model
 {
@@ -16,6 +15,8 @@ class Report extends Model
 
     protected $casts = [
         'scan_date' => 'datetime',
+        'scanner_agreement_rate' => 'float',
+        'confidence_rate' => 'float',
     ];
 
     public function scans(): HasMany
@@ -32,5 +33,4 @@ class Report extends Model
     {
         return $this->hasMany(Vulnerability::class, 'report_id');
     }
-
 }

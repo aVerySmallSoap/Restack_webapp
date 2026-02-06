@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="PROD" type="CompoundRunConfigurationType">
+    <toRun name="run build" type="js.build_tools.npm" />
+    <toRun name="Production" type="PhpLocalRunConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>

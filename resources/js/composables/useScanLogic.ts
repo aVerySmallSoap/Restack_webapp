@@ -3,8 +3,8 @@ import { toast } from 'vue-sonner';
 import { parseBasicScan, parseFullScan } from '@/lib/restack/scanParsers';
 import type { ScanResult } from '@/lib/restack/restack.types';
 
-const API_BASE_URL = "http://127.0.0.1:25565";
-const WS_BASE_URL = "ws://127.0.0.1:25565";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const WS_BASE_URL = import.meta.env.VITE_API_SOCKET;
 
 export function useScan() {
     const scanData = ref<ScanResult | null>(null);

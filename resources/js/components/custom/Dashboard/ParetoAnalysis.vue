@@ -22,7 +22,7 @@ interface ParetoResponse {
 }
 
 // --- API Config ---
-const API_ENDPOINT = "http://127.0.0.1:25565/test/poll/data/pareto"
+const API_ENDPOINT = `${import.meta.env.VITE_API_BASE_URL}/test/poll/data/pareto`
 const POLL_INTERVAL = 30000
 
 // --- State ---

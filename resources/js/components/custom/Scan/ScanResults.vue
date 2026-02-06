@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Sparkles } from 'lucide-vue-next'
+import { Download, FileSpreadsheet, FileText } from 'lucide-vue-next'
 import {
     FlexRender,
     getCoreRowModel,
@@ -19,6 +19,12 @@ import {
     type ColumnDef,
     type ColumnFiltersState,
 } from '@tanstack/vue-table'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 import SeverityPieChart from '@/components/custom/Charts/SeverityPieChart.vue'
 import ScannerBarChart from '@/components/custom/Charts/ScannerBarChart.vue'
@@ -30,8 +36,11 @@ import FullScanDetailDrawer from '@/components/custom/FullScanDetailDrawer.vue'
 import ScanAISummary from '@/components/custom/Scan/ScanAISummary.vue'
 import PriorityMatrix from '@/components/custom/Scan/PriorityMatrix.vue'
 import { getSeverityColor } from '@/lib/colors'
+import { toast } from 'vue-sonner'
 
 import type { ScanResult, Vulnerability, Technology } from '@/lib/restack/restack.types'
+
+const API_BASE_URL = 'http://127.0.0.1:25565'
 
 const props = defineProps<{
     data: ScanResult & { id?: string;   session_id?: string }
@@ -82,6 +91,19 @@ function mapSeverityToNumber(sev: string) {
         case 'low': return 1;
         default: return 0;
     }
+}
+
+const downloadReport = (format: 'excel' | 'pdf') => {
+    console.log("Export triggered. Data object:", props.data);
+
+    const reportId = props.data.id;
+    if (!reportId) {
+        console.error("Report ID is missing from backend response");
+        return;
+    }
+    const url = `${API_BASE_URL}/api/v1/report/${reportId}/export/${format}`
+    window.open(url, '_blank')
+    toast.info(`Generating ${format.toUpperCase()} report...`)
 }
 
 const priorityColumns: ColumnDef<Vulnerability>[] = [
@@ -207,17 +229,6 @@ const techTable = useVueTable({
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
 })
-
-function downloadReport(format: 'excel' | 'pdf') {
-    console.log("Export triggered. Data object:", props.data);
-
-    const reportId = props.data.id;
-    if (!reportId) {
-        console.error("Report ID is missing from backend response");
-        return;
-    }
-    window.open(`http://127.0.0.1:25565/api/v1/report/${reportId}/export/${format}`, '_blank');
-}
 </script>
 
 <template>
@@ -226,8 +237,15 @@ function downloadReport(format: 'excel' | 'pdf') {
             <div class="flex justify-between items-center">
                 <h2 class="text-2xl font-bold">Scan Results</h2>
                 <div class="flex gap-2">
-                    <Button variant="outline" @click="downloadReport('excel')">Export Excel</Button>
-                    <Button variant="outline" @click="downloadReport('pdf')">Export PDF</Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                            <Button variant="outline"><Download class="mr-2 h-4 w-4" /> Export Report</Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem @click="downloadReport('pdf')"><FileText class="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
+                            <DropdownMenuItem @click="downloadReport('excel')"><FileSpreadsheet class="mr-2 h-4 w-4" /> Export as Excel</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
         </div>

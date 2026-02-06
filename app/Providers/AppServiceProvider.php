@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate; // Import the Gate facade
 use App\Models\User;
@@ -24,5 +25,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // Manually register the policy
         Gate::policy(User::class, UserPolicy::class);
+        if (app()->environment('production')) {
+            URL::forceScheme('https');
+        }
     }
 }

@@ -13,7 +13,6 @@ class HistoryController extends Controller
     {
         $query = Report::with('scans');
 
-        // SCOPING: If not admin, only show reports linked to the user's scans
         if (!auth()->user()->is_admin) {
             $query->whereHas('scans', function ($q) {
                 $q->where('user_id', auth()->id());
@@ -42,10 +41,8 @@ class HistoryController extends Controller
         ]);
     }
 
-    // Show a single report details
     public function show(string $id)
     {
-        // Eager load all relationships to avoid N+1 queries
         $report = Report::with(['vulnerabilities', 'techDiscoveries', 'scans'])->findOrFail($id);
 
         return Inertia::render('history/Show', [
@@ -53,19 +50,16 @@ class HistoryController extends Controller
         ]);
     }
 
-    // Delete a report via the Python API to ensure full cleanup
     public function destroy(string $id)
     {
+        $apiUrl = config('api.API_BASE_URL');
         try {
-            // Call the Python API to handle deletion (DB + Files)
-            // Using the port 25565 as specified
-            $response = Http::delete("http://127.0.0.1:25565/v1/history/{$id}");
+            $response = Http::delete("{$apiUrl}/v1/history/{$id}");
 
             if ($response->successful()) {
                 return to_route('history.index');
             }
 
-            // Fallback: If API fails, notify the user rather than force deleting locally
             return back()->with('error', 'Failed to delete report from analysis engine.');
 
         } catch (\Exception $e) {
@@ -73,7 +67,6 @@ class HistoryController extends Controller
         }
     }
 
-    // Helper to make scan types look nice (e.g., "wapiti scan" -> "Basic")
     private function formatScanType($type)
     {
         $t = strtolower($type);

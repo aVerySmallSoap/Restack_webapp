@@ -13,7 +13,7 @@ import {
     type SortingState,
     type ColumnFiltersState,
 } from '@tanstack/vue-table'
-import { Sparkles, AlertCircle, Download, FileSpreadsheet, FileText } from 'lucide-vue-next'
+import { AlertCircle, Download, FileSpreadsheet, FileText } from 'lucide-vue-next'
 import Navigation from '@/components/custom/Navigation.vue'
 import FullScanDetailDrawer from '@/components/custom/FullScanDetailDrawer.vue'
 import BasicScanDetailDrawer from '@/components/custom/BasicScanDetailDrawer.vue'
@@ -34,10 +34,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import SeverityPieChart from '@/components/custom/Charts/SeverityPieChart.vue'
 import ScannerBarChart from '@/components/custom/Charts/ScannerBarChart.vue'
+import ScanAISummary from '@/components/custom/Scan/ScanAISummary.vue'
+import PriorityMatrix from '@/components/custom/Scan/PriorityMatrix.vue'
 import { toast } from 'vue-sonner'
 import { getSeverityColor } from '@/lib/colors'
 
-// ---------- CONFIGURATION ----------
 const API_BASE_URL = 'http://127.0.0.1:25565'
 
 const props = defineProps<{
@@ -47,6 +48,17 @@ const props = defineProps<{
         scan_date: string
         total_vulnerabilities: number
         critical_count: number
+        scanner_agreement_rate: number | null
+        confidence_rate: number | null
+        high_confidence_vulns: number
+        medium_confidence_vulns: number
+        low_confidence_vulns: number
+        ai_summary_vulnerabilities: string | null
+        ai_summary_tech: string | null
+        high_severity_high_confidence: number
+        high_severity_low_confidence: number
+        low_severity_high_confidence: number
+        low_severity_low_confidence: number
         vulnerabilities: any[]
         tech_discoveries: any[]
         scans: any[]
@@ -58,19 +70,12 @@ const fullDrawerOpen = ref(false)
 const selectedBasicVuln = ref<any>(null)
 const selectedFullVuln = ref<any>(null)
 
-// --- HELPERS ---
-
-// Title Resolver: Checks DB columns first, then dives into JSON data to find the real name
 function resolveVulnTitle(v: any): string {
-    // 1. Check explicit name column
     if (v.name && v.name !== 'Vulnerability') return v.name
-    // 2. Check vulnerability_type (if not generic)
     if (v.vulnerability_type && v.vulnerability_type !== 'Vulnerability') return v.vulnerability_type
-    // 3. Check raw data blob for 'ruleId' (Wapiti/SARIF standard) or 'title'
     if (v.data?.ruleId) return v.data.ruleId
     if (v.data?.title) return v.data.title
     if (v.data?.name) return v.data.name
-    // 4. Fallback
     return 'Vulnerability'
 }
 
@@ -78,7 +83,6 @@ function getSeverityStyle(level: any) {
     const severityStr = typeof level === 'number'
         ? (level >= 3 ? 'high' : (level === 2 ? 'medium' : 'low'))
         : level;
-
     return {
         backgroundColor: getSeverityColor(severityStr),
         color: '#ffffff',
@@ -87,7 +91,12 @@ function getSeverityStyle(level: any) {
 }
 
 function mapSeverityToNumber(sev: string) {
-    switch (sev?.toLowerCase()) { case 'critical': return 4; case 'high': return 3; case 'medium': return 2; default: return 1 }
+    switch (sev?.toLowerCase()) {
+        case 'critical': return 4
+        case 'high': return 3
+        case 'medium': return 2
+        default: return 1
+    }
 }
 
 function formatHttpRequest(req: any): string {
@@ -124,7 +133,8 @@ const transformedData = computed(() => {
     const excludedTech = ['Country', 'IP', 'HTML5', 'HTTPServer']
 
     flatPlugins.forEach((p: any) => {
-        const name = Object.keys(p)[0]; const details = p[name]
+        const name = Object.keys(p)[0]
+        const details = p[name]
         if (name === 'Country') country = Array.isArray(details) ? details.join(', ') : details
         else if (name === 'IP') ip = Array.isArray(details) ? details.join(', ') : details
         else if (!excludedTech.includes(name)) {
@@ -135,6 +145,24 @@ const transformedData = computed(() => {
             technologies.push({ name, version, vulnerable: false, fix: 'N/A' })
         }
     })
+
+    // AI Summary object
+    const aiSummary = (props.report.ai_summary_vulnerabilities || props.report.ai_summary_tech) ? {
+        summary: {
+            vulnerabilities: props.report.ai_summary_vulnerabilities || '',
+            tech: props.report.ai_summary_tech || ''
+        }
+    } : null
+
+    // Priority Matrix object
+    const matrix = {
+        quadrant_counts: {
+            high_severity_high_confidence: props.report.high_severity_high_confidence || 0,
+            high_severity_low_confidence: props.report.high_severity_low_confidence || 0,
+            low_severity_high_confidence: props.report.low_severity_high_confidence || 0,
+            low_severity_low_confidence: props.report.low_severity_low_confidence || 0,
+        }
+    }
 
     if (scanType.value === 'basic') {
         const grouped: Record<string, any> = {}
@@ -157,7 +185,6 @@ const transformedData = computed(() => {
                 info: v.description,
                 module: v.scanner,
                 category: categoryName,
-                // Pass type/name specifically so the Drawer picks it up
                 type: categoryName,
                 name: categoryName,
                 description: v.description,
@@ -178,10 +205,14 @@ const transformedData = computed(() => {
             allVulns,
             priorities,
             technologies,
-            aiSummary: {
-                assessment: `Historical ${props.report.scan_type || 'Basic'} Scan of ${target}.`,
-                keyFindings: categories.slice(0, 3).map((c: any) => c.name),
-                recommendations: ["Review historical findings to ensure remediation."]
+            aiSummary,
+            matrix,
+            summaryStats: {
+                scannerAgreementRate: props.report.scanner_agreement_rate ? props.report.scanner_agreement_rate.toFixed(1) + '%' : null,
+                confidenceRate: props.report.confidence_rate ? props.report.confidence_rate.toFixed(1) + '%' : null,
+                highConfidenceVulns: props.report.high_confidence_vulns || 0,
+                mediumConfidenceVulns: props.report.medium_confidence_vulns || 0,
+                lowConfidenceVulns: props.report.low_confidence_vulns || 0,
             }
         }
     } else {
@@ -213,16 +244,19 @@ const transformedData = computed(() => {
             vulns,
             priorities,
             technologies,
-            aiSummary: {
-                assessment: `Historical ${props.report.scan_type || 'Full'} Scan of ${target}.`,
-                keyFindings: [`${vulns.length} total findings recorded.`],
-                recommendations: ["Verify if these issues persist in latest scans."]
+            aiSummary,
+            matrix,
+            summaryStats: {
+                scannerAgreementRate: props.report.scanner_agreement_rate ? props.report.scanner_agreement_rate.toFixed(1) + '%' : null,
+                confidenceRate: props.report.confidence_rate ? props.report.confidence_rate.toFixed(1) + '%' : null,
+                highConfidenceVulns: props.report.high_confidence_vulns || 0,
+                mediumConfidenceVulns: props.report.medium_confidence_vulns || 0,
+                lowConfidenceVulns: props.report.low_confidence_vulns || 0,
             }
         }
     }
 })
 
-// --- FILTER OPTIONS ---
 const severityOptions = [
     { label: 'Critical', value: 'critical' },
     { label: 'High', value: 'high' },
@@ -232,15 +266,15 @@ const severityOptions = [
 ]
 
 const scannerOptions = computed(() => {
-    if (!transformedData.value?.vulns) return []
-    const scanners = new Set(transformedData.value.vulns.map((v: any) => v.scanner).filter(Boolean))
+    const vulns = scanType.value === 'basic' ? transformedData.value?.allVulns : transformedData.value?.vulns
+    if (!vulns) return []
+    const scanners = new Set(vulns.map((v: any) => v.scanner || v.module).filter(Boolean))
     return Array.from(scanners).sort().map(scanner => ({
         label: scanner,
         value: scanner
     }))
 })
 
-// --- TABLE SETUP ---
 const prioritySorting = ref<SortingState>([])
 const priorityColumns: ColumnDef<any>[] = [
     { accessorKey: 'type', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }), cell: ({ row }) => h('div', { class: 'font-medium truncate max-w-[200px]' }, row.getValue('type')) },
@@ -251,9 +285,13 @@ const priorityColumns: ColumnDef<any>[] = [
     },
     { accessorKey: 'endpoint', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Endpoint' }), cell: ({ row }) => h('div', { class: 'truncate max-w-[150px]' }, row.getValue('endpoint')) },
 ]
-const priorityTable = useVueTable({ get data() { return transformedData.value?.priorities || [] }, get columns() { return priorityColumns }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), onSortingChange: (u) => prioritySorting.value = typeof u === 'function' ? u(prioritySorting.value) : u, state: { get sorting() { return prioritySorting.value } } })
+const priorityTable = useVueTable({
+    get data() { return transformedData.value?.priorities || [] },
+    get columns() { return priorityColumns },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+})
 
-// BASIC SCAN TABLE
 const basicVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const basicFilter = ref('')
 const basicColumnFilters = ref<ColumnFiltersState>([])
@@ -297,7 +335,6 @@ const basicTable = useVueTable({
     }
 })
 
-// FULL SCAN TABLE
 const fullVulnSorting = ref<SortingState>([{ id: 'severity', desc: true }])
 const fullFilter = ref('')
 const fullColumnFilters = ref<ColumnFiltersState>([])
@@ -342,9 +379,13 @@ const techColumns: ColumnDef<any>[] = [
     { accessorKey: 'name', header: 'Technology' },
     { accessorKey: 'version', header: 'Version' },
 ]
-const techTable = useVueTable({ get data() { return transformedData.value?.technologies || [] }, get columns() { return techColumns }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(), getFilteredRowModel: getFilteredRowModel(), onGlobalFilterChange: (u) => techFilter.value = typeof u === 'function' ? u(techFilter.value) : u, state: { get globalFilter() { return techFilter.value } } })
+const techTable = useVueTable({
+    get data() { return transformedData.value?.technologies || [] },
+    get columns() { return techColumns },
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+})
 
-// Helper to determine active filters state for reset button
 const isFiltered = computed(() => {
     return scanType.value === 'basic'
         ? basicColumnFilters.value.length > 0
@@ -386,6 +427,7 @@ function resetFilters() {
                 </div>
 
                 <div class="space-y-4 animate-fadein mt-2">
+                    <!-- Main Report Card -->
                     <Card>
                         <CardHeader>
                             <CardTitle class="text-2xl">{{ scanType === 'basic' ? 'Basic' : 'Full' }} Scan Report</CardTitle>
@@ -401,16 +443,97 @@ function resetFilters() {
                         <Separator />
                         <CardContent class="pt-6">
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div class="p-4 border rounded-lg"><h3 class="text-sm font-medium text-muted-foreground">Total Findings</h3><p class="text-3xl font-bold">{{ transformedData.scanMeta.totalVulns }}</p></div>
-                                <div class="p-4 border rounded-lg"><h3 class="text-sm font-medium text-muted-foreground">Critical/High</h3><p class="text-3xl font-bold text-destructive">{{ scanType === 'basic' ? transformedData.scanMeta.criticalHighVulns : transformedData.scanMeta.criticalVulns }}</p></div>
-                                <div class="p-4 border rounded-lg"><h3 class="text-sm font-medium text-muted-foreground">Technologies</h3><p class="text-3xl font-bold">{{ transformedData.technologies.length }}</p></div>
-                                <div class="p-4 border rounded-lg"><h3 class="text-sm font-medium text-muted-foreground">Top Vulnerability</h3><p class="text-2xl md:text-3xl font-bold">{{ transformedData.topRisk }}</p></div>
+                                <div class="p-4 border rounded-lg">
+                                    <h3 class="text-sm font-medium text-muted-foreground">Total Findings</h3>
+                                    <p class="text-3xl font-bold">{{ transformedData.scanMeta.totalVulns }}</p>
+                                </div>
+                                <div class="p-4 border rounded-lg">
+                                    <h3 class="text-sm font-medium text-muted-foreground">Critical/High</h3>
+                                    <p class="text-3xl font-bold text-destructive">{{ scanType === 'basic' ? transformedData.scanMeta.criticalHighVulns : transformedData.scanMeta.criticalVulns }}</p>
+                                </div>
+                                <div class="p-4 border rounded-lg">
+                                    <h3 class="text-sm font-medium text-muted-foreground">Technologies</h3>
+                                    <p class="text-3xl font-bold">{{ transformedData.technologies.length }}</p>
+                                </div>
+                                <div class="p-4 border rounded-lg">
+                                    <h3 class="text-sm font-medium text-muted-foreground">Top Vulnerability</h3>
+                                    <p class="text-2xl md:text-3xl font-bold">{{ transformedData.topRisk }}</p>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
 
+                    <!-- Summary Stats Card (Full Scan Only) -->
+                    <Card v-if="transformedData.summaryStats && scanType === 'full'">
+                        <CardHeader>
+                            <CardTitle>Scan Confidence Metrics</CardTitle>
+                            <CardDescription>Agreement and confidence statistics from multiple scanners</CardDescription>
+                        </CardHeader>
+                        <Separator />
+                        <CardContent class="pt-6">
+                            <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
+                                <div class="rounded-lg border p-4">
+                                    <h3 class="text-muted-foreground text-sm font-medium">Scanner Agreement</h3>
+                                    <p class="text-2xl font-bold">{{ transformedData.summaryStats.scannerAgreementRate || 'N/A' }}</p>
+                                </div>
+                                <div class="rounded-lg border p-4">
+                                    <h3 class="text-muted-foreground text-sm font-medium">Overall Confidence</h3>
+                                    <p class="text-2xl font-bold">{{ transformedData.summaryStats.confidenceRate || 'N/A' }}</p>
+                                </div>
+                                <div class="rounded-lg border p-4">
+                                    <h3 class="text-muted-foreground text-sm font-medium">High Confidence</h3>
+                                    <p class="text-2xl font-bold text-green-600">{{ transformedData.summaryStats.highConfidenceVulns }}</p>
+                                </div>
+                                <div class="rounded-lg border p-4">
+                                    <h3 class="text-muted-foreground text-sm font-medium">Medium Confidence</h3>
+                                    <p class="text-2xl font-bold text-yellow-600">{{ transformedData.summaryStats.mediumConfidenceVulns }}</p>
+                                </div>
+                                <div class="rounded-lg border p-4">
+                                    <h3 class="text-muted-foreground text-sm font-medium">Low Confidence</h3>
+                                    <p class="text-2xl font-bold text-orange-600">{{ transformedData.summaryStats.lowConfidenceVulns }}</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- AI Summary and Priority Matrix -->
+                    <div v-if="transformedData.aiSummary || transformedData.matrix" class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        <div :class="transformedData.matrix ? 'lg:col-span-2' : 'lg:col-span-3'">
+                            <ScanAISummary v-if="transformedData.aiSummary" :summary="transformedData.aiSummary" />
+                        </div>
+                        <div v-if="transformedData.matrix" class="lg:col-span-1">
+                            <PriorityMatrix :matrix="transformedData.matrix" />
+                        </div>
+                    </div>
+
+                    <!-- Charts Section -->
                     <div v-if="scanType === 'basic'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card><CardHeader><CardTitle>Top Vulnerabilities</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow v-for="hg in priorityTable.getHeaderGroups()" :key="hg.id"><TableHead v-for="h in hg.headers" :key="h.id"><FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/></TableHead></TableRow></TableHeader><TableBody><TableRow v-if="!priorityTable.getRowModel().rows.length"><TableCell :colSpan="priorityColumns.length" class="h-24 text-center">No high or medium risks found.</TableCell></TableRow><TableRow v-for="row in priorityTable.getRowModel().rows" :key="row.id"><TableCell v-for="cell in row.getVisibleCells()" :key="cell.id"><FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/></TableCell></TableRow></TableBody></Table></CardContent></Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Top Vulnerabilities</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow v-for="hg in priorityTable.getHeaderGroups()" :key="hg.id">
+                                            <TableHead v-for="h in hg.headers" :key="h.id">
+                                                <FlexRender :render="h.column.columnDef.header" :props="h.getContext()" />
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow v-if="!priorityTable.getRowModel().rows.length">
+                                            <TableCell :colSpan="priorityColumns.length" class="h-24 text-center">No critical risks found.</TableCell>
+                                        </TableRow>
+                                        <TableRow v-for="row in priorityTable.getRowModel().rows" :key="row.id">
+                                            <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+                                                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
                         <SeverityPieChart :vulnerabilities="transformedData.allVulns" />
                     </div>
 
@@ -420,20 +543,38 @@ function resetFilters() {
                             <ScannerBarChart :vulnerabilities="transformedData.vulns" />
                         </div>
                         <Card>
-                            <CardHeader><CardTitle>Top Vulnerabilities</CardTitle></CardHeader>
+                            <CardHeader>
+                                <CardTitle>Top Vulnerabilities</CardTitle>
+                            </CardHeader>
                             <CardContent>
                                 <Table>
-                                    <TableHeader><TableRow v-for="hg in priorityTable.getHeaderGroups()" :key="hg.id"><TableHead v-for="h in hg.headers" :key="h.id"><FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/></TableHead></TableRow></TableHeader>
+                                    <TableHeader>
+                                        <TableRow v-for="hg in priorityTable.getHeaderGroups()" :key="hg.id">
+                                            <TableHead v-for="h in hg.headers" :key="h.id">
+                                                <FlexRender :render="h.column.columnDef.header" :props="h.getContext()" />
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
                                     <TableBody>
-                                        <TableRow v-if="!priorityTable.getRowModel().rows.length"><TableCell :colSpan="priorityColumns.length" class="h-24 text-center">No high risks found.</TableCell></TableRow>
-                                        <TableRow v-for="row in priorityTable.getRowModel().rows" :key="row.id"><TableCell v-for="cell in row.getVisibleCells()" :key="cell.id"><FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/></TableCell></TableRow></TableBody>
+                                        <TableRow v-if="!priorityTable.getRowModel().rows.length">
+                                            <TableCell :colSpan="priorityColumns.length" class="h-24 text-center">No high risks found.</TableCell>
+                                        </TableRow>
+                                        <TableRow v-for="row in priorityTable.getRowModel().rows" :key="row.id">
+                                            <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+                                                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
                                 </Table>
                             </CardContent>
                         </Card>
                     </template>
 
+                    <!-- Vulnerabilities Table -->
                     <Card>
-                        <CardHeader><CardTitle>Vulnerabilities Detected</CardTitle></CardHeader>
+                        <CardHeader>
+                            <CardTitle>Vulnerabilities Detected</CardTitle>
+                        </CardHeader>
                         <CardContent class="space-y-4">
                             <div class="flex flex-wrap items-center gap-2">
                                 <Input
@@ -482,13 +623,36 @@ function resetFilters() {
                                 </Button>
                             </div>
 
-                            <div class="border rounded-md"><Table><TableHeader><TableRow v-for="hg in (scanType === 'basic' ? basicTable : fullTable).getHeaderGroups()" :key="hg.id"><TableHead v-for="h in hg.headers" :key="h.id"><FlexRender :render="h.column.columnDef.header" :props="h.getContext()"/></TableHead></TableRow></TableHeader><TableBody><TableRow v-if="!(scanType === 'basic' ? basicTable : fullTable).getRowModel().rows.length"><TableCell :colSpan="(scanType === 'basic' ? basicVulnColumns : fullVulnColumns).length" class="h-24 text-center">No results.</TableCell></TableRow><TableRow v-for="row in (scanType === 'basic' ? basicTable : fullTable).getRowModel().rows" :key="row.id"><TableCell v-for="cell in row.getVisibleCells()" :key="cell.id"><FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()"/></TableCell></TableRow></TableBody></Table></div>
+                            <div class="border rounded-md">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow v-for="hg in (scanType === 'basic' ? basicTable : fullTable).getHeaderGroups()" :key="hg.id">
+                                            <TableHead v-for="h in hg.headers" :key="h.id">
+                                                <FlexRender :render="h.column.columnDef.header" :props="h.getContext()" />
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow v-if="!(scanType === 'basic' ? basicTable : fullTable).getRowModel().rows.length">
+                                            <TableCell :colSpan="(scanType === 'basic' ? basicVulnColumns : fullVulnColumns).length" class="h-24 text-center">No results found.</TableCell>
+                                        </TableRow>
+                                        <TableRow v-for="row in (scanType === 'basic' ? basicTable : fullTable).getRowModel().rows" :key="row.id" class="cursor-pointer hover:bg-muted/50" @click="scanType === 'basic' ? (selectedBasicVuln = row.original, basicDrawerOpen = true) : (selectedFullVuln = row.original, fullDrawerOpen = true)">
+                                            <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+                                                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
                             <DataTablePagination :table="scanType === 'basic' ? basicTable : fullTable" />
                         </CardContent>
                     </Card>
 
+                    <!-- Technologies Table -->
                     <Card>
-                        <CardHeader><CardTitle>Technologies</CardTitle></CardHeader>
+                        <CardHeader>
+                            <CardTitle>Technologies</CardTitle>
+                        </CardHeader>
                         <CardContent>
                             <Input placeholder="Filter technologies..." :model-value="techFilter" @update:modelValue="techFilter = String($event)" class="h-8 mb-2" />
                             <div class="border rounded-md">
@@ -516,12 +680,17 @@ function resetFilters() {
                         </CardContent>
                     </Card>
                 </div>
+
+                <!-- Drawers -->
                 <BasicScanDetailDrawer v-if="selectedBasicVuln" :vuln="selectedBasicVuln" :open="basicDrawerOpen" @update:open="basicDrawerOpen = $event" />
                 <FullScanDetailDrawer v-if="selectedFullVuln" :vuln="selectedFullVuln" :open="fullDrawerOpen" @update:open="fullDrawerOpen = $event" />
             </div>
             <div v-else class="flex flex-col items-center justify-center h-[50vh] space-y-4 text-muted-foreground">
                 <AlertCircle class="h-12 w-12" />
-                <div class="text-center"><h3 class="text-lg font-medium">Report Not Found</h3><p>The scan report could not be loaded.</p></div>
+                <div class="text-center">
+                    <h3 class="text-lg font-medium">Report Not Found</h3>
+                    <p>The scan report could not be loaded.</p>
+                </div>
             </div>
         </div>
     </Navigation>

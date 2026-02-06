@@ -11,7 +11,7 @@ import { usePage } from '@inertiajs/vue3'
 const { scanData, scanning, errorMsg, scanStatus, runScan, resetState } = useScan()
 const page = usePage()
 
-function handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; config?: any }) {
+function  handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; config?: any }) {
     const userId = page.props.auth.user.id;
     runScan(payload.url, payload.type, userId, payload.config)
 }

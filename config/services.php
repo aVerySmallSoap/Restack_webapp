@@ -41,4 +41,9 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'api' => [
+        'base_url' => env('API_BASE_URL', 'https://api.restack.bar'),
+        'socket_url' => env('API_SOCKET_URL', 'ws://api.restack.bar'),
+    ],
+
 ];
