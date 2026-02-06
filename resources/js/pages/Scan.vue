@@ -5,6 +5,7 @@ import ScanResults from '@/components/custom/Scan/ScanResults.vue'
 import { useScan } from '@/composables/useScanLogic'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Loader2 } from 'lucide-vue-next'
 import { usePage } from '@inertiajs/vue3'
 
 // Destructure 'scanStatus' instead of 'progress'
@@ -36,15 +37,16 @@ function  handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; confi
                 {{ errorMsg }}
             </div>
 
-            <div v-if="scanning" class="mt-2 animate-pulse space-y-4">
-                <Card>
+            <!-- Skeleton loading -->
+            <div v-if="scanning" class="mt-2 space-y-4">
+                <Card class="animate-pulse">
                     <CardHeader><Skeleton class="h-6 w-48" /></CardHeader>
                     <CardContent class="space-y-4">
                         <Skeleton class="h-4 w-full" />
                         <Skeleton class="h-4 w-3/4" />
                     </CardContent>
                 </Card>
-                <Card>
+                <Card class="animate-pulse">
                     <CardHeader><Skeleton class="h-8 w-64" /></CardHeader>
                     <CardContent>
                         <div class="grid grid-cols-2 gap-4 md:grid-cols-4">

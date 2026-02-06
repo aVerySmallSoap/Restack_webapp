@@ -140,6 +140,7 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
 
     Route::get('/scheduled', [ScheduledScanController::class, 'index'])->name('scheduled.index');
     Route::post('/scheduled', [ScheduledScanController::class, 'store'])->name('scheduled.store');
+    Route::put('/scheduled/{id}', [ScheduledScanController::class, 'update'])->name('scheduled.update');
     Route::delete('/scheduled/{id}', [ScheduledScanController::class, 'destroy'])->name('scheduled.destroy');
 
 //    Route::get('/domain-dashboard', function(){

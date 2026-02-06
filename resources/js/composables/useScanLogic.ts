@@ -15,6 +15,7 @@ export function useScan() {
     let ws: WebSocket | null = null;
     let currentSessionId: string | null = null;
     let targetUrl: string = '';
+    let scanType: 'basic' | 'full' = 'full';
 
     // Formatter to handle localhost/docker environments
     const formatUrl = (inputUrl: string) => {
@@ -39,13 +40,57 @@ export function useScan() {
         return formatted;
     };
 
-    const normalizeUrl = (url: string): string => {
+    // Fetch scan results from the backend after completion
+    const fetchScanResults = async (sessionId: string) => {
         try {
-            const normalized = new URL(url);
-            // Remove trailing slash, convert to lowercase for comparison
-            return normalized.href.replace(/\/$/, '').toLowerCase();
-        } catch {
-            return url.replace(/\/$/, '').toLowerCase();
+            console.log(`📥 Fetching results for session: ${sessionId}`);
+
+            const res = await fetch(`${API_BASE_URL}/api/v1/scan/result/${sessionId}`);
+
+            if (!res.ok) {
+                let errorMessage = res.statusText;
+                try {
+                    const err = await res.json();
+                    if (err.detail) {
+                        errorMessage = err.detail;
+                    }
+                } catch (e) {
+                    // Failed to parse error JSON
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await res.json();
+            console.log('✅ Fetched scan results:', data);
+
+            // Parse based on scan type
+            let parsedResults: any;
+            if (scanType === 'basic') {
+                parsedResults = parseBasicScan(data, targetUrl);
+            } else {
+                parsedResults = parseFullScan(data, targetUrl);
+            }
+
+            // Attach report ID if present
+            if (data.id) {
+                parsedResults.id = data.id;
+                console.log(`📊 Report ID: ${data.id}`);
+            }
+
+            scanData.value = parsedResults;
+            scanStatus.value = 'Success';
+            scanning.value = false;
+
+            toast.success(`${scanType === 'basic' ? 'Basic' : 'Full'} Scan completed!`);
+
+        } catch (e: any) {
+            console.error('❌ Failed to fetch scan results:', e);
+            errorMsg.value = e.message;
+            scanStatus.value = 'Failed';
+            scanning.value = false;
+            toast.error('Failed to retrieve scan results', { description: e.message });
+        } finally {
+            disconnectWebSocket();
         }
     };
 
@@ -55,7 +100,7 @@ export function useScan() {
             ws = new WebSocket(`${WS_BASE_URL}/api/v1/ws/scans/poll`);
 
             ws.onopen = () => {
-                console.log('WebSocket connected for scan tracking');
+                console.log('🔌 WebSocket connected for scan tracking');
             };
 
             ws.onmessage = (event) => {
@@ -73,34 +118,38 @@ export function useScan() {
                         return;
                     }
 
-                    // Try to find our scan by session ID or URL
-                    let scanInfo = null;
-
-                    if (currentSessionId && data[currentSessionId]) {
-                        scanInfo = data[currentSessionId];
-                    } else {
-                        const normalizedTarget = normalizeUrl(targetUrl);
-                        for (const sessionId in data) {
-                            const scanTarget = data[sessionId].target;
-                            if (normalizeUrl(scanTarget) === normalizedTarget) {
-                                scanInfo = data[sessionId];
-                                currentSessionId = sessionId;
-                                console.log(`Matched scan by URL. Session ID: ${sessionId}`);
-                                break;
-                            }
-                        }
+                    // STRICT session ID matching - ignore updates for other scans
+                    if (!currentSessionId) {
+                        console.warn('⚠️  No current session ID set, ignoring WebSocket update');
+                        return;
                     }
 
-                    if (scanInfo) {
-                        const step = scanInfo.step;
+                    const scanInfo = data[currentSessionId];
 
-                        if (scanStatus.value !== 'Success' && scanStatus.value !== 'Failed') {
-                            scanStatus.value = step;
-                        }
+                    if (!scanInfo) {
+                        // This update is for a different scan, ignore it silently
+                        return;
+                    }
 
-                        if (step === "Success" || step === "Failed" || step === "Error") {
-                            disconnectWebSocket();
-                        }
+                    const step = scanInfo.step;
+                    console.log(`[${currentSessionId}] 📍 Status: ${step}`);
+
+                    // Update status (but don't overwrite terminal states)
+                    if (scanStatus.value !== 'Success' && scanStatus.value !== 'Failed') {
+                        scanStatus.value = step;
+                    }
+
+                    // Handle completion
+                    if (step === "Success") {
+                        console.log(`✅ Scan ${currentSessionId} completed. Fetching results...`);
+                        fetchScanResults(currentSessionId);
+                    } else if (step === "Failed" || step === "Error") {
+                        console.error(`❌ Scan ${currentSessionId} failed with step: ${step}`);
+                        errorMsg.value = 'Scan failed on the server';
+                        scanStatus.value = 'Failed';
+                        scanning.value = false;
+                        toast.error('Scan Failed', { description: 'An error occurred during scanning' });
+                        disconnectWebSocket();
                     }
                 } catch (e) {
                     console.error('Error parsing WebSocket message:', e);
@@ -112,7 +161,7 @@ export function useScan() {
             };
 
             ws.onclose = () => {
-                console.log('WebSocket disconnected');
+                console.log('🔌 WebSocket disconnected');
             };
 
         } catch (e) {
@@ -135,14 +184,12 @@ export function useScan() {
             return;
         }
 
+        // Reset state for new scan
         resetState();
         scanning.value = true;
         targetUrl = target;
-        scanStatus.value = 'Initializing...';
-
-        connectWebSocket();
-
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        scanType = type;
+        scanStatus.value = 'Queued';
 
         const endpoint = type === 'basic' ? '/api/v1/wapiti/scan/quick' : '/api/v1/scan/';
 
@@ -152,9 +199,11 @@ export function useScan() {
                 user_id: userId,
             };
 
-            if (type === 'full' && config) {
+            if (config) {
                 payload.config = config;
             }
+
+            console.log(`🚀 Starting ${type} scan for ${target}...`);
 
             const res = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'POST',
@@ -167,7 +216,9 @@ export function useScan() {
                 try {
                     const err = await res.json();
                     if (err.detail) {
-                        errorMessage = Array.isArray(err.detail) ? err.detail.map((e: any) => e.msg || e).join(', ') : err.detail;
+                        errorMessage = Array.isArray(err.detail)
+                            ? err.detail.map((e: any) => e.msg || e).join(', ')
+                            : err.detail;
                     }
                 } catch (e) {
                     // Failed to parse error JSON
@@ -176,46 +227,31 @@ export function useScan() {
             }
 
             const data = await res.json();
+            console.log('📨 Scan queued response:', data);
 
-            console.log('Raw scan response:', data);
-
-            if (data.session_id) {
-                currentSessionId = data.session_id;
-                console.log(`Session ID received: ${currentSessionId}`);
-            } else {
-                console.warn('No session_id in response. Using URL matching for status updates.');
+            // Validate session_id is present
+            if (!data.session_id) {
+                throw new Error('No session_id received from server');
             }
 
-            // Parse based on scan type
-            let parsedResults: any;
-            if (type === 'basic') {
-                parsedResults = parseBasicScan(data, target);
-            } else {
-                parsedResults = parseFullScan(data, target);
-            }
+            currentSessionId = data.session_id;
+            console.log(`🎫 Session ID: ${currentSessionId}`);
 
-            if (data.id) {
-                parsedResults.id = data.id;
-                console.log(`Database Report ID attached: ${data.id}`);
-            }
+            scanStatus.value = 'Initializing...';
 
-            scanData.value = parsedResults;
+            // Connect WebSocket AFTER we have the session ID
+            connectWebSocket();
 
-            console.log('Parsed scan data:', scanData.value);
+            toast.info(`${type === 'basic' ? 'Basic' : 'Full'} Scan queued`, {
+                description: 'Tracking progress...'
+            });
 
-            scanStatus.value = 'Success';
-
-            toast.success(`${type === 'basic' ? 'Basic' : 'Full'} Scan completed!`);
         } catch (e: any) {
-            console.error('Scan error:', e);
+            console.error('❌ Scan error:', e);
             errorMsg.value = e.message;
             scanStatus.value = 'Failed';
-            toast.error('Scan Failed', { description: e.message });
-        } finally {
             scanning.value = false;
-            setTimeout(() => {
-                disconnectWebSocket();
-            }, 1000);
+            toast.error('Scan Failed', { description: e.message });
         }
     };
 
@@ -225,9 +261,8 @@ export function useScan() {
         scanStatus.value = '';
         currentSessionId = null;
         targetUrl = '';
+        disconnectWebSocket();
     };
-
-    // Cleanup WebSocket on component unmount
     onUnmounted(() => {
         disconnectWebSocket();
     });

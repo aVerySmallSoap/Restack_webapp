@@ -275,19 +275,26 @@ function buildScanResult(
 
     const priorities = vulns.slice(0, 5);
 
-    // Force all scanners to appear in tool list if Full Scan
+    // Get scanners from vulnerabilities
     const scanners = new Set(vulns.map(v => v.scanner));
+
+    // Force all scanners to appear in tool list if Full Scan
     if (type === 'Full Scan') {
         scanners.add('Nuclei');
         scanners.add('ZAP');
         scanners.add('Wapiti');
     }
+    // For Basic Scan, always show Wapiti
+    else if (type === 'Basic Scan') {
+        scanners.add('Wapiti');
+    }
+
     const tools = Array.from(scanners).filter(Boolean);
 
     return {
         target: target || 'Unknown',
         scanType: type || 'Scan',
-        tools,
+        tools,  // This will now always include Nuclei, ZAP, Wapiti for Full Scans
         date: new Date().toISOString(),
         totalVulns: vulns.length,
         criticalHighVulns,
