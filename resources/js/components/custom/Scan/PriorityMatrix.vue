@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 
 const props = defineProps<{
     matrix: {
@@ -25,34 +24,38 @@ const counts = computed(() => props.matrix?.quadrant_counts || {
 <template>
     <Card class="h-full flex flex-col">
         <CardHeader class="shrink-0 pb-2">
-            <CardTitle>Priority Matrix</CardTitle>
-            <CardDescription>Actionable insights based on risk & certainty</CardDescription>
+            <CardTitle>Risk Priority</CardTitle>
+            <CardDescription>What to fix first based on severity and certainty</CardDescription>
         </CardHeader>
         <CardContent class="flex-1 min-h-0 pt-0">
             <div class="grid grid-cols-2 gap-3 h-[230px]">
 
-                <div class="flex flex-col items-center justify-center rounded-lg border-2 border-red-100 bg-red-50/50 p-2 text-center transition-all hover:border-red-200">
-                    <h4 class="text-[11px] font-extrabold uppercase tracking-wide text-red-800 mb-1">Critical Actions</h4>
+                <!-- Critical: Fix Now -->
+                <div class="flex flex-col items-center justify-center rounded-lg border-2 border-red-200 bg-red-50 p-2 text-center transition-all hover:shadow-md">
+                    <h4 class="text-[11px] font-bold uppercase tracking-wide text-red-900 mb-1">🔴 Fix Now</h4>
                     <span class="text-3xl font-black text-red-600">{{ counts.high_severity_high_confidence }}</span>
-                    <p class="text-[10px] text-red-600/80 font-medium mt-1">Confirmed Threats</p>
+                    <p class="text-[10px] text-red-700 font-medium mt-1">Verified threats</p>
                 </div>
 
-                <div class="flex flex-col items-center justify-center rounded-lg border-2 border-orange-100 bg-orange-50/30 p-2 text-center transition-all hover:border-orange-200">
-                    <h4 class="text-[11px] font-extrabold uppercase tracking-wide text-orange-800 mb-1">Needs Check</h4>
-                    <span class="text-3xl font-black text-orange-500">{{ counts.high_severity_low_confidence }}</span>
-                    <p class="text-[10px] text-orange-600/80 font-medium mt-1">Potential Risks</p>
+                <!-- High: Investigate -->
+                <div class="flex flex-col items-center justify-center rounded-lg border-2 border-amber-200 bg-amber-50 p-2 text-center transition-all hover:shadow-md">
+                    <h4 class="text-[11px] font-bold uppercase tracking-wide text-amber-900 mb-1">🟠 Investigate</h4>
+                    <span class="text-3xl font-black text-amber-600">{{ counts.high_severity_low_confidence }}</span>
+                    <p class="text-[10px] text-amber-700 font-medium mt-1">Needs review</p>
                 </div>
 
-                <div class="flex flex-col items-center justify-center rounded-lg border-2 border-blue-100 bg-blue-50/30 p-2 text-center transition-all hover:border-blue-200">
-                    <h4 class="text-[11px] font-extrabold uppercase tracking-wide text-blue-800 mb-1">Quick Fixes</h4>
-                    <span class="text-3xl font-black text-blue-500">{{ counts.low_severity_high_confidence }}</span>
-                    <p class="text-[10px] text-blue-600/80 font-medium mt-1">Compliance / Best Practice</p>
+                <!-- Medium: Fix When Possible -->
+                <div class="flex flex-col items-center justify-center rounded-lg border-2 border-sky-200 bg-sky-50 p-2 text-center transition-all hover:shadow-md">
+                    <h4 class="text-[11px] font-bold uppercase tracking-wide text-sky-900 mb-1">🔵 Fix Later</h4>
+                    <span class="text-3xl font-black text-sky-600">{{ counts.low_severity_high_confidence }}</span>
+                    <p class="text-[10px] text-sky-700 font-medium mt-1">Minor issues</p>
                 </div>
 
-                <div class="flex flex-col items-center justify-center rounded-lg border-2 border-slate-100 bg-slate-50/50 p-2 text-center transition-all hover:border-slate-200">
-                    <h4 class="text-[11px] font-extrabold uppercase tracking-wide text-slate-700 mb-1">Audit Log</h4>
-                    <span class="text-3xl font-black text-slate-500">{{ counts.low_severity_low_confidence }}</span>
-                    <p class="text-[10px] text-slate-500/80 font-medium mt-1">Informational</p>
+                <!-- Low: For Info -->
+                <div class="flex flex-col items-center justify-center rounded-lg border-2 border-gray-200 bg-gray-50 p-2 text-center transition-all hover:shadow-md">
+                    <h4 class="text-[11px] font-bold uppercase tracking-wide text-gray-700 mb-1">⚪ For Info</h4>
+                    <span class="text-3xl font-black text-gray-600">{{ counts.low_severity_low_confidence }}</span>
+                    <p class="text-[10px] text-gray-600 font-medium mt-1">Low priority</p>
                 </div>
             </div>
         </CardContent>

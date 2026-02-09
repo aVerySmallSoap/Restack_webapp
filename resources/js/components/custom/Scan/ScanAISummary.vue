@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
-import { Sparkles, FileText, Server } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
+import { Sparkles, FileText, Server, Copy, Check } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 const props = defineProps<{
     summary: {
@@ -17,6 +19,9 @@ const props = defineProps<{
 
 const vulnSummary = computed(() => props.summary?.summary?.vulnerabilities || 'No vulnerability analysis provided.')
 const techSummary = computed(() => props.summary?.summary?.tech || 'No technical analysis provided.')
+
+const copiedVuln = ref(false)
+const copiedTech = ref(false)
 
 function parseMarkdown(text: string) {
     if (!text) return ''
@@ -56,61 +61,88 @@ function parseMarkdown(text: string) {
 
     return html
 }
+
+async function copyToClipboard(text: string, type: 'vuln' | 'tech') {
+    try {
+        await navigator.clipboard.writeText(text)
+        if (type === 'vuln') {
+            copiedVuln.value = true
+            setTimeout(() => copiedVuln.value = false, 2000)
+        } else {
+            copiedTech.value = true
+            setTimeout(() => copiedTech.value = false, 2000)
+        }
+        toast.success('Copied to clipboard')
+    } catch (err) {
+        toast.error('Failed to copy to clipboard')
+    }
+}
 </script>
 
 <template>
-    <Card class="border-slate-200 shadow-sm h-full flex flex-col">
-        <CardHeader class="bg-slate-50 pb-4 shrink-0">
+    <Card>
+        <CardHeader>
             <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <Sparkles class="h-5 w-5 text-slate-600" />
-                    <CardTitle class="text-slate-900">AI Summary</CardTitle>
+                <div>
+                    <CardTitle>AI Summary</CardTitle>
+                    <CardDescription>Powered by Gemini</CardDescription>
                 </div>
-                <Badge variant="outline" class="bg-white text-slate-600 border-slate-300">
-                    Generative Analysis
-                </Badge>
+                <Sparkles class="h-5 w-5 text-muted-foreground" />
             </div>
-            <CardDescription>
-                Powered by Gemini.
-            </CardDescription>
         </CardHeader>
-
-        <CardContent class="pt-0 flex-1 min-h-0">
-            <Tabs default-value="vulns" class="w-full h-full flex flex-col">
-                <TabsList class="w-full justify-start rounded-none border-b bg-transparent p-0 mb-2 shrink-0">
-                    <TabsTrigger value="vulns" class="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent px-4 pb-2 pt-2">
-                        <div class="flex items-center gap-2">
-                            <FileText class="h-4 w-4" />
-                            Vulnerability Analysis
-                        </div>
+        <Separator />
+        <CardContent class="pt-6">
+            <Tabs default-value="vulns" class="w-full">
+                <TabsList class="grid w-full grid-cols-2">
+                    <TabsTrigger value="vulns">
+                        <FileText class="h-4 w-4 mr-2" />
+                        Vulnerability Analysis
                     </TabsTrigger>
-                    <TabsTrigger value="tech" class="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent px-4 pb-2 pt-2">
-                        <div class="flex items-center gap-2">
-                            <Server class="h-4 w-4" />
-                            Tech Stack Review
-                        </div>
+                    <TabsTrigger value="tech">
+                        <Server class="h-4 w-4 mr-2" />
+                        Tech Stack Review
                     </TabsTrigger>
                 </TabsList>
 
-                <div class="h-[230px]">
-                    <TabsContent value="vulns" class="h-full m-0">
-                        <ScrollArea class="h-full pr-4">
-                            <div
-                                class="prose prose-sm prose-slate max-w-none text-muted-foreground font-sans text-sm leading-relaxed pb-4"
-                                v-html="parseMarkdown(vulnSummary)"
-                            ></div>
-                        </ScrollArea>
-                    </TabsContent>
+                <TabsContent value="vulns" class="mt-4">
+                    <div class="flex justify-end mb-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            @click="copyToClipboard(vulnSummary, 'vuln')"
+                        >
+                            <Check v-if="copiedVuln" class="h-4 w-4 mr-2" />
+                            <Copy v-else class="h-4 w-4 mr-2" />
+                            {{ copiedVuln ? 'Copied!' : 'Copy' }}
+                        </Button>
+                    </div>
+                    <ScrollArea class="h-[400px] rounded-md border p-4">
+                        <div
+                            class="prose prose-sm prose-slate max-w-none text-muted-foreground font-sans text-sm leading-relaxed"
+                            v-html="parseMarkdown(vulnSummary)"
+                        ></div>
+                    </ScrollArea>
+                </TabsContent>
 
-                    <TabsContent value="tech" class="h-full m-0">
-                        <ScrollArea class="h-full pr-4">
-                            <div
-                                class="prose prose-sm prose-slate max-w-none text-muted-foreground font-sans text-sm leading-relaxed pb-4"
-                                v-html="parseMarkdown(techSummary)"
-                            ></div>
-                        </ScrollArea>
-                    </TabsContent>
-                </div>
+                <TabsContent value="tech" class="mt-4">
+                    <div class="flex justify-end mb-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            @click="copyToClipboard(techSummary, 'tech')"
+                        >
+                            <Check v-if="copiedTech" class="h-4 w-4 mr-2" />
+                            <Copy v-else class="h-4 w-4 mr-2" />
+                            {{ copiedTech ? 'Copied!' : 'Copy' }}
+                        </Button>
+                    </div>
+                    <ScrollArea class="h-[400px] rounded-md border p-4">
+                        <div
+                            class="prose prose-sm prose-slate max-w-none text-muted-foreground font-sans text-sm leading-relaxed"
+                            v-html="parseMarkdown(techSummary)"
+                        ></div>
+                    </ScrollArea>
+                </TabsContent>
             </Tabs>
         </CardContent>
     </Card>

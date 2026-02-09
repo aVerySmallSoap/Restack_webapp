@@ -21,6 +21,11 @@ const props = defineProps({
     vulnerabilities: {
         type: Array as () => Record<string, any>[],
         default: () => []
+    },
+    // Add scanType prop to know if it's a full scan
+    scanType: {
+        type: String,
+        default: 'basic'
     }
 })
 
@@ -38,6 +43,32 @@ const activeChart = ref<SeverityKey>("total")
 const chartData = computed(() => {
     const map = new Map<string, Record<SeverityKey, number>>()
 
+    // Initialize with all expected scanners for full scans (even if they found nothing)
+    if (props.scanType.toLowerCase().includes('full')) {
+        const defaultScanners = ['Nuclei', 'ZAP', 'Wapiti']
+        defaultScanners.forEach(scanner => {
+            map.set(scanner, {
+                total: 0,
+                critical: 0,
+                high: 0,
+                medium: 0,
+                low: 0,
+                informational: 0
+            })
+        })
+    } else {
+        // For basic scans, ensure Wapiti is present
+        map.set('Wapiti', {
+            total: 0,
+            critical: 0,
+            high: 0,
+            medium: 0,
+            low: 0,
+            informational: 0
+        })
+    }
+
+    // Process actual vulnerabilities
     props.vulnerabilities.forEach(v => {
         const scanner = v.scanner || 'Unknown'
         const severity = (v.severity || 'informational').toLowerCase() as SeverityKey
@@ -65,10 +96,17 @@ const chartData = computed(() => {
         }
     })
 
-    // Convert map to array and sort by Total desc
+    // Convert map to array and sort by Total desc, but keep expected scanners even if 0
     return Array.from(map.entries())
         .map(([scanner, counts]) => ({ scanner, ...counts }))
-        .sort((a, b) => b.total - a.total)
+        .sort((a, b) => {
+            // Sort by total, but keep order consistent for 0-count scanners
+            if (a.total === 0 && b.total === 0) {
+                // If both are 0, maintain alphabetical order
+                return a.scanner.localeCompare(b.scanner)
+            }
+            return b.total - a.total
+        })
 })
 
 // 4. Calculate grand totals for the header buttons

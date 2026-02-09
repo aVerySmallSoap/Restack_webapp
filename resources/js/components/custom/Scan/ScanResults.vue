@@ -34,13 +34,12 @@ import FacetedFilter from '@/components/custom/FacetedFilter.vue'
 import BasicScanDetailDrawer from '@/components/custom/BasicScanDetailDrawer.vue'
 import FullScanDetailDrawer from '@/components/custom/FullScanDetailDrawer.vue'
 import ScanAISummary from '@/components/custom/Scan/ScanAISummary.vue'
-import PriorityMatrix from '@/components/custom/Scan/PriorityMatrix.vue'
 import { getSeverityColor } from '@/lib/colors'
 import { toast } from 'vue-sonner'
 
 import type { ScanResult, Vulnerability, Technology } from '@/lib/restack/restack.types'
 
-const API_BASE_URL = 'http://127.0.0.1:25565'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 const props = defineProps<{
     data: ScanResult & { id?: string;   session_id?: string }
@@ -286,50 +285,46 @@ const techTable = useVueTable({
 
         <Card v-if="safeData.summaryStats && !isBasicScan">
             <CardHeader>
-                <CardTitle>Scan Confidence Metrics</CardTitle>
-                <CardDescription>Agreement and confidence statistics from multiple scanners</CardDescription>
+                <CardTitle>Scan Quality</CardTitle>
+                <CardDescription>How reliable are these findings?</CardDescription>
             </CardHeader>
             <Separator />
             <CardContent class="pt-6">
                 <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
                     <div class="rounded-lg border p-4">
-                        <h3 class="text-muted-foreground text-sm font-medium">Scanner Agreement</h3>
+                        <h3 class="text-muted-foreground text-sm font-medium">Match Rate</h3>
                         <p class="text-2xl font-bold">{{ safeData.summaryStats.scannerAgreementRate || 'N/A' }}</p>
+                        <p class="text-xs text-muted-foreground mt-1">Tools agreed</p>
                     </div>
                     <div class="rounded-lg border p-4">
-                        <h3 class="text-muted-foreground text-sm font-medium">Overall Confidence</h3>
+                        <h3 class="text-muted-foreground text-sm font-medium">Reliability</h3>
                         <p class="text-2xl font-bold">{{ safeData.summaryStats.confidenceRate || 'N/A' }}</p>
+                        <p class="text-xs text-muted-foreground mt-1">Overall score</p>
                     </div>
                     <div class="rounded-lg border p-4">
-                        <h3 class="text-muted-foreground text-sm font-medium">High Confidence</h3>
+                        <h3 class="text-muted-foreground text-sm font-medium">Verified</h3>
                         <p class="text-2xl font-bold text-green-600">{{ safeData.summaryStats.highConfidenceVulns }}</p>
+                        <p class="text-xs text-muted-foreground mt-1">Confirmed</p>
                     </div>
                     <div class="rounded-lg border p-4">
-                        <h3 class="text-muted-foreground text-sm font-medium">Medium Confidence</h3>
+                        <h3 class="text-muted-foreground text-sm font-medium">Likely</h3>
                         <p class="text-2xl font-bold text-yellow-600">{{ safeData.summaryStats.mediumConfidenceVulns }}</p>
+                        <p class="text-xs text-muted-foreground mt-1">Probable</p>
                     </div>
                     <div class="rounded-lg border p-4">
-                        <h3 class="text-muted-foreground text-sm font-medium">Low Confidence</h3>
+                        <h3 class="text-muted-foreground text-sm font-medium">Uncertain</h3>
                         <p class="text-2xl font-bold text-orange-600">{{ safeData.summaryStats.lowConfidenceVulns }}</p>
+                        <p class="text-xs text-muted-foreground mt-1">Needs check</p>
                     </div>
                 </div>
             </CardContent>
         </Card>
 
-        <div v-if="safeData.aiSummary || safeData.matrix" class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-
-            <div :class="safeData.matrix ? 'lg:col-span-2' : 'lg:col-span-3'">
-                <ScanAISummary v-if="safeData.aiSummary" :summary="safeData.aiSummary" />
-            </div>
-
-            <div v-if="safeData.matrix" class="lg:col-span-1">
-                <PriorityMatrix :matrix="safeData.matrix" />
-            </div>
-        </div>
+        <ScanAISummary v-if="safeData.aiSummary" :summary="safeData.aiSummary" />
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
             <SeverityPieChart :vulnerabilities="safeData.vulnerabilities" />
-            <ScannerBarChart :vulnerabilities="safeData.vulnerabilities" />
+            <ScannerBarChart :vulnerabilities="safeData.vulnerabilities" :scan-type="safeData.scanType" />\
         </div>
 
         <Card>

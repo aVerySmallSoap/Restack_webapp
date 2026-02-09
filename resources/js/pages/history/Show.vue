@@ -35,7 +35,6 @@ import {
 import SeverityPieChart from '@/components/custom/Charts/SeverityPieChart.vue'
 import ScannerBarChart from '@/components/custom/Charts/ScannerBarChart.vue'
 import ScanAISummary from '@/components/custom/Scan/ScanAISummary.vue'
-import PriorityMatrix from '@/components/custom/Scan/PriorityMatrix.vue'
 import { toast } from 'vue-sonner'
 import { getSeverityColor } from '@/lib/colors'
 
@@ -302,7 +301,7 @@ const basicVulnColumns: ColumnDef<any>[] = [
         accessorKey: 'severity',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
         cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity')),
-        sortingFn: (a, b) => b.original.level - a.original.level,
+        sortingFn: (a, b) => mapSeverityToNumber(b.original.severity) - mapSeverityToNumber(a.original.severity),
         filterFn: (row, id, value) => value.includes(row.getValue(id)?.toLowerCase())
     },
     { accessorKey: 'path', header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Path' }), cell: ({ row }) => h('div', { class: 'max-w-[250px] truncate font-mono text-xs' }, row.getValue('path')) },
@@ -316,6 +315,7 @@ const basicVulnColumns: ColumnDef<any>[] = [
         }, () => 'Details')
     },
 ]
+
 const basicTable = useVueTable({
     get data() { return transformedData.value?.allVulns || [] },
     get columns() { return basicVulnColumns },
@@ -345,6 +345,7 @@ const fullVulnColumns: ColumnDef<any>[] = [
         accessorKey: 'severity',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Severity' }),
         cell: ({ row }) => h(Badge, { style: getSeverityStyle(row.getValue('severity')) }, () => row.getValue('severity')),
+        sortingFn: (a, b) => mapSeverityToNumber(b.original.severity) - mapSeverityToNumber(a.original.severity),
         filterFn: (row, id, value) => value.includes(row.getValue(id)?.toLowerCase())
     },
     {
@@ -464,47 +465,45 @@ function resetFilters() {
                     </Card>
 
                     <!-- Summary Stats Card (Full Scan Only) -->
-                    <Card v-if="transformedData.summaryStats && scanType === 'full'">
+                    <Card v-if="transformedData.summaryStats && scanType === 'full'" class="mb-6">
                         <CardHeader>
-                            <CardTitle>Scan Confidence Metrics</CardTitle>
-                            <CardDescription>Agreement and confidence statistics from multiple scanners</CardDescription>
+                            <CardTitle>Scan Quality</CardTitle>
+                            <CardDescription>How reliable are these findings?</CardDescription>
                         </CardHeader>
                         <Separator />
                         <CardContent class="pt-6">
                             <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
                                 <div class="rounded-lg border p-4">
-                                    <h3 class="text-muted-foreground text-sm font-medium">Scanner Agreement</h3>
+                                    <h3 class="text-muted-foreground text-sm font-medium">Match Rate</h3>
                                     <p class="text-2xl font-bold">{{ transformedData.summaryStats.scannerAgreementRate || 'N/A' }}</p>
+                                    <p class="text-xs text-muted-foreground mt-1">Tools agreed</p>
                                 </div>
                                 <div class="rounded-lg border p-4">
-                                    <h3 class="text-muted-foreground text-sm font-medium">Overall Confidence</h3>
+                                    <h3 class="text-muted-foreground text-sm font-medium">Reliability</h3>
                                     <p class="text-2xl font-bold">{{ transformedData.summaryStats.confidenceRate || 'N/A' }}</p>
+                                    <p class="text-xs text-muted-foreground mt-1">Overall score</p>
                                 </div>
                                 <div class="rounded-lg border p-4">
-                                    <h3 class="text-muted-foreground text-sm font-medium">High Confidence</h3>
+                                    <h3 class="text-muted-foreground text-sm font-medium">Verified</h3>
                                     <p class="text-2xl font-bold text-green-600">{{ transformedData.summaryStats.highConfidenceVulns }}</p>
+                                    <p class="text-xs text-muted-foreground mt-1">Confirmed</p>
                                 </div>
                                 <div class="rounded-lg border p-4">
-                                    <h3 class="text-muted-foreground text-sm font-medium">Medium Confidence</h3>
+                                    <h3 class="text-muted-foreground text-sm font-medium">Likely</h3>
                                     <p class="text-2xl font-bold text-yellow-600">{{ transformedData.summaryStats.mediumConfidenceVulns }}</p>
+                                    <p class="text-xs text-muted-foreground mt-1">Probable</p>
                                 </div>
                                 <div class="rounded-lg border p-4">
-                                    <h3 class="text-muted-foreground text-sm font-medium">Low Confidence</h3>
+                                    <h3 class="text-muted-foreground text-sm font-medium">Uncertain</h3>
                                     <p class="text-2xl font-bold text-orange-600">{{ transformedData.summaryStats.lowConfidenceVulns }}</p>
+                                    <p class="text-xs text-muted-foreground mt-1">Needs check</p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <!-- AI Summary and Priority Matrix -->
-                    <div v-if="transformedData.aiSummary || transformedData.matrix" class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                        <div :class="transformedData.matrix ? 'lg:col-span-2' : 'lg:col-span-3'">
-                            <ScanAISummary v-if="transformedData.aiSummary" :summary="transformedData.aiSummary" />
-                        </div>
-                        <div v-if="transformedData.matrix" class="lg:col-span-1">
-                            <PriorityMatrix :matrix="transformedData.matrix" />
-                        </div>
-                    </div>
+                    <!-- AI Summary -->
+                    <ScanAISummary v-if="transformedData.aiSummary" :summary="transformedData.aiSummary" />
 
                     <!-- Charts Section -->
                     <div v-if="scanType === 'basic'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -512,7 +511,8 @@ function resetFilters() {
                             <CardHeader>
                                 <CardTitle>Top Vulnerabilities</CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <Separator />
+                            <CardContent class="pt-6">
                                 <Table>
                                     <TableHeader>
                                         <TableRow v-for="hg in priorityTable.getHeaderGroups()" :key="hg.id">
@@ -540,13 +540,14 @@ function resetFilters() {
                     <template v-else>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <SeverityPieChart :vulnerabilities="transformedData.vulns" />
-                            <ScannerBarChart :vulnerabilities="transformedData.vulns" />
+                            <ScannerBarChart :vulnerabilities="transformedData.vulns" :scan-type="scanType" />
                         </div>
                         <Card>
                             <CardHeader>
                                 <CardTitle>Top Vulnerabilities</CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <Separator />
+                            <CardContent class="pt-6">
                                 <Table>
                                     <TableHeader>
                                         <TableRow v-for="hg in priorityTable.getHeaderGroups()" :key="hg.id">
@@ -575,7 +576,8 @@ function resetFilters() {
                         <CardHeader>
                             <CardTitle>Vulnerabilities Detected</CardTitle>
                         </CardHeader>
-                        <CardContent class="space-y-4">
+                        <Separator />
+                        <CardContent class="pt-6 space-y-4">
                             <div class="flex flex-wrap items-center gap-2">
                                 <Input
                                     v-if="scanType === 'basic'"
@@ -653,7 +655,8 @@ function resetFilters() {
                         <CardHeader>
                             <CardTitle>Technologies</CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <Separator />
+                        <CardContent class="pt-6 space-y-2">
                             <Input placeholder="Filter technologies..." :model-value="techFilter" @update:modelValue="techFilter = String($event)" class="h-8 mb-2" />
                             <div class="border rounded-md">
                                 <Table>

@@ -19,7 +19,7 @@ defineProps({
     },
 })
 
-const API_BASE_URL = 'http://127.0.0.1:25565'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 function downloadReport(id: string, format: 'excel' | 'pdf') {
     const url = `${API_BASE_URL}/api/v1/report/${id}/export/${format}`
