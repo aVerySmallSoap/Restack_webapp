@@ -111,10 +111,32 @@ export interface ScanHistory {
 }
 export interface ScheduledScan {
     id: string
+    user_id: string
     url: string
     codename: string
-    jobType: string
-    configuration: Record<string, number | string>
+    job_type: 'interval' | 'cron'  // Changed from scheduler_type
+    configuration: {  // Changed from scheduler_config
+        // For interval type
+        weeks?: number
+        days?: number
+        hours?: number
+        minutes?: number
+        seconds?: number
+        // For cron type
+        second?: string
+        minute?: string
+        hour?: string
+        day?: string
+        month?: string
+        year?: string
+    }
+    created_at?: string
+    updated_at?: string
+    user?: {
+        id: string
+        name: string
+        email: string
+    }
 }
 
 export interface DescriptiveStatsResponse {

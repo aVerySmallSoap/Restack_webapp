@@ -3,17 +3,19 @@ import Navigation from '@/components/custom/Navigation.vue'
 import ScanForm from '@/components/custom/Scan/ScanForm.vue'
 import ScanResults from '@/components/custom/Scan/ScanResults.vue'
 import { useScan } from '@/composables/useScanLogic'
+import { useToastFeedback } from '@/composables/useToastFeedback'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Loader2 } from 'lucide-vue-next'
 import { usePage } from '@inertiajs/vue3'
 
-// Destructure 'scanStatus' instead of 'progress'
 const { scanData, scanning, errorMsg, scanStatus, runScan, resetState } = useScan()
+const feedback = useToastFeedback()
 const page = usePage()
 
-function  handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; config?: any }) {
+function handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; config?: any }) {
     const userId = page.props.auth.user.id;
+    feedback.showInfo(`Starting ${payload.type} scan...`)
     runScan(payload.url, payload.type, userId, payload.config)
 }
 </script>

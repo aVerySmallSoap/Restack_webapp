@@ -37,8 +37,10 @@ import ScannerBarChart from '@/components/custom/Charts/ScannerBarChart.vue'
 import ScanAISummary from '@/components/custom/Scan/ScanAISummary.vue'
 import { toast } from 'vue-sonner'
 import { getSeverityColor } from '@/lib/colors'
+import { useToastFeedback } from '@/composables/useToastFeedback'
 
 const API_BASE_URL = 'http://127.0.0.1:25565'
+const feedback = useToastFeedback()
 
 const props = defineProps<{
     report: {
@@ -106,10 +108,13 @@ function formatHttpRequest(req: any): string {
 }
 
 const downloadReport = (format: 'excel' | 'pdf') => {
-    if (!props.report?.id) return
+    if (!props.report?.id) {
+        feedback.showError('Report ID is missing')
+        return
+    }
     const url = `${API_BASE_URL}/api/v1/report/${props.report.id}/export/${format}`
     window.open(url, '_blank')
-    toast.info(`Generating ${format.toUpperCase()} report...`)
+    feedback.showInfo(`Generating ${format.toUpperCase()} report...`)
 }
 
 const scanType = computed(() => {

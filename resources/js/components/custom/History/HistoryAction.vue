@@ -10,7 +10,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { toast } from 'vue-sonner'
+import { useToastFeedback } from '@/composables/useToastFeedback'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import ConfirmDialog from '@/components/custom/ConfirmDialog.vue'
 
 defineProps({
     rowData: {
@@ -20,19 +22,36 @@ defineProps({
 })
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+const feedback = useToastFeedback()
+const { isOpen, options, confirm, handleConfirm, handleCancel, handleOpenChange } = useConfirmDialog()
 
 function downloadReport(id: string, format: 'excel' | 'pdf') {
     const url = `${API_BASE_URL}/api/v1/report/${id}/export/${format}`
     window.open(url, '_blank')
-    toast.info(`Generating ${format.toUpperCase()} report...`)
+    feedback.showInfo(`Generating ${format.toUpperCase()} report...`)
 }
 
-function handleDelete(scanId: string) {
-    if (confirm('Are you sure you want to delete this scan report?')) {
+async function handleDelete(scanId: string) {
+    if (isOpen.value) {
+        return
+    }
+
+    const confirmed = await confirm({
+        title: 'Delete Scan Report',
+        description: 'Are you sure you want to delete this scan report? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        variant: 'destructive'
+    })
+
+    if (confirmed) {
         router.delete(route('history.destroy', scanId), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Report deleted successfully');
+                feedback.crud.deleted('Scan report')
+            },
+            onError: () => {
+                feedback.crud.deleteError('scan report')
             }
         })
     }
@@ -70,9 +89,24 @@ function handleDelete(scanId: string) {
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem @click="handleDelete(rowData.id)" class="text-destructive focus:text-destructive">
+            <DropdownMenuItem
+                @click.stop="handleDelete(rowData.id)"
+                class="text-destructive focus:text-destructive"
+            >
                 Delete Scan
             </DropdownMenuItem>
         </DropdownMenuContent>
     </DropdownMenu>
+
+    <ConfirmDialog
+        :open="isOpen"
+        :title="options.title"
+        :description="options.description"
+        :confirm-text="options.confirmText"
+        :cancel-text="options.cancelText"
+        :variant="options.variant"
+        @update:open="handleOpenChange"
+        @confirm="handleConfirm"
+        @cancel="handleCancel"
+    />
 </template>

@@ -32,6 +32,13 @@ import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue
 import DataTablePagination from '@/components/custom/DataTablePagination.vue'
 import { getSeverityColor } from '@/lib/colors'
 
+import { toast } from 'vue-sonner'
+
+const testToast = () => {
+    toast.success('Test toast!')
+    console.log('Toast called')
+}
+
 // --- PROPS ---
 const props = defineProps<{
     stats: any;
@@ -201,6 +208,8 @@ const table = useVueTable({
     <Head title="Analytics Dashboard" />
 
     <AppLayout>
+        <button @click="testToast">Test Toast</button>
+
         <div class="p-6 space-y-6">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div class="flex flex-col gap-2">

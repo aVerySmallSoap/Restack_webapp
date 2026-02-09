@@ -25,6 +25,9 @@ import { Plus, Loader2, Clock, CalendarClock, Calendar } from 'lucide-vue-next'
 import type { ScheduledScan } from '@/lib/restack/restack.types'
 import ScheduledScansTable from '@/components/custom/Scan/ScheduledScanTable.vue'
 import { toast } from 'vue-sonner'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import ConfirmDialog from '@/components/custom/ConfirmDialog.vue'
+import { useToastFeedback } from '@/composables/useToastFeedback'
 
 // --- Props ---
 const props = defineProps<{
@@ -38,6 +41,9 @@ const isSubmitting = computed(() => form.processing)
 
 const isDialogOpen = ref(false)
 const editingScheduleId = ref<string | null>(null)
+
+// FIXED: Added handleOpenChange to the destructured returns
+const { isOpen: confirmOpen, options: confirmOptions, confirm, handleConfirm: onConfirmDelete, handleCancel: onCancelDelete, handleOpenChange } = useConfirmDialog()
 
 // --- Form (Inertia) ---
 const form = useForm({
@@ -57,6 +63,8 @@ const form = useForm({
     cronTime: '',
     cronRecurring: true,
 })
+
+const feedback = useToastFeedback()
 
 // --- Helpers ---
 const resetForm = () => {
@@ -150,10 +158,12 @@ const validateTime = () => /^([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/.test
 
 const handleCreate = () => {
     if (!form.url || !form.codename) {
-        toast.error('Please fill in required fields'); return;
+        feedback.showError('Please fill in required fields')
+        return
     }
     if (form.type === 'cron' && (!validateDate() || !validateTime())) {
-        toast.error('Invalid date/time format'); return;
+        feedback.showError('Invalid date/time format')
+        return
     }
 
     if (!form.url.startsWith('http')) form.url = 'https://' + form.url
@@ -171,138 +181,173 @@ const handleCreate = () => {
         schedulerConfig = buildCronConfig()
     }
 
-    const options = {
-        onSuccess: () => {
-            toast.success(editingScheduleId.value ? 'Schedule updated' : 'Schedule created')
-            isDialogOpen.value = false
-            resetForm()
-        },
-        onError: (err: any) => {
-            toast.error('Failed to save schedule')
-            console.error(err)
-        }
+    const payload = {
+        codename: form.codename,
+        url: form.url,
+        job_type: form.type,  // Backend expects "job_type"
+        configuration: schedulerConfig  // Backend expects "configuration"
     }
 
-    // Transform form data to match your requested keys
-    const transform = (data: any) => ({
-        url: data.url,
-        codename: data.codename,
+    const isEditing = !!editingScheduleId.value
 
-        // 1. Map type -> schedule_type
-        job_type: data.type,
-
-        // 2. Map config -> configuration
-        configuration: schedulerConfig
-    })
-
-    if (editingScheduleId.value) {
-        form.transform(transform).put(route('scheduled.update', editingScheduleId.value), options)
+    if (isEditing) {
+        router.put(route('scheduled.update', editingScheduleId.value), payload, {
+            onSuccess: () => {
+                feedback.crud.updated('Scheduled scan')
+                handleDialogOpenChange(false)
+                resetForm()
+            },
+            onError: (errors) => {
+                console.error('Update error:', errors)
+                feedback.crud.updateError('scheduled scan')
+            }
+        })
     } else {
-        form.transform(transform).post(route('scheduled.store'), options)
+        router.post(route('scheduled.store'), payload, {
+            onSuccess: () => {
+                feedback.crud.created('Scheduled scan')
+                handleDialogOpenChange(false)
+                resetForm()
+            },
+            onError: (errors) => {
+                console.error('Create error:', errors)
+                feedback.crud.createError('scheduled scan')
+            }
+        })
     }
 }
 
 const handleEdit = (scan: ScheduledScan) => {
-    // Check if configuration is a string (JSON) or already an object
-    const config = typeof scan.configuration === 'string'
-        ? JSON.parse(scan.configuration)
-        : scan.configuration
-
-    resetForm()
-
+    editingScheduleId.value = scan.id
     form.codename = scan.codename
     form.url = scan.url
+    form.type = scan.job_type  // Backend returns "job_type"
 
-    // SAFETY CHECK: Look for 'job_type' (DB) OR 'jobType' (Frontend Type)
-    // This ensures it works regardless of how Laravel serializes the model.
-    const typeFromDb = (scan as any).job_type || (scan as any).jobType;
-    form.type = typeFromDb || 'interval';
-
-    if (form.type === 'interval') {
+    if (scan.job_type === 'interval') {
+        const config = scan.configuration as any  // Backend returns "configuration"
         form.intervalWeeks = config.weeks || 0
         form.intervalDays = config.days || 0
         form.intervalHours = config.hours || 0
         form.intervalMinutes = config.minutes || 0
         form.intervalSeconds = config.seconds || 0
     } else {
-        parseCronConfig(config)
+        parseCronConfig(scan.configuration)  // Backend returns "configuration"
     }
 
-    editingScheduleId.value = scan.id
-    isDialogOpen.value = true
+    handleDialogOpenChange(true)
 }
-const handleDelete = (id: string) => {
-    if (confirm('Are you sure?')) {
-        router.delete(route('scheduled.destroy', id), {
-            onSuccess: () => toast.success('Schedule deleted'),
-            onError: () => toast.error('Failed to delete')
+
+const handleDelete = async (scanId: string) => {
+    console.log('🔴 Delete clicked for scheduled scan:', scanId)
+
+    const confirmed = await confirm({
+        title: 'Delete Scheduled Scan',
+        description: 'Are you sure you want to delete this scheduled scan? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        variant: 'destructive'
+    })
+
+    console.log('🔴 Confirm result:', confirmed)
+
+    if (confirmed) {
+        console.log('🔴 Proceeding with delete...')
+        router.delete(route('scheduled.destroy', scanId), {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('🔴 Delete success')
+                feedback.crud.deleted('Scheduled scan')
+            },
+            onError: () => {
+                console.log('🔴 Delete error')
+                feedback.crud.deleteError('scheduled scan')
+            }
         })
+    } else {
+        console.log('🔴 Delete cancelled')
     }
 }
 
 const handleDialogOpenChange = (open: boolean) => {
     isDialogOpen.value = open
-    if (!open) resetForm()
-    else if (!editingScheduleId.value) resetForm()
+    if (!open) {
+        resetForm()
+    }
 }
-
-// Initial setup
-resetForm()
 </script>
+
 <template>
     <Head title="Scheduled Scans" />
-
     <Navigation>
-        <div class="flex flex-1 flex-col gap-6 p-4 pt-0">
-            <div class="flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0">
-                <div class="space-y-1">
-                    <h1 class="font-bold px-2 text-4xl">Scheduled Scans</h1>
-                    <p class="px-2 text-muted-foreground">
-                        Manage automated vulnerability scans for your targets.
-                    </p>
+        <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="px-2 text-4xl font-bold">Scheduled Scans</h1>
+                    <div class="p-1.5">
+                        <span>Automate vulnerability scans on a schedule.</span>
+                    </div>
                 </div>
 
                 <Dialog :open="isDialogOpen" @update:open="handleDialogOpenChange">
                     <DialogTrigger as-child>
-                        <Button>
-                            <Plus class="mr-2 h-4 w-4" /> Add Schedule
+                        <Button @click="handleDialogOpenChange(true)">
+                            <Plus class="mr-2 h-4 w-4" />
+                            Schedule Scan
                         </Button>
                     </DialogTrigger>
-                    <DialogContent class="sm:max-w-[600px]">
+                    <DialogContent class="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>
-                                {{ editingScheduleId ? 'Edit' : 'Create' }} Scheduled Scan
+                                {{ editingScheduleId ? 'Edit Scheduled Scan' : 'Schedule New Scan' }}
                             </DialogTitle>
                             <DialogDescription>
-                                Configure a recurring scan job with a simple or date/time schedule.
+                                {{ editingScheduleId ? 'Update the scheduled scan configuration' : 'Configure automatic vulnerability scanning' }}
                             </DialogDescription>
                         </DialogHeader>
 
                         <div class="grid gap-4 py-4">
+                            <!-- CODENAME -->
                             <div class="grid gap-2">
-                                <Label>Codename</Label>
-                                <Input v-model="form.codename" placeholder="e.g. Production Nightly" />
+                                <Label for="codename">
+                                    Codename <span class="text-destructive">*</span>
+                                </Label>
+                                <Input
+                                    id="codename"
+                                    v-model="form.codename"
+                                    placeholder="e.g., daily-prod-scan"
+                                    required
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                    A unique identifier for this scheduled scan
+                                </p>
                             </div>
 
+                            <!-- TARGET URL -->
                             <div class="grid gap-2">
-                                <Label>Target URL</Label>
-                                <Input v-model="form.url" placeholder="https://example.com" />
+                                <Label for="url">
+                                    Target URL <span class="text-destructive">*</span>
+                                </Label>
+                                <Input
+                                    id="url"
+                                    v-model="form.url"
+                                    placeholder="https://example.com"
+                                    required
+                                />
                             </div>
 
+                            <!-- SCHEDULER TYPE -->
                             <div class="grid gap-2">
                                 <Label>Schedule Type</Label>
                                 <Select v-model="form.type">
                                     <SelectTrigger>
-                                        <SelectValue />
+                                        <SelectValue placeholder="Select schedule type" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="interval">Interval (Run every X time)</SelectItem>
-                                        <SelectItem value="cron">Date/Time (Run at specific date/time)</SelectItem>
+                                        <SelectItem value="interval">Interval (Recurring)</SelectItem>
+                                        <SelectItem value="cron">Date/Time (One-time or Monthly)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-
-                            <div class="border-t my-2"></div>
 
                             <!-- INTERVAL CONFIGURATION -->
                             <div v-if="form.type === 'interval'" class="space-y-4 animate-in fade-in slide-in-from-top-1">
@@ -469,5 +514,18 @@ resetForm()
                 <Loader2 class="h-6 w-6 animate-spin mr-2" /> Loading schedules...
             </div>
         </div>
+
+        <!-- FIXED: Changed @update:open to use handleOpenChange -->
+        <ConfirmDialog
+            :open="confirmOpen"
+            :title="confirmOptions.title"
+            :description="confirmOptions.description"
+            :confirm-text="confirmOptions.confirmText"
+            :cancel-text="confirmOptions.cancelText"
+            :variant="confirmOptions.variant"
+            @update:open="handleOpenChange"
+            @confirm="onConfirmDelete"
+            @cancel="onCancelDelete"
+        />
     </Navigation>
 </template>
