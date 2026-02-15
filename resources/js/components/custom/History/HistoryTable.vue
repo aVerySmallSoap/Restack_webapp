@@ -35,6 +35,11 @@ const props = defineProps({
     },
 })
 
+// Emit event when row is clicked
+const emit = defineEmits<{
+    rowClick: [report: ScanHistory]
+}>()
+
 const sorting = ref<SortingState>([{ id: 'date', desc: true }])
 const columnFilters = ref<ColumnFiltersState>([])
 const globalFilter = ref('')
@@ -173,7 +178,27 @@ const isFiltered = computed(() => columnFilters.value.length > 0)
 function resetFilters() {
     table.resetColumnFilters()
 }
+
+// Handle row click - emit event to parent
+function handleRowClick(report: ScanHistory, event: MouseEvent) {
+    // Don't trigger if clicking on buttons, links, or interactive elements
+    const target = event.target as HTMLElement
+    const isInteractive = target.closest('button, a, [role="button"]')
+
+    if (isInteractive) {
+        return
+    }
+
+    emit('rowClick', report)
+}
 </script>
+
+<style scoped>
+/* Add hover effect to clickable table rows */
+:deep(tbody tr.cursor-pointer:hover) {
+    background-color: hsl(var(--muted) / 0.5);
+}
+</style>
 
 <template>
     <Card>
@@ -225,7 +250,12 @@ function resetFilters() {
                     </TableHeader>
                     <TableBody>
                         <template v-if="table.getRowModel().rows.length">
-                            <TableRow v-for="row in table.getRowModel().rows" :key="row.id">
+                            <TableRow
+                                v-for="row in table.getRowModel().rows"
+                                :key="row.id"
+                                class="cursor-pointer"
+                                @click="handleRowClick(row.original, $event)"
+                            >
                                 <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
                                     <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
                                 </TableCell>

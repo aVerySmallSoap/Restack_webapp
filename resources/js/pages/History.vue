@@ -2,11 +2,17 @@
 import Navigation from '@/components/custom/Navigation.vue'
 import HistoryTable from '@/components/custom/History/HistoryTable.vue'
 import { ScanHistory } from '@/lib/restack/restack.types'
+import { router } from '@inertiajs/vue3'
 
 // Receive real data from Laravel
 const props = defineProps<{
     history: ScanHistory[]
 }>()
+
+// Handle row click - navigate to report details
+function handleReportOpen(report: ScanHistory) {
+    router.visit(`/history/${report.id}`)
+}
 </script>
 
 <template>
@@ -19,7 +25,10 @@ const props = defineProps<{
                 </div>
             </div>
 
-            <HistoryTable :data="props.history" />
+            <HistoryTable
+                :data="props.history"
+                @row-click="handleReportOpen"
+            />
 
         </div>
     </Navigation>
