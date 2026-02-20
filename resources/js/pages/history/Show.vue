@@ -39,7 +39,7 @@ import { toast } from 'vue-sonner'
 import { getSeverityColor } from '@/lib/colors'
 import { useToastFeedback } from '@/composables/useToastFeedback'
 
-const API_BASE_URL = 'http://127.0.0.1:25565'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 const feedback = useToastFeedback()
 
 const props = defineProps<{
@@ -131,10 +131,14 @@ const transformedData = computed(() => {
     let country = 'Unknown', ip = 'Unknown'
 
     const techData = props.report.tech_discoveries?.[0]?.data || []
-    const plugins = typeof techData === 'string' ? JSON.parse(techData) : techData
-    const flatPlugins = Array.isArray(plugins) ? plugins.flat() : []
+    const parsed = typeof techData === 'string' ? JSON.parse(techData) : techData
+    const flatPlugins: any[] = Array.isArray(parsed?.data) 
+        ? parsed.data.flat() 
+        : Array.isArray(parsed) 
+            ? parsed.flat() 
+            : []
     const technologies: any[] = []
-    const excludedTech = ['Country', 'IP', 'HTML5', 'HTTPServer']
+    const excludedTech = ['Country', 'IP', 'HTML5', 'HTTPServer', "Allow"]
 
     flatPlugins.forEach((p: any) => {
         const name = Object.keys(p)[0]
@@ -203,7 +207,7 @@ const transformedData = computed(() => {
         const priorities = allVulns.filter((v: any) => v.level >= 2).slice(0, 5).map((v: any) => ({ type: v.category, severity: v.severity, endpoint: v.path }))
 
         return {
-            scanMeta: { target, duration, country, ip, totalVulns: props.report.total_vulnerabilities, criticalHighVulns: props.report.critical_count },
+            scanMeta: { target, duration, country, ip, totalVulns: allVulns.length, criticalHighVulns: props.report.critical_count },
             topRisk: priorities[0]?.type || 'N/A',
             categories,
             allVulns,
@@ -220,21 +224,23 @@ const transformedData = computed(() => {
             }
         }
     } else {
-        const vulns = props.report.vulnerabilities.map((v: any) => ({
-            id: v.id,
-            type: resolveVulnTitle(v),
-            severity: v.severity,
-            scanner: v.scanner,
-            confidence: v.confidence,
-            method: v.method,
-            endpoint: v.endpoint,
-            http_request: formatHttpRequest(v.http_request),
-            curl_command: v.data?.curl_command || '',
-            exploit: v.data?.evidence || v.data?.exploit || '',
-            description: v.description,
-            solution: v.remediation_effort,
-            reference: v.reference || 'N/A'
-        }))
+        const vulns = props.report.vulnerabilities
+            .filter((v: any) => !v.is_duplicate)
+            .map((v: any) => ({
+                id: v.id,
+                type: resolveVulnTitle(v),
+                severity: v.severity,
+                scanner: v.scanner,
+                confidence: v.confidence,
+                method: v.method,
+                endpoint: v.endpoint,
+                http_request: formatHttpRequest(v.http_request),
+                curl_command: v.data?.curl_command || '',
+                exploit: v.data?.evidence || v.data?.exploit || '',
+                description: v.description,
+                solution: v.remediation_effort,
+                reference: v.reference || 'N/A'
+            }))
 
         const priorities = vulns
             .filter((v: any) => ['High', 'Critical', 'Medium'].includes(v.severity))
@@ -243,7 +249,11 @@ const transformedData = computed(() => {
             .map((v: any) => ({ type: v.type, severity: v.severity, endpoint: v.endpoint }))
 
         return {
-            scanMeta: { target, duration, country, ip, totalVulns: props.report.total_vulnerabilities, criticalVulns: props.report.critical_count },
+            scanMeta: { 
+            target, duration, country, ip, 
+            totalVulns: vulns.length, 
+            criticalVulns: vulns.filter((v: any) => ['Critical', 'High', 'Medium'].includes(v.severity)).length
+            },
             topRisk: priorities[0]?.type || 'N/A',
             vulns,
             priorities,
@@ -384,6 +394,13 @@ const techFilter = ref('')
 const techColumns: ColumnDef<any>[] = [
     { accessorKey: 'name', header: 'Technology' },
     { accessorKey: 'version', header: 'Version' },
+        { 
+        accessorKey: 'vulnerable', 
+        header: 'Vulnerable',
+        cell: ({ row }) => h(Badge, { 
+            variant: row.getValue('vulnerable') ? 'destructive' : 'secondary' 
+        }, () => row.getValue('vulnerable') ? 'YES' : 'NO')
+    },
 ]
 const techTable = useVueTable({
     get data() { return transformedData.value?.technologies || [] },
@@ -454,7 +471,7 @@ function resetFilters() {
                                     <p class="text-3xl font-bold">{{ transformedData.scanMeta.totalVulns }}</p>
                                 </div>
                                 <div class="p-4 border rounded-lg">
-                                    <h3 class="text-sm font-medium text-muted-foreground">Critical/High</h3>
+                                    <h3 class="text-sm font-medium text-muted-foreground">High/Medium</h3>
                                     <p class="text-3xl font-bold text-destructive">{{ scanType === 'basic' ? transformedData.scanMeta.criticalHighVulns : transformedData.scanMeta.criticalVulns }}</p>
                                 </div>
                                 <div class="p-4 border rounded-lg">
@@ -508,7 +525,7 @@ function resetFilters() {
                     </Card>
 
                     <!-- AI Summary -->
-                    <ScanAISummary v-if="transformedData.aiSummary" :summary="transformedData.aiSummary" />
+                    <ScanAISummary :summary="transformedData.aiSummary" />
 
                     <!-- Charts Section -->
                     <div v-if="scanType === 'basic'" class="grid grid-cols-1 md:grid-cols-2 gap-6">

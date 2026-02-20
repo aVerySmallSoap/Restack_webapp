@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, h } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
-import AppLayout from '@/Layouts/AppLayout.vue'
+import AppLayout from '@/layouts/AppLayout.vue'
 import {
     ShieldCheck, Activity, AlertTriangle, Calendar, Target, RotateCcw
 } from 'lucide-vue-next'

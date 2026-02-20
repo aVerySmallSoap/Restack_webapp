@@ -53,7 +53,7 @@ function processPlugins(rawPlugins: any): { technologies: Technology[], country:
         }
     }
 
-    const excludedTech = ['Country', 'IP', 'HTML5', 'HTTPServer'];
+    const excludedTech = ['Country', 'IP', 'HTML5', 'HTTPServer', 'Allow'];
 
     pluginData.forEach((item: any) => {
         if (!item || typeof item !== 'object') return;
@@ -190,8 +190,12 @@ export function parseFullScan(data: any, targetUrl: string): ScanResult {
         }
 
         // --- SEVERITY LOGIC ---
-        let severity = 'Informational';
-        if (scanner === 'Nuclei' && finding.properties?.severity) {
+        let severity = 'Informational'
+        if (scanner === 'ZAP') {
+            const zapRisk = rule?.properties?.risk
+            severity = zapRisk ? mapFullSeverity(zapRisk) : mapFullSeverity(finding.level)
+        }
+        else if (scanner === 'Nuclei' && finding.properties?.severity) {
             severity = mapFullSeverity(finding.properties.severity);
         }
         else if (finding.level) severity = mapFullSeverity(finding.level);

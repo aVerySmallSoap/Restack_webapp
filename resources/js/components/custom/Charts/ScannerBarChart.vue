@@ -40,6 +40,15 @@ const activeChart = ref<SeverityKey>("total")
 
 // 3. Process the raw vulnerability list into a structured format for the chart
 // Result format: [{ scanner: 'ZAP', total: 15, critical: 2, high: 5, ... informational: 1 }, ...]
+const normalizeScanner = (raw: string): string => {
+    const map: Record<string, string> = {
+        'zap': 'ZAP',
+        'wapiti': 'Wapiti', 
+        'nuclei': 'Nuclei',
+    }
+    return map[raw.toLowerCase()] ?? raw
+}
+
 const chartData = computed(() => {
     const map = new Map<string, Record<SeverityKey, number>>()
 
@@ -70,7 +79,7 @@ const chartData = computed(() => {
 
     // Process actual vulnerabilities
     props.vulnerabilities.forEach(v => {
-        const scanner = v.scanner || 'Unknown'
+        const scanner = normalizeScanner(v.scanner || 'Unknown')
         const severity = (v.severity || 'informational').toLowerCase() as SeverityKey
 
         if (!map.has(scanner)) {

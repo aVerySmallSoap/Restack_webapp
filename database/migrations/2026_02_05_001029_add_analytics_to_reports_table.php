@@ -8,24 +8,26 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('reports', function (Blueprint $table) {
-            // AI Summary fields
-            $table->longText('ai_summary_vulnerabilities')->nullable()->after('critical_count');
-            $table->longText('ai_summary_tech')->nullable()->after('ai_summary_vulnerabilities');
+        if (!Schema::hasTable('reports')) {
+            Schema::table('reports', function (Blueprint $table) {
+                // AI Summary fields
+                $table->longText('ai_summary_vulnerabilities')->nullable()->after('critical_count');
+                $table->longText('ai_summary_tech')->nullable()->after('ai_summary_vulnerabilities');
 
-            // Priority Matrix quadrants
-            $table->integer('high_severity_high_confidence')->default(0)->after('ai_summary_tech');
-            $table->integer('high_severity_low_confidence')->default(0)->after('high_severity_high_confidence');
-            $table->integer('low_severity_high_confidence')->default(0)->after('high_severity_low_confidence');
-            $table->integer('low_severity_low_confidence')->default(0)->after('low_severity_high_confidence');
+                // Priority Matrix quadrants
+                $table->integer('high_severity_high_confidence')->default(0)->after('ai_summary_tech');
+                $table->integer('high_severity_low_confidence')->default(0)->after('high_severity_high_confidence');
+                $table->integer('low_severity_high_confidence')->default(0)->after('high_severity_low_confidence');
+                $table->integer('low_severity_low_confidence')->default(0)->after('low_severity_high_confidence');
 
-            // Summary Statistics
-            $table->decimal('scanner_agreement_rate', 5, 2)->nullable()->after('low_severity_low_confidence');
-            $table->decimal('confidence_rate', 5, 2)->nullable()->after('scanner_agreement_rate');
-            $table->integer('high_confidence_vulns')->default(0)->after('confidence_rate');
-            $table->integer('medium_confidence_vulns')->default(0)->after('high_confidence_vulns');
-            $table->integer('low_confidence_vulns')->default(0)->after('medium_confidence_vulns');
-        });
+                // Summary Statistics
+                $table->decimal('scanner_agreement_rate', 5, 2)->nullable()->after('low_severity_low_confidence');
+                $table->decimal('confidence_rate', 5, 2)->nullable()->after('scanner_agreement_rate');
+                $table->integer('high_confidence_vulns')->default(0)->after('confidence_rate');
+                $table->integer('medium_confidence_vulns')->default(0)->after('high_confidence_vulns');
+                $table->integer('low_confidence_vulns')->default(0)->after('medium_confidence_vulns');
+            });
+        }
     }
 
     public function down(): void

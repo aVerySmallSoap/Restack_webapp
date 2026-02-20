@@ -8,11 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('scan', function (Blueprint $table) {
-            if (!Schema::hasColumn('scan', 'is_automated')) {
-                $table->boolean('is_automated')->default(false)->after('user_id');
-            }
-        });
+        if (!Schema::hasColumn('scan', 'is_automated')) {
+            Schema::table('scan', function (Blueprint $table) {
+                if (!Schema::hasColumn('scan', 'is_automated')) {
+                    $table->boolean('is_automated')->default(false)->after('user_id');
+                }
+            });
+        }
     }
 
     public function down(): void

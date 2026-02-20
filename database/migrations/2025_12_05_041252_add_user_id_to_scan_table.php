@@ -10,18 +10,21 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('scan', function (Blueprint $table) {
-            $table->unsignedBigInteger('user_id')->nullable()->after('id');
+        if (!Schema::hasColumn('scan', 'user_id')) {
+        
+            Schema::table('scan', function (Blueprint $table) {
+                $table->unsignedBigInteger('user_id')->nullable()->after('id');
 
-            // $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-        });
+                // $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            });
 
-        $adminUser = User::where('is_admin', true)->first() ?? User::find(1);
+            $adminUser = User::where('is_admin', true)->first() ?? User::find(1);
 
-        if ($adminUser) {
-            DB::table('scan')
-                ->whereNull('user_id')
-                ->update(['user_id' => $adminUser->id]);
+            if ($adminUser) {
+                DB::table('scan')
+                    ->whereNull('user_id')
+                    ->update(['user_id' => $adminUser->id]);
+            }
         }
     }
 

@@ -11,7 +11,8 @@ class HistoryController extends Controller
 {
     public function index()
     {
-        $query = Report::with('scans');
+        $query = Report::with(['scans', 'vulnerabilities']);
+
 
         if (!auth()->user()->is_admin) {
             $query->whereHas('scans', function ($q) {
