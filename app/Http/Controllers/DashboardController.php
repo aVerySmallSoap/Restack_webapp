@@ -16,9 +16,14 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         // 1. INPUTS
-        $startDate = $request->input('start', now()->subDays(30)->startOfDay());
-        $endDate = $request->input('end', now()->endOfDay());
-        $target = $request->input('target'); // <--- Capture the target
+        $startInput = $request->input('start');
+        $endInput = $request->input('end');
+
+        // Convert to Carbon for database queries
+        $startDate = $startInput ? Carbon::parse($startInput)->startOfDay() : now()->subDays(30)->startOfDay();
+        $endDate = $endInput ? Carbon::parse($endInput)->endOfDay() : now()->endOfDay();
+
+        $target = $request->input('target');
         $user = auth()->user();
 
         // 2. SCOPES & FILTERS
@@ -212,7 +217,7 @@ class DashboardController extends Controller
             'topVulnerabilityTypes' => $topTypes,
             'trendAnalysis' => $trendStats,
             'availableDomains' => $availableDomains,
-            'filters' => ['start' => $startDate, 'end' => $endDate, 'target' => $target]
+            'filters' => ['start' => $startDate->format('Y-m-d'), 'end' => $endDate->format('Y-m-d'), 'target' => $target]
         ]);
     }
 }

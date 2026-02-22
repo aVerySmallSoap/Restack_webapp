@@ -1,4 +1,5 @@
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
+import { router } from '@inertiajs/vue3';
 
 type Appearance = 'light' | 'dark' | 'system';
 
@@ -27,50 +28,86 @@ const setCookie = (name: string, value: string, days = 365) => {
     document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
 };
 
-const getStoredAppearance = () => {
+const getStoredAppearance = (): Appearance | null => {
     if (typeof window === 'undefined') {
         return null;
     }
 
-    return localStorage.getItem('appearance') as Appearance | null;
+    // ✅ Always prioritize localStorage over cookie
+    const stored = localStorage.getItem('appearance') as Appearance | null;
+
+    // ✅ If found in localStorage, also sync cookie to ensure consistency
+    if (stored) {
+        setCookie('appearance', stored);
+    }
+
+    return stored;
 };
 
 const handleSystemThemeChange = () => {
     const currentAppearance = getStoredAppearance();
-    // Only update if the user is currently on 'system' mode
-    if (!currentAppearance || currentAppearance === 'system') {
+    // Only update if the user has EXPLICITLY chosen 'system' mode
+    if (currentAppearance === 'system') {
         updateTheme('system');
     }
 };
 
 // Keep a persistent reference to prevent garbage collection of the listener
 let mediaQueryList: MediaQueryList | null = null;
+let isInitialized = false;
 
 export function initializeTheme() {
     if (typeof window === 'undefined') {
         return;
     }
 
-    // Initialize theme from saved preference or default to system
+    // ✅ Get saved preference - this is the source of truth
     const savedAppearance = getStoredAppearance();
-    updateTheme(savedAppearance || 'system');
 
-    // Set up system theme change listener safely
-    if (!mediaQueryList) {
+    if (savedAppearance) {
+        // User has a saved preference, use it
+        updateTheme(savedAppearance);
+    } else {
+        // No saved preference, default to 'light'
+        updateTheme('light');
+    }
+
+    // Set up system theme change listener safely (only once)
+    if (!isInitialized && !mediaQueryList) {
         mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
         mediaQueryList.addEventListener('change', handleSystemThemeChange);
+        isInitialized = true;
     }
 }
 
+// ✅ NEW: Reinitialize theme on every Inertia navigation
+export function setupInertiaThemeSync() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    // Listen for Inertia page navigations
+    router.on('navigate', () => {
+        // Re-apply theme from localStorage after navigation
+        const savedAppearance = getStoredAppearance();
+        if (savedAppearance) {
+            updateTheme(savedAppearance);
+        }
+    });
+}
+
 export function useAppearance() {
-    const appearance = ref<Appearance>('system');
+    const appearance = ref<Appearance>('light');
 
     onMounted(() => {
-        const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
+        const savedAppearance = getStoredAppearance();
 
         if (savedAppearance) {
             appearance.value = savedAppearance;
         }
+
+        // ✅ Ensure theme is applied on mount
+        updateTheme(appearance.value);
     });
 
     function updateAppearance(value: Appearance) {
@@ -83,6 +120,8 @@ export function useAppearance() {
         setCookie('appearance', value);
 
         updateTheme(value);
+
+        console.log('✅ Theme updated to:', value); // Debug log
     }
 
     return {

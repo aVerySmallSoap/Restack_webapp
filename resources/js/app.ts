@@ -4,8 +4,9 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { DefineComponent} from 'vue';
 import { createApp, h } from 'vue';
-import { ZiggyVue } from 'ziggy-js';
-import { initializeTheme } from './composables/useAppearance';
+import { ZiggyVue } from 'ziggy-js';                             
+import { initializeTheme, setupInertiaThemeSync } from './composables/useAppearance';
+import RootLayout from '@/layouts/RootLayout.vue';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -26,7 +27,7 @@ createInertiaApp({
     title: () => `${appName}`,
     resolve: (name) => resolvePageComponent(`./pages/${name}.vue`, import.meta.glob<DefineComponent>('./pages/**/*.vue')),
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
+        createApp({ render: () => h(RootLayout, () => h(App, props)) })
             .use(plugin)
             .use(ZiggyVue)
             .mount(el);
@@ -36,5 +37,8 @@ createInertiaApp({
     },
 });
 
-// This will set light / dark mode on page load...
+// ✅ Initialize theme on first load
 initializeTheme();
+
+// ✅ NEW: Setup theme sync on Inertia navigation
+setupInertiaThemeSync();

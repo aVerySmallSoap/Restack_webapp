@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // Data Table Imports
 import {
@@ -33,11 +34,6 @@ import DataTablePagination from '@/components/custom/DataTablePagination.vue'
 import { getSeverityColor } from '@/lib/colors'
 
 import { toast } from 'vue-sonner'
-
-const testToast = () => {
-    toast.success('Test toast!')
-    console.log('Toast called')
-}
 
 // --- PROPS ---
 const props = defineProps<{
@@ -73,6 +69,8 @@ const updateDashboard = (newDomain?: string, newDates?: { start: string, end: st
     const start = newDates ? newDates.start : dateRange.value.start
     const end = newDates ? newDates.end : dateRange.value.end
 
+    console.log('Updating dashboard with:', { target, start, end })
+
     router.get(route('dashboard'), {
         target: target,
         start: start,
@@ -81,7 +79,18 @@ const updateDashboard = (newDomain?: string, newDates?: { start: string, end: st
         preserveState: true,
         preserveScroll: true,
         only: ['stats', 'recentScans', 'vulnerabilityDistribution', 'vulnerabilityTimeline', 'topVulnerabilityTypes', 'trendAnalysis', 'filters'],
-        onFinish: () => loading.value = false
+        onSuccess: (page) => {
+            console.log('Dashboard updated successfully', page.props)
+            loading.value = false
+        },
+        onError: (errors) => {
+            console.error('Dashboard update failed:', errors)
+            toast.error('Failed to load dashboard data')
+            loading.value = false
+        },
+        onFinish: () => {
+            loading.value = false
+        }
     })
 }
 
@@ -97,17 +106,25 @@ const handleDomainUpdate = (val: string) => {
 // 2. Explicit Date Handler
 const handleDateUpdate = (range: any) => {
     if (range?.start && range?.end) {
-        const start = range.start instanceof Date ? range.start.toISOString().split('T')[0] : range.start
-        const end = range.end instanceof Date ? range.end.toISOString().split('T')[0] : range.end
+        // Format dates in LOCAL timezone, avoiding toISOString() which converts to UTC
+        const formatLocalDate = (date: Date): string => {
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const day = String(date.getDate()).padStart(2, '0')
+            return `${year}-${month}-${day}`
+        }
+
+        const start = range.start instanceof Date ? formatLocalDate(range.start) : range.start
+        const end = range.end instanceof Date ? formatLocalDate(range.end) : range.end
 
         dateRange.value = { start, end }
         console.log("Date changed manually:", start, end)
         updateDashboard(undefined, { start, end })
     }
 }
-
 // 3. Sync from Backend (e.g. Back Button)
 watch(() => props.filters, (newFilters) => {
+    console.log('Props filters changed:', newFilters)
     selectedDomain.value = newFilters.target || "all"
     dateRange.value = { start: newFilters.start, end: newFilters.end }
 }, { deep: true })
@@ -155,6 +172,11 @@ const analyticsData = computed(() => {
             trend: props.trendAnalysis
         }
     }
+})
+
+// Check if we have any data
+const hasData = computed(() => {
+    return props.stats && (props.stats.totalScans > 0 || props.stats.totalVulns > 0)
 })
 
 // --- TABLE CONFIG ---
@@ -208,8 +230,6 @@ const table = useVueTable({
     <Head title="Analytics Dashboard" />
 
     <AppLayout>
-        <button @click="testToast">Test Toast</button>
-
         <div class="p-6 space-y-6">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div class="flex flex-col gap-2">
@@ -248,138 +268,130 @@ const table = useVueTable({
                 </div>
             </div>
 
-            <div :class="{ 'opacity-50 pointer-events-none': loading }" class="space-y-6 transition-opacity duration-200">
-
-                <div v-if="analyticsData && analyticsData.kpi">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                        <Card>
-                            <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle class="text-sm font-medium">Target</CardTitle>
-                                <Target class="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div class="text-base font-bold truncate" :title="analyticsData.kpi.target">
-                                    {{ analyticsData.kpi.target }}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle class="text-sm font-medium">Total Scans</CardTitle>
-                                <Activity class="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div class="text-2xl font-bold">{{ analyticsData.kpi.total_scans }}</div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle class="text-sm font-medium">Vulnerabilities</CardTitle>
-                                <AlertTriangle class="h-4 w-4 text-destructive" />
-                            </CardHeader>
-                            <CardContent>
-                                <div class="text-2xl font-bold">{{ analyticsData.kpi.total_vulns }}</div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle class="text-sm font-medium">Time Period</CardTitle>
-                                <Calendar class="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div class="text-2xl font-bold">
-                                    {{ analyticsData.kpi.days_analyzed }}
-                                    <span class="text-xs font-normal text-muted-foreground">Days</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle class="text-sm font-medium">Stability</CardTitle>
-                                <ShieldCheck class="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div class="text-2xl font-bold" :class="analyticsData.kpi.stability_score > 80 ? 'text-green-600' : 'text-yellow-600'">
-                                    {{ analyticsData.kpi.stability_score }}%
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle class="text-sm font-medium">Last Scan</CardTitle>
-                                <Activity class="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div class="text-lg font-bold truncate">{{ analyticsData.kpi.last_scan }}</div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                        <Card class="lg:col-span-2">
-                            <CardHeader><CardTitle>Vulnerabilities Over Time</CardTitle></CardHeader>
-                            <CardContent>
-                                <CustomAreaChart :data="analyticsData.charts.history" />
-                            </CardContent>
-                        </Card>
-                        <Card class="lg:col-span-1">
-                            <CardHeader><CardTitle>Severity Distribution</CardTitle></CardHeader>
-                            <CardContent>
-                                <CustomDonutChart :data="analyticsData.charts.distribution" />
-                            </CardContent>
-                        </Card>
-                        <Card class="lg:col-span-1">
-                            <CardHeader><CardTitle>Top Types</CardTitle></CardHeader>
-                            <CardContent>
-                                <CustomHorizBarChart :data="analyticsData.charts.types" />
-                            </CardContent>
-                        </Card>
-                        <Card class="lg:col-span-2">
-                            <CardHeader><CardTitle>Trend Analysis</CardTitle></CardHeader>
-                            <CardContent>
-                                <CustomTrendChart :data="analyticsData.charts.trend" />
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <Card class="mt-6">
-                        <CardHeader><CardTitle>Latest Findings</CardTitle></CardHeader>
+            <!-- Loading State -->
+            <div v-if="loading" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                    <Card v-for="i in 6" :key="i">
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <Skeleton class="h-4 w-20" />
+                            <Skeleton class="h-4 w-4 rounded-full" />
+                        </CardHeader>
                         <CardContent>
-                            <div class="rounded-md border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-                                            <TableHead v-for="header in headerGroup.headers" :key="header.id">
-                                                <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()" />
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        <TableRow v-if="!table.getRowModel().rows.length">
-                                            <TableCell :colspan="columns.length" class="h-24 text-center">No scans found.</TableCell>
-                                        </TableRow>
-                                        <TableRow v-for="row in table.getRowModel().rows" :key="row.id">
-                                            <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-                                                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
+                            <Skeleton class="h-8 w-16" />
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            <!-- Data State -->
+            <div v-else-if="hasData" class="space-y-6 animate-fadein">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">Target</CardTitle>
+                            <Target class="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-base font-bold truncate" :title="analyticsData.kpi.target">
+                                {{ analyticsData.kpi.target }}
                             </div>
-                            <DataTablePagination :table="table" />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">Total Scans</CardTitle>
+                            <Activity class="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold">{{ analyticsData.kpi.total_scans }}</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">Vulnerabilities</CardTitle>
+                            <AlertTriangle class="h-4 w-4 text-destructive" />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold">{{ analyticsData.kpi.total_vulns }}</div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">Time Period</CardTitle>
+                            <Calendar class="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold">
+                                {{ analyticsData.kpi.days_analyzed }}
+                                <span class="text-xs font-normal text-muted-foreground">Days</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">Stability</CardTitle>
+                            <ShieldCheck class="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold" :class="analyticsData.kpi.stability_score > 80 ? 'text-green-600' : 'text-yellow-600'">
+                                {{ analyticsData.kpi.stability_score }}%
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="text-sm font-medium">Last Scan</CardTitle>
+                            <Activity class="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-lg font-bold truncate">{{ analyticsData.kpi.last_scan }}</div>
                         </CardContent>
                     </Card>
                 </div>
 
-                <div v-else class="flex flex-col items-center justify-center h-96 text-muted-foreground">
-                    <AlertTriangle class="h-12 w-12 mb-4 opacity-50" />
-                    <p>No analytics data available.</p>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    <Card class="lg:col-span-2">
+                        <CardHeader><CardTitle>Vulnerabilities Over Time</CardTitle></CardHeader>
+                        <CardContent>
+                            <CustomAreaChart :data="analyticsData.charts.history" />
+                        </CardContent>
+                    </Card>
+                    <Card class="lg:col-span-1">
+                        <CardHeader><CardTitle>Severity Distribution</CardTitle></CardHeader>
+                        <CardContent>
+                            <CustomDonutChart :data="analyticsData.charts.distribution" />
+                        </CardContent>
+                    </Card>
+                    <Card class="lg:col-span-1">
+                        <CardHeader><CardTitle>Top Types</CardTitle></CardHeader>
+                        <CardContent>
+                            <CustomHorizBarChart :data="analyticsData.charts.types" />
+                        </CardContent>
+                    </Card>
+                    <Card class="lg:col-span-2">
+                        <CardHeader><CardTitle>Trend Analysis</CardTitle></CardHeader>
+                        <CardContent>
+                            <CustomTrendChart :data="analyticsData.charts.trend" />
+                        </CardContent>
+                    </Card>
                 </div>
+
+            </div>
+
+            <!-- Empty State -->
+            <div v-else class="flex flex-col items-center justify-center h-96 text-muted-foreground">
+                <AlertTriangle class="h-12 w-12 mb-4 opacity-50" />
+                <p class="text-lg font-medium mb-2">No data available for the selected date range</p>
+                <p class="text-sm mb-4">Try selecting a different date range or target</p>
+                <Button @click="resetFilters" variant="outline">
+                    <RotateCcw class="h-4 w-4 mr-2" />
+                    Reset Filters
+                </Button>
             </div>
         </div>
     </AppLayout>
