@@ -88,8 +88,6 @@ const handleSubmit = () => {
 }
 
 const handleDelete = async (userId: number, userName: string) => {
-    console.log('🔴 Delete clicked for user:', userId, userName)
-
     const confirmed = await confirm({
         title: 'Delete User',
         description: `Are you sure you want to delete ${userName}? This action cannot be undone.`,
@@ -98,22 +96,16 @@ const handleDelete = async (userId: number, userName: string) => {
         variant: 'destructive'
     })
 
-    console.log('🔴 Confirm result:', confirmed)
-
     if (confirmed) {
-        console.log('🔴 Proceeding with delete...')
         router.delete(route('admin.users.destroy', userId), {
             onSuccess: () => {
-                console.log('🔴 Delete success')
                 feedback.crud.deleted('User')
             },
             onError: () => {
-                console.log('🔴 Delete error')
                 feedback.crud.deleteError('user')
             }
         })
     } else {
-        console.log('🔴 Delete cancelled')
     }
 }
 </script>

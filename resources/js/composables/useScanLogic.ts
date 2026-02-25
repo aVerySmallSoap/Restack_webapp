@@ -43,7 +43,6 @@ export function useScan() {
     // Fetch scan results from the backend after completion
     const fetchScanResults = async (sessionId: string) => {
         try {
-            console.log(`📥 Fetching results for session: ${sessionId}`);
 
             const res = await fetch(`${API_BASE_URL}/api/v1/scan/result/${sessionId}`);
 
@@ -61,7 +60,6 @@ export function useScan() {
             }
 
             const data = await res.json();
-            console.log('✅ Fetched scan results:', data);
 
             // Parse based on scan type
             let parsedResults: any;
@@ -74,7 +72,6 @@ export function useScan() {
             // Attach report ID if present
             if (data.id) {
                 parsedResults.id = data.id;
-                console.log(`📊 Report ID: ${data.id}`);
             }
 
             scanData.value = parsedResults;
@@ -99,10 +96,6 @@ export function useScan() {
         try {
             ws = new WebSocket(`${WS_BASE_URL}/api/v1/ws/scans/poll`);
 
-            ws.onopen = () => {
-                console.log('🔌 WebSocket connected for scan tracking');
-            };
-
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
@@ -120,7 +113,7 @@ export function useScan() {
 
                     // STRICT session ID matching - ignore updates for other scans
                     if (!currentSessionId) {
-                        console.warn('⚠️  No current session ID set, ignoring WebSocket update');
+                        console.warn('No current session ID set, ignoring WebSocket update');
                         return;
                     }
 
@@ -132,7 +125,6 @@ export function useScan() {
                     }
 
                     const step = scanInfo.step;
-                    console.log(`[${currentSessionId}] 📍 Status: ${step}`);
 
                     // Update status (but don't overwrite terminal states)
                     if (scanStatus.value !== 'Success' && scanStatus.value !== 'Failed') {
@@ -141,10 +133,9 @@ export function useScan() {
 
                     // Handle completion
                     if (step === "Success") {
-                        console.log(`✅ Scan ${currentSessionId} completed. Fetching results...`);
                         fetchScanResults(currentSessionId);
                     } else if (step === "Failed" || step === "Error") {
-                        console.error(`❌ Scan ${currentSessionId} failed with step: ${step}`);
+                        console.error(`Scan ${currentSessionId} failed with step: ${step}`);
                         errorMsg.value = 'Scan failed on the server';
                         scanStatus.value = 'Failed';
                         scanning.value = false;
@@ -160,9 +151,6 @@ export function useScan() {
                 console.error('WebSocket error:', error);
             };
 
-            ws.onclose = () => {
-                console.log('🔌 WebSocket disconnected');
-            };
 
         } catch (e) {
             console.error('Failed to connect WebSocket:', e);

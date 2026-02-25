@@ -167,7 +167,7 @@ export function parseFullScan(data: any, targetUrl: string): ScanResult {
     };
 
     // 2. Combine Union (Unmatched) + Intersection (Verified)
-    const flatFindings = [...union.flat(), ...intersection];
+    const flatFindings = [...union.flat()];
 
     flatFindings.forEach((finding: any, idx: number) => {
         const ruleId = finding.ruleId;

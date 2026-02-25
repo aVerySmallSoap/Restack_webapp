@@ -132,10 +132,10 @@ const transformedData = computed(() => {
 
     const techData = props.report.tech_discoveries?.[0]?.data || []
     const parsed = typeof techData === 'string' ? JSON.parse(techData) : techData
-    const flatPlugins: any[] = Array.isArray(parsed?.data) 
-        ? parsed.data.flat() 
-        : Array.isArray(parsed) 
-            ? parsed.flat() 
+    const flatPlugins: any[] = Array.isArray(parsed?.data)
+        ? parsed.data.flat()
+        : Array.isArray(parsed)
+            ? parsed.flat()
             : []
     const technologies: any[] = []
     const excludedTech = ['Country', 'IP', 'HTML5', 'HTTPServer', "Allow"]
@@ -225,7 +225,6 @@ const transformedData = computed(() => {
         }
     } else {
         const vulns = props.report.vulnerabilities
-            .filter((v: any) => !v.is_duplicate)
             .map((v: any) => ({
                 id: v.id,
                 type: resolveVulnTitle(v),
@@ -249,9 +248,9 @@ const transformedData = computed(() => {
             .map((v: any) => ({ type: v.type, severity: v.severity, endpoint: v.endpoint }))
 
         return {
-            scanMeta: { 
-            target, duration, country, ip, 
-            totalVulns: vulns.length, 
+            scanMeta: {
+            target, duration, country, ip,
+            totalVulns: vulns.length,
             criticalVulns: vulns.filter((v: any) => ['Critical', 'High', 'Medium'].includes(v.severity)).length
             },
             topRisk: priorities[0]?.type || 'N/A',
@@ -394,11 +393,11 @@ const techFilter = ref('')
 const techColumns: ColumnDef<any>[] = [
     { accessorKey: 'name', header: 'Technology' },
     { accessorKey: 'version', header: 'Version' },
-        { 
-        accessorKey: 'vulnerable', 
+        {
+        accessorKey: 'vulnerable',
         header: 'Vulnerable',
-        cell: ({ row }) => h(Badge, { 
-            variant: row.getValue('vulnerable') ? 'destructive' : 'secondary' 
+        cell: ({ row }) => h(Badge, {
+            variant: row.getValue('vulnerable') ? 'destructive' : 'secondary'
         }, () => row.getValue('vulnerable') ? 'YES' : 'NO')
     },
 ]

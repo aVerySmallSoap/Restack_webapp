@@ -24,18 +24,15 @@ const connect = () => {
         socket = new WebSocket(WEBSOCKET_URI);
 
         socket.onopen = () => {
-            console.log("Connected!");
             isConnected.value = true;
             error.value = false;
         };
 
         socket.onclose = () => {
-            console.log("disconnected");
             isConnected.value = false;
         };
 
         socket.onerror = () => {
-            console.log("Something happened");
             error.value = true;
         };
 
@@ -51,7 +48,6 @@ const connect = () => {
             }
         };
     } catch (e) {
-        console.log(e);
         error.value = true;
     }
 };

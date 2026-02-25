@@ -198,7 +198,6 @@ const handleCreate = () => {
                 resetForm()
             },
             onError: (errors) => {
-                console.error('Update error:', errors)
                 feedback.crud.updateError('scheduled scan')
             }
         })
@@ -210,7 +209,6 @@ const handleCreate = () => {
                 resetForm()
             },
             onError: (errors) => {
-                console.error('Create error:', errors)
                 feedback.crud.createError('scheduled scan')
             }
         })
@@ -238,7 +236,6 @@ const handleEdit = (scan: ScheduledScan) => {
 }
 
 const handleDelete = async (scanId: string) => {
-    console.log('🔴 Delete clicked for scheduled scan:', scanId)
 
     const confirmed = await confirm({
         title: 'Delete Scheduled Scan',
@@ -248,23 +245,18 @@ const handleDelete = async (scanId: string) => {
         variant: 'destructive'
     })
 
-    console.log('🔴 Confirm result:', confirmed)
 
     if (confirmed) {
-        console.log('🔴 Proceeding with delete...')
         router.delete(route('scheduled.destroy', scanId), {
             preserveScroll: true,
             onSuccess: () => {
-                console.log('🔴 Delete success')
                 feedback.crud.deleted('Scheduled scan')
             },
             onError: () => {
-                console.log('🔴 Delete error')
                 feedback.crud.deleteError('scheduled scan')
             }
         })
     } else {
-        console.log('🔴 Delete cancelled')
     }
 }
 
