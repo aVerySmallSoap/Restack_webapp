@@ -78,7 +78,7 @@ function onTabChange(value: string) {
                                 <CardContent class="px-0 pt-4 pb-0">
                                     <span class="text-muted-foreground text-sm">
                                         {{ type === 'basic'
-                                        ? 'Runs a fast, preconfigured Wapiti scan.'
+                                        ? 'Runs a preconfigured Wapiti scan.'
                                         : 'Comprehensive scan using Wapiti, ZAP, and Nuclei.'
                                         }}
                                     </span>
