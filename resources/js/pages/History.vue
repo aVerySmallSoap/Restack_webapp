@@ -19,9 +19,9 @@ function handleReportOpen(report: ScanHistory) {
     <Navigation>
         <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
             <div>
-                <h1 class="font-bold px-2 text-4xl">Scan History</h1>
+                <h1 class="font-bold px-2 text-4xl">Previous Scans</h1>
                 <div class="p-1.5">
-                    <span>Review, filter, and search all past scan reports.</span>
+                    <span>Review, filter, and search all previous scan reports.</span>
                 </div>
             </div>
 
