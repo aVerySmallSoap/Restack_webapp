@@ -48,8 +48,8 @@ const data = computed(() => ({
                     url: '/dashboard',
                 },
                 {
-                    title: 'Previous Scans',
-                    url: '/history',
+                    title: 'Scan Logs',
+                    url: '/logs',
                 },
             ],
         },
