@@ -11,11 +11,10 @@ class HistoryController extends Controller
 {
     public function index()
     {
-        $query = Report::with(['scans', 'vulnerabilities']);
-
+        $query = Report::with(['scan', 'vulnerabilities']);
 
         if (!auth()->user()->is_admin) {
-            $query->whereHas('scans', function ($q) {
+            $query->whereHas('scan', function ($q) {
                 $q->where('user_id', auth()->id());
             });
         }
@@ -23,18 +22,19 @@ class HistoryController extends Controller
         $history = $query->orderBy('scan_date', 'desc')
             ->get()
             ->map(function ($report) {
-                $scan = $report->scans->first();
+                $scan = $report->scan;
+
                 return [
                     'id' => $report->id,
-                    'target' => $scan->target_url ?? 'Unknown Target',
+                    'target' => $scan?->target_url ?? 'Unknown Target',
                     'scanType' => $this->formatScanType($report->scan_type),
                     'totalFindings' => $report->total_vulnerabilities,
                     'criticalHigh' => $report->critical_count,
-                    'date' => $report->scan_date->toISOString(),
-                    'duration' => $scan->scan_duration ?? 0,
+                    'date' => $report->scan_date?->toISOString(),
+                    'duration' => $scan?->scan_duration ?? 0,
                     'status' => 'Completed',
-                    'owner' => $scan->user->name ?? 'Unknown',
-                    'isAutomated' => $scan->is_automated ?? false,
+                    'owner' => 'Administrator', // band-aid (no cross-db user relation)
+                    'isAutomated' => $scan?->is_automated ?? false,
                 ];
             });
 
@@ -44,7 +44,7 @@ class HistoryController extends Controller
     }
     public function show(string $id)
     {
-        $report = Report::with(['vulnerabilities', 'techDiscoveries', 'scans'])->findOrFail($id);
+        $report = Report::with(['vulnerabilities', 'techDiscoveries', 'scan'])->findOrFail($id);
 
         return Inertia::render('history/Show', [
             'report' => $report
@@ -62,7 +62,6 @@ class HistoryController extends Controller
             }
 
             return back()->with('error', 'Failed to delete report from analysis engine.');
-
         } catch (\Exception $e) {
             return back()->with('error', 'Could not connect to analysis engine.');
         }
@@ -71,8 +70,12 @@ class HistoryController extends Controller
     private function formatScanType($type)
     {
         $t = strtolower($type);
-        if (str_contains($t, 'wapiti')) return 'Basic';
-        if (str_contains($t, 'full') || str_contains($t, 'zap')) return 'Full';
+        if (str_contains($t, 'wapiti')) {
+            return 'Basic';
+        }
+        if (str_contains($t, 'full') || str_contains($t, 'zap')) {
+            return 'Full';
+        }
         return ucfirst($type);
     }
 }

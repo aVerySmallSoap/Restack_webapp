@@ -31,35 +31,30 @@ class DashboardController extends Controller
         // Filter: Restrict data to current User (Security)
         $userScope = function (Builder $query) use ($user) {
             if (!$user->is_admin) {
-                $query->whereHas('scans', function ($q) use ($user) {
+                $query->whereHas('scan', function ($q) use ($user) {
                     $q->where('user_id', $user->id);
                 });
             }
         };
-
         // Filter: Restrict data to specific Target (Logic Fix)
         $targetScope = function (Builder $query) use ($target) {
             if ($target && $target !== 'all') {
-                $query->whereHas('scans', function ($q) use ($target) {
+                $query->whereHas('scan', function ($q) use ($target) {
                     $q->where('target_url', $target);
                 });
             }
         };
-
         // Combined Scope for Vulnerabilities (which link via Report -> Scans)
         $vulnScope = function (Builder $query) use ($user, $target) {
-            $query->whereHas('report.scans', function ($q) use ($user, $target) {
-                // Apply User Security
+            $query->whereHas('scan', function ($q) use ($user, $target) {
                 if (!$user->is_admin) {
                     $q->where('user_id', $user->id);
                 }
-                // Apply Target Filter
                 if ($target && $target !== 'all') {
                     $q->where('target_url', $target);
                 }
             });
         };
-
         // 3. BASE QUERY (Reports)
         $reportsQuery = Report::query()
             ->whereBetween('scan_date', [$startDate, $endDate])
@@ -78,7 +73,7 @@ class DashboardController extends Controller
         ];
 
         // 5. SCAN HISTORY TABLE
-        $recentScans = Report::with('scans.user')
+        $recentScans = Report::with('scan')
             ->whereBetween('scan_date', [$startDate, $endDate])
             ->tap($userScope)
             ->tap($targetScope) // <--- Apply Target Filter
@@ -86,7 +81,8 @@ class DashboardController extends Controller
             ->take(10)
             ->get()
             ->map(function ($report) {
-                $scan = $report->scans->first();
+                $scan = $report->scan;
+
                 return [
                     'id' => $report->id,
                     'target' => $scan->target_url ?? 'Unknown Target',
@@ -95,7 +91,7 @@ class DashboardController extends Controller
                     'criticalHigh' => $report->critical_count,
                     'date' => $report->scan_date->setTimezone('Asia/Manila')->toISOString(),
                     'status' => 'Completed',
-                    'owner' => $scan?->user?->name
+                    'owner' => 'Administrator',
                 ];
             });
 
@@ -118,7 +114,7 @@ class DashboardController extends Controller
             ->take(5)
             ->get()
             ->map(function ($item) {
-                $color = match(strtolower($item->severity)) {
+                $color = match (strtolower($item->severity)) {
                     'critical' => '#ef4444',
                     'high' => '#f97316',
                     'medium' => '#eab308',
@@ -168,7 +164,8 @@ class DashboardController extends Controller
             $n = count($x);
             $sumX = array_sum($x);
             $sumY = array_sum($y);
-            $sumXY = 0; $sumXX = 0;
+            $sumXY = 0;
+            $sumXX = 0;
             for ($i = 0; $i < $n; $i++) {
                 $sumXY += ($x[$i] * $y[$i]);
                 $sumXX += ($x[$i] * $x[$i]);
@@ -187,7 +184,9 @@ class DashboardController extends Controller
 
             $mean = array_sum($y) / $n;
             $variance = 0;
-            foreach ($y as $val) $variance += pow($val - $mean, 2);
+            foreach ($y as $val) {
+                $variance += pow($val - $mean, 2);
+            }
             $stdDev = sqrt($variance / $n);
             $cv = $mean > 0 ? ($stdDev / $mean) : 0;
             $stabilityScore = max(0, round(100 - ($cv * 100)));
