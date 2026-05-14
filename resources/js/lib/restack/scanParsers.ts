@@ -1,265 +1,337 @@
-import type { Vulnerability, ScanResult, Technology } from '@/lib/restack/restack.types'
+import type { Vulnerability, ScanResult, Technology, SiteMapData } from '@/lib/restack/restack.types'
 
-// --- Helpers ---
+// ── Severity helpers ──────────────────────────────────────────────────────────
 
-// Robust mapping that handles both numbers and strings to match History logic
 function mapBasicSeverity(level: number | string | undefined): string {
-    const s = String(level);
-    if (s === '3' || s === 'High' || s === 'Critical') return 'High';
-    if (s === '2' || s === 'Medium') return 'Medium';
-    if (s === '1' || s === 'Low') return 'Low';
-    return 'Informational';
+    const s = String(level)
+    if (s === '3' || s === 'High' || s === 'Critical') return 'High'
+    if (s === '2' || s === 'Medium') return 'Medium'
+    if (s === '1' || s === 'Low') return 'Low'
+    return 'Informational'
 }
 
 function mapFullSeverity(level: string): string {
     switch (level?.toLowerCase()) {
         case 'error':
-        case 'critical': return 'Critical';
+        case 'critical': return 'Critical'
         case 'warning':
-        case 'high': return 'High';
-        case 'medium': return 'Medium';
+        case 'high': return 'High'
+        case 'medium': return 'Medium'
         case 'note':
-        case 'low': return 'Low';
-        default: return 'Informational';
+        case 'low': return 'Low'
+        case 'info':
+        case 'informational':
+        default: return 'Informational'
     }
 }
 
-function mapSeverityToNumber(sev: string) {
+function severityToNumber(sev: string) {
     switch (sev?.toLowerCase()) {
-        case 'critical': return 4;
-        case 'high': return 3;
-        case 'medium': return 2;
-        case 'low': return 1;
-        default: return 0;
+        case 'critical': return 4
+        case 'high': return 3
+        case 'medium': return 2
+        case 'low': return 1
+        default: return 0
     }
 }
 
-// --- Technology Processing ---
+// ── Safe JSON parsing helpers ────────────────────────────────────────────────
 
-function processPlugins(rawPlugins: any): { technologies: Technology[], country: string, ip: string } {
-    const technologies: Technology[] = [];
-    let country = 'Unknown';
-    let ip = 'Unknown';
+function safeJsonParse<T = any>(val: any): T | null {
+    if (val == null) return null
+    if (typeof val === 'object') return val as T
+    if (typeof val === 'string') {
+        try { return JSON.parse(val) as T } catch { return null }
+    }
+    return null
+}
 
-    let pluginData: any[] = [];
+function normalizeStringArray(val: any): string[] {
+    if (!val) return []
+    if (Array.isArray(val)) return val.filter(Boolean).map(String)
+    return [String(val)]
+}
+
+function normalizeNumberArray(val: any): number[] {
+    if (!val) return []
+    if (Array.isArray(val)) return val.map((x) => Number(x)).filter((n) => Number.isFinite(n))
+    const n = Number(val)
+    return Number.isFinite(n) ? [n] : []
+}
+
+// ── Technology processing (legacy / optional) ────────────────────────────────
+
+const EXCLUDED_TECH = ['Country', 'IP', 'HTML5', 'HTTPServer', 'Allow']
+
+function processPlugins(rawPlugins: any): {
+    technologies: Technology[]
+    country: string
+    ip: string
+} {
+    const technologies: Technology[] = []
+    let country = 'Unknown'
+    let ip = 'Unknown'
+
+    let pluginData: any[] = []
 
     if (rawPlugins?.fingerprinted) {
         if (Array.isArray(rawPlugins.fingerprinted)) {
-            pluginData = rawPlugins.fingerprinted.flat();
+            pluginData = rawPlugins.fingerprinted.flat()
         } else if (rawPlugins.fingerprinted.data) {
             pluginData = Array.isArray(rawPlugins.fingerprinted.data)
                 ? rawPlugins.fingerprinted.data.flat()
-                : [];
+                : []
         }
     }
-
-    const excludedTech = ['Country', 'IP', 'HTML5', 'HTTPServer', 'Allow'];
 
     pluginData.forEach((item: any) => {
-        if (!item || typeof item !== 'object') return;
-
-        const key = Object.keys(item)[0];
-        const value = item[key];
+        if (!item || typeof item !== 'object') return
+        const key = Object.keys(item)[0]
+        const value = item[key]
 
         if (key === 'Country') {
-            country = Array.isArray(value) ? value.join(', ') : (value || 'Unknown');
+            country = Array.isArray(value) ? value.join(', ') : (value || 'Unknown')
         } else if (key === 'IP') {
-            ip = Array.isArray(value) ? value.join(', ') : (value || 'Unknown');
-        } else if (!excludedTech.includes(key)) {
-            let version = '-';
-            if (Array.isArray(value)) version = value.length > 0 ? value.join(', ') : '-';
-            else if (typeof value === 'object' && value !== null && Object.keys(value).length === 0) version = '-';
-            else if (typeof value === 'object' && value?.version) version = value.version;
-            else if (typeof value === 'string') version = value;
+            ip = Array.isArray(value) ? value.join(', ') : (value || 'Unknown')
+        } else if (!EXCLUDED_TECH.includes(key)) {
+            let version = '-'
+            if (Array.isArray(value)) version = value.length > 0 ? value.join(', ') : '-'
+            else if (typeof value === 'object' && value?.version) version = value.version
+            else if (typeof value === 'string' && value) version = value
 
-            technologies.push({ name: key, version, vulnerable: false, cve: 'N/A', fix: 'N/A' });
+            technologies.push({ name: key, version, vulnerable: false, cve: 'N/A', fix: 'N/A' })
         }
-    });
+    })
 
-    return { technologies, country, ip };
+    return { technologies, country, ip }
 }
 
-// --- Parsers ---
+// ── NEW: Tech extraction from API scan payload ───────────────────────────────
 
-export function parseBasicScan(data: any, targetUrl: string): ScanResult {
-    const allVulns: Vulnerability[] = [];
-    const runs = data.data?.runs || [];
+function extractTechnologiesFromApi(scanData: any): Technology[] {
+    const tech = scanData?.technologies
+    if (!Array.isArray(tech)) return []
 
-    if (runs.length === 0) {
-        return buildScanResult([], [], targetUrl, 'Basic Scan', 'Unknown', 'Unknown');
-    }
+    return tech.map((t: any) => {
+        const name = t?.name ?? t?.blob?.name ?? 'Unknown'
+        const versionRaw = t?.version ?? t?.blob?.version ?? ''
+        const version =
+            Array.isArray(versionRaw) ? (versionRaw.filter(Boolean).join(', ') || '-') :
+                (typeof versionRaw === 'string' ? (versionRaw || '-') : '-')
 
-    const run = runs[0];
-    const rules = run.tool?.driver?.rules || [];
-    const results = run.results || [];
-    const rulesMap = new Map();
-
-    rules.forEach((rule: any) => rulesMap.set(rule.id, rule));
-
-    results.forEach((result: any, index: number) => {
-        const ruleId = result.ruleId;
-        const rule = rulesMap.get(ruleId);
-
-        let severity = 'Informational';
-        const rawLevel = result.properties?.level;
-
-        if (rawLevel !== undefined) {
-            severity = mapBasicSeverity(rawLevel);
-        } else if (result.level) {
-            switch (result.level.toLowerCase()) {
-                case 'error': severity = 'High'; break;
-                case 'warning': severity = 'Medium'; break;
-                case 'note': severity = 'Low'; break;
-                default: severity = 'Informational';
-            }
-        }
-
-        let reference = '';
-        if (rule?.help?.markdown) {
-            reference = typeof rule.help.markdown === 'object'
-                ? JSON.stringify(rule.help.markdown)
-                : rule.help.markdown;
-        }
-
-        const endpoint = result.locations?.[0]?.physicalLocation?.artifactLocation?.uri || targetUrl;
-
-        allVulns.push({
-            id: `basic-${index}`,
-            type: ruleId || 'Unknown',
-            // @ts-ignore
-            name: ruleId,
-            // @ts-ignore
-            category: ruleId,
-            severity,
-            scanner: 'Wapiti',
-            confidence: 'Medium',
-            method: result.properties?.method || 'GET',
-            endpoint: endpoint,
-            description: rule?.fullDescription?.text || result.message?.text || '',
-            solution: rule?.help?.text || '',
-            reference,
-            exploit: '',
-            http_request: result.properties?.http_request || '',
-            curl_command: result.properties?.curl_command || '',
-            module: result.properties?.module || '',
-            wstg: result.properties?.wstg || rule?.properties?.tags || []
-        });
-    });
-
-    const { technologies, country, ip } = processPlugins(data.plugins || {});
-    return buildScanResult(allVulns, technologies, targetUrl, 'Basic Scan', country, ip);
+        return { name: String(name), version, vulnerable: false, cve: 'N/A', fix: 'N/A' }
+    })
 }
 
-export function parseFullScan(data: any, targetUrl: string): ScanResult {
-    const allVulns: Vulnerability[] = [];
+// ── Discovery extraction (site map + ssl) ─────────────────────────────────────
 
-    // 1. Get the lists from JSON
-    const union = data.data?.union || [];
-    // FIX: This definition was likely missing, causing the ReferenceError
-    const intersection = data.data?.intersection || [];
-    const rulesList = data.data?.rules || [];
+/**
+ * The API returns `discovery` as a JSON string (from Redis).
+ * Inside that JSON, `ssl_certs` is ALSO typically a JSON string.
+ */
+function extractDiscovery(rawDiscovery: any): any | null {
+    return safeJsonParse(rawDiscovery)
+}
 
-    const getRule = (id: string) => {
-        for (const ruleObj of rulesList) {
-            if (ruleObj[id]) return ruleObj[id];
-        }
-        return null;
-    };
+function extractSiteMapFromDiscovery(rawDiscovery: any): SiteMapData | null {
+    const d = extractDiscovery(rawDiscovery)
+    if (!d) return null
 
-    // 2. Combine Union (Unmatched) + Intersection (Verified)
-    const flatFindings = [...union.flat()];
+    const siteMap = (d.site_map ?? d.siteMap ?? {}) as Record<string, any>
+    const endpoints = normalizeStringArray(d.endpoints)
+    const outOfScope = normalizeStringArray(d.out_of_scope ?? d.outOfScope)
+    const ports = normalizeNumberArray(d.ports)
 
-    flatFindings.forEach((finding: any, idx: number) => {
-        const ruleId = finding.ruleId;
-        const rule = getRule(ruleId);
+    // If everything empty, treat as missing
+    const hasAny =
+        (siteMap && Object.keys(siteMap).length > 0) ||
+        endpoints.length > 0 ||
+        outOfScope.length > 0 ||
+        ports.length > 0
 
-        const effectiveRule = rule || {
-            name: ruleId,
-            fullDescription: { text: finding.message?.text || '' },
-            help: { text: '', markdown: '' }
-        };
+    if (!hasAny) return null
 
-        const ruleName = effectiveRule.name || ruleId;
+    return { siteMap, endpoints, outOfScope, ports }
+}
 
-        // --- SCANNER DETECTION ---
-        let scanner = 'Wapiti';
-        if (finding.properties?.zapId) {
-            scanner = 'ZAP';
-        } else if (finding.properties?.['matched-at'] || finding.properties?.['curl-command']) {
-            scanner = 'Nuclei';
-        }
+function extractSslFromDiscovery(rawDiscovery: any): string | Record<string, any> | null {
+    const d = extractDiscovery(rawDiscovery)
+    if (!d) return null
 
-        // --- SEVERITY LOGIC ---
-        let severity = 'Informational'
-        if (scanner === 'ZAP') {
-            const zapRisk = rule?.properties?.risk
-            severity = zapRisk ? mapFullSeverity(zapRisk) : mapFullSeverity(finding.level)
-        }
-        else if (scanner === 'Nuclei' && finding.properties?.severity) {
-            severity = mapFullSeverity(finding.properties.severity);
-        }
-        else if (finding.level) severity = mapFullSeverity(finding.level);
-        else if (finding.properties?.severity) severity = mapFullSeverity(finding.properties.severity);
-        else if (finding.properties?.analytics?.severity) severity = mapFullSeverity(finding.properties.analytics.severity);
+    // `ssl_certs` is often JSON string. Sometimes could already be object.
+    const ssl = d.ssl_certs ?? d.sslData ?? d.ssl_data ?? null
+    if (!ssl) return null
+    return ssl
+}
 
-        let reference = '';
-        if (effectiveRule.help?.markdown) {
-            reference = typeof effectiveRule.help.markdown === 'string'
-                ? effectiveRule.help.markdown
-                : Object.entries(effectiveRule.help.markdown).map(([k, v]) => `${k}: ${v}`).join('\n');
-        }
+// ── Vulnerability normalization from API scan payload ─────────────────────────
 
-        const curlCommand = finding.properties?.curl_command || finding.properties?.['curl-command'] || '';
-        const evidence = finding.properties?.evidence || '';
+function normalizeApiVulns(scanData: any, targetUrl: string): Vulnerability[] {
+    const vulns = scanData?.vulnerabilities
+    if (!Array.isArray(vulns) || vulns.length === 0) return []
 
-        allVulns.push({
-            id: `full-${idx}`,
-            type: ruleName,
+    return vulns.map((v: any, idx: number): Vulnerability => {
+        const scannerRaw = v?.scanner ?? 'Unknown'
+        const scanner = String(scannerRaw).toUpperCase() === 'ZAP'
+            ? 'ZAP'
+            : String(scannerRaw).toLowerCase() === 'wapiti'
+                ? 'Wapiti'
+                : String(scannerRaw).toLowerCase() === 'nuclei'
+                    ? 'Nuclei'
+                    : String(scannerRaw)
+
+        const severity = mapFullSeverity(String(v?.severity ?? v?.data?.properties?.severity ?? 'informational'))
+
+        const endpoint =
+            v?.endpoint ??
+            v?.data?.location ??
+            targetUrl
+
+        const method =
+            v?.method ??
+            v?.data?.properties?.method ??
+            'GET'
+
+        const confidence =
+            v?.confidence ??
+            v?.data?.properties?.confidence ??
+            v?.data?.properties?.analytics?.confidence ??
+            'Unknown'
+
+        const type =
+            v?.vulnerability_type ??
+            v?.data?.rule_id ??
+            v?.type ??
+            'Unknown'
+
+        const description =
+            v?.description ??
+            v?.data?.message_text ??
+            ''
+
+        const solution =
+            v?.remediation_effort ??
+            v?.solution ??
+            ''
+
+        // references: your API often embeds them in message_text; keep blank for now
+        const reference = ''
+
+        const exploit =
+            v?.data?.properties?.evidence ??
+            v?.data?.properties?.detail?.response?.body ??
+            ''
+
+        return {
+            id: v?.id ? String(v.id) : `api-${idx}`,
+            type: String(type),
             severity,
             scanner,
-            confidence: finding.properties?.confidence || finding.properties?.analytics?.confidence || 'Unknown',
-            method: finding.properties?.method || 'GET',
-            endpoint: finding.locations?.[0]?.physicalLocation?.artifactLocation?.uri || targetUrl,
-            description: effectiveRule.fullDescription?.text || finding.message?.text || '',
-            solution: effectiveRule.help?.text || '',
+            confidence: String(confidence),
+            method: String(method),
+            endpoint: String(endpoint),
+            description: String(description),
+            solution: String(solution),
             reference,
-            exploit: evidence,
-            http_request: finding.properties?.http_request || '',
-            curl_command: curlCommand,
-            module: finding.properties?.module || '',
-            wstg: effectiveRule.properties?.tags || []
-        });
-    });
+            exploit: exploit ? String(exploit) : '',
+            http_request: v?.http_request ?? v?.data?.properties?.http_request ?? '',
+            curl_command: v?.data?.properties?.curl_command ?? v?.data?.properties?.['curl-command'] ?? '',
+            module: v?.data?.properties?.module ?? '',
+            wstg: v?.data?.properties?.wstg ?? [],
+        }
+    })
+}
 
-    const { technologies, country, ip } = processPlugins(data.plugins || {});
+// ── Public parsers ────────────────────────────────────────────────────────────
 
-    // Extract new AI and Matrix Data
-    const aiSummary = data.summary?.ai || null;
-    const matrix = data.summary?.matrix || null;
+/**
+ * NOTE:
+ * Your current backend response shape is:
+ *   { status: 'success', data: <scanData>, discovery: <json-string>, attack: <...> }
+ *
+ * So `data` passed into parseFullScan/parseBasicScan should be the *whole response*.
+ */
+export function parseBasicScan(response: any, targetUrl: string): ScanResult {
+    const scanData = response?.data ?? response ?? {}
+
+    // If you still have old SARIF-based quick scan somewhere, keep the old path.
+    // But for your API rewrite shape, quick/basic is likely the same "Scan" model.
+    const allVulns = normalizeApiVulns(scanData, targetUrl)
+
+    // Technologies: prefer API `technologies`, fallback to plugins if present
+    const technologies = extractTechnologiesFromApi(scanData)
+    const fallback = processPlugins(scanData?.plugins ?? {})
+    const finalTech = technologies.length ? technologies : fallback.technologies
+
+    const siteMap = extractSiteMapFromDiscovery(response?.discovery)
+    const sslData = extractSslFromDiscovery(response?.discovery)
+
+    return buildScanResult(
+        allVulns,
+        finalTech,
+        targetUrl,
+        'Basic Scan',
+        fallback.country,
+        fallback.ip,
+        null,
+        null,
+        siteMap,
+        sslData,
+    )
+}
+
+export function parseFullScan(response: any, targetUrl: string): ScanResult {
+    const scanData = response?.data ?? response ?? {}
+    const allVulns = normalizeApiVulns(scanData, targetUrl)
+
+    const technologies = extractTechnologiesFromApi(scanData)
+    const fallback = processPlugins(scanData?.plugins ?? {})
+    const finalTech = technologies.length ? technologies : fallback.technologies
+
+    const aiSummary =
+        scanData?.report
+            ? {
+                summary: {
+                    vulnerabilities: scanData.report.ai_summary_vulnerabilities ?? '',
+                    tech: scanData.report.ai_summary_tech ?? '',
+                },
+            }
+            : null
+
+    // Optional: keep matrix null unless you expose it in API scanData
+    const matrix = null
+
+    const siteMap = extractSiteMapFromDiscovery(response?.discovery)
+    const sslData = extractSslFromDiscovery(response?.discovery)
 
     const result = buildScanResult(
         allVulns,
-        technologies,
+        finalTech,
         targetUrl,
         'Full Scan',
-        country,
-        ip,
+        fallback.country,
+        fallback.ip,
         aiSummary,
-        matrix
-    );
+        matrix,
+        siteMap,
+        sslData,
+    )
 
-    if (data.summary?.stats) {
+    // Summary stats from report fields if present
+    if (scanData?.report) {
         result.summaryStats = {
-            scannerAgreementRate: data.summary?.stats?.scanner_agreement_rate || null,
-            confidenceRate: data.summary?.stats?.confidence_rate || null,
-            highConfidenceVulns: data.summary.stats.high_confidence_vulns || 0,
-            mediumConfidenceVulns: data.summary.stats.medium_confidence_vulns || 0,
-            lowConfidenceVulns: data.summary.stats.low_confidence_vulns || 0
-        };
+            scannerAgreementRate: scanData.report.scanner_agreement_rate != null ? String(scanData.report.scanner_agreement_rate) : null,
+            confidenceRate: scanData.report.confidence_rate != null ? String(scanData.report.confidence_rate) : null,
+            highConfidenceVulns: Number(scanData.report.high_confidence_vulns ?? 0),
+            mediumConfidenceVulns: Number(scanData.report.medium_confidence_vulns ?? 0),
+            lowConfidenceVulns: Number(scanData.report.low_confidence_vulns ?? 0),
+        }
     }
 
-    return result;
+    return result
 }
+
+// ── Build final result ────────────────────────────────────────────────────────
 
 function buildScanResult(
     vulns: Vulnerability[],
@@ -269,36 +341,32 @@ function buildScanResult(
     country: string = 'Unknown',
     ip: string = 'Unknown',
     aiSummary: any = null,
-    matrix: any = null
+    matrix: any = null,
+    siteMap: SiteMapData | null = null,
+    sslData: string | Record<string, any> | null = null,
 ): ScanResult {
-    vulns.sort((a, b) => mapSeverityToNumber(b.severity) - mapSeverityToNumber(a.severity));
+    vulns.sort((a, b) => severityToNumber(b.severity) - severityToNumber(a.severity))
 
     const criticalHighVulns = vulns.filter(v =>
-        ['Critical', 'High', 'Medium'].includes(v.severity)
-    ).length;
+        ['Critical', 'High', 'Medium'].includes(v.severity),
+    ).length
 
-    const priorities = vulns.slice(0, 5);
+    const priorities = vulns.slice(0, 5)
 
-    // Get scanners from vulnerabilities
-    const scanners = new Set(vulns.map(v => v.scanner));
-
-    // Force all scanners to appear in tool list if Full Scan
+    const scanners = new Set(vulns.map(v => v.scanner))
     if (type === 'Full Scan') {
-        scanners.add('Nuclei');
-        scanners.add('ZAP');
-        scanners.add('Wapiti');
+        scanners.add('Nuclei')
+        scanners.add('ZAP')
+        scanners.add('Wapiti')
+    } else if (type === 'Basic Scan') {
+        scanners.add('Wapiti')
     }
-    // For Basic Scan, always show Wapiti
-    else if (type === 'Basic Scan') {
-        scanners.add('Wapiti');
-    }
-
-    const tools = Array.from(scanners).filter(Boolean);
+    const tools = Array.from(scanners).filter(Boolean)
 
     return {
         target: target || 'Unknown',
         scanType: type || 'Scan',
-        tools,  // This will now always include Nuclei, ZAP, Wapiti for Full Scans
+        tools,
         date: new Date().toISOString(),
         totalVulns: vulns.length,
         criticalHighVulns,
@@ -308,6 +376,8 @@ function buildScanResult(
         country: country || 'Unknown',
         ip: ip || 'Unknown',
         aiSummary,
-        matrix
-    };
+        matrix,
+        siteMap,
+        sslData,
+    }
 }

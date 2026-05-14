@@ -190,3 +190,11 @@ export interface RawVulnerability {
     date: string;
     target: string;
 }
+
+export interface SiteMapData {
+    siteMap: Record<string, any>
+    endpoints: string[]
+    outOfScope: string[]
+    ports: number[]
+    domains?: Record<string, any>
+}
