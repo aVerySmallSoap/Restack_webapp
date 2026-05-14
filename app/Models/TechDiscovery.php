@@ -23,7 +23,7 @@ class TechDiscovery extends Model
      *
      * @var string
      */
-    protected $table = 'tech_discovery';
+    protected $table = 'technologies';
 
     /**
      * The name of the database connection to use for this model.
