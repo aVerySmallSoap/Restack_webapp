@@ -1,67 +1,43 @@
 <script setup lang="ts">
-import Navigation from '@/components/custom/Navigation.vue'
-import ScanForm from '@/components/custom/Scan/ScanForm.vue'
-import ScanResults from '@/components/custom/Scan/ScanResults.vue'
-import { useScan } from '@/composables/useScanLogic'
-import { useToastFeedback } from '@/composables/useToastFeedback'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Loader2 } from 'lucide-vue-next'
-import { usePage } from '@inertiajs/vue3'
+import { usePage } from '@inertiajs/vue3';
+import AppLayout from '@/layouts/AppLayout.vue';
+import ScanForm from '@/components/custom/Scan/ScanForm.vue';
+import ScanResultView from '@/components/custom/Scan/ScanResultView.vue';
+import { useScanLogic } from '@/composables/useScanLogic';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-vue-next';
 
-const { scanData, scanning, errorMsg, scanStatus, runScan, resetState } = useScan()
-const feedback = useToastFeedback()
-const page = usePage()
+const page = usePage();
+const userId = page.props.auth.user.id;
 
-function handleScanSubmit(payload: { url: string; type: 'basic' | 'full'; config?: any }) {
-    const userId = page.props.auth.user.id;
-    feedback.showInfo(`Starting ${payload.type} scan...`)
-    runScan(payload.url, payload.type, userId, payload.config)
+const { scanData, scanning, scanStatus, errorMsg, runScan, resetState } = useScanLogic();
+
+function handleSubmit(payload: { url: string; type: 'basic' | 'full'; config?: any }) {
+    runScan(payload.url, payload.type, userId, payload.config);
 }
 </script>
 
 <template>
-    <Navigation>
+    <AppLayout>
         <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
             <div>
-                <h1 class="px-2 text-4xl font-bold">New Scan</h1>
-                <div class="p-1.5"><span>Run scans to probe websites for vulnerabilities.</span></div>
+                <h1 class="text-2xl font-bold">New Scan</h1>
+                <p class="text-muted-foreground mt-1 text-sm">Scan a target URL for vulnerabilities and misconfigurations.</p>
             </div>
 
-            <ScanForm
-                :scanning="scanning"
-                :scan-status="scanStatus"
-                @submit="handleScanSubmit"
-                @clear="resetState"
-            />
+            <ScanForm :scanning="scanning" :scan-status="scanStatus" @submit="handleSubmit" @clear="resetState" />
 
-            <div v-if="errorMsg && !scanning" class="p-2 text-center font-bold text-red-600">
-                {{ errorMsg }}
-            </div>
+            <Alert v-if="errorMsg" variant="destructive">
+                <AlertCircle class="h-4 w-4" />
+                <AlertDescription>{{ errorMsg }}</AlertDescription>
+            </Alert>
 
-            <!-- Skeleton loading -->
-            <div v-if="scanning" class="mt-2 space-y-4">
-                <Card class="animate-pulse">
-                    <CardHeader><Skeleton class="h-6 w-48" /></CardHeader>
-                    <CardContent class="space-y-4">
-                        <Skeleton class="h-4 w-full" />
-                        <Skeleton class="h-4 w-3/4" />
-                    </CardContent>
-                </Card>
-                <Card class="animate-pulse">
-                    <CardHeader><Skeleton class="h-8 w-64" /></CardHeader>
-                    <CardContent>
-                        <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-                            <div v-for="i in 4" :key="i" class="space-y-2 rounded-lg border p-4">
-                                <Skeleton class="h-4 w-20" />
-                                <Skeleton class="h-8 w-12" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <ScanResults v-else-if="scanData" :data="scanData" />
+            <template v-if="scanData">
+                <div class="border-t pt-8">
+                    <h2 class="mb-6 text-lg font-semibold">Results</h2>
+                    <ScanResultView :result="scanData" />
+                </div>
+            </template>
         </div>
-    </Navigation>
+    </AppLayout>
 </template>

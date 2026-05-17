@@ -1,14 +1,11 @@
-
 export type Severity = 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational'
-export type ScanType = 'FULL' | 'BASIC' | 'CUSTOM'
-export type Scanner  = 'zap' | 'wapiti' | 'nuclei' | 'httpx' | string
 
 export interface Vulnerability {
     id: string
     type: string
     severity: Severity
     confidence: string
-    scanner: Scanner
+    scanner: string
     method: string
     endpoint: string
     description: string
@@ -59,9 +56,8 @@ export interface DiscoveryContext {
 
 export interface ScanResult {
     id: string
-    session_id: string
     target: string
-    scan_type: ScanType
+    scan_type: string
     scan_date: string
     is_automated: boolean
     report: ScanReport | null
