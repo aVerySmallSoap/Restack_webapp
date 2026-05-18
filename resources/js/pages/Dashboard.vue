@@ -1,139 +1,145 @@
 <script setup lang="ts">
-import { ref, watch, computed, h } from 'vue'
-import { Head, router } from '@inertiajs/vue3'
-import AppLayout from '@/layouts/AppLayout.vue'
-import {
-    ShieldCheck, Activity, AlertTriangle, Calendar, Target, RotateCcw
-} from 'lucide-vue-next'
+import AppLayout from '@/layouts/AppLayout.vue';
+import { Head, router } from '@inertiajs/vue3';
+import { Activity, AlertTriangle, Calendar, RotateCcw, ShieldCheck, Target } from 'lucide-vue-next';
+import { computed, h, ref, watch } from 'vue';
 
 // Components
-import CustomAreaChart from '@/components/custom/Charts/CustomAreaChart.vue'
-import CustomDonutChart from '@/components/custom/Charts/CustomDonutChart.vue'
-import CustomHorizBarChart from '@/components/custom/Charts/CustomHorizBarChart.vue'
-import CustomTrendChart from '@/components/custom/Charts/CustomTrendChart.vue'
-import DateRangePicker from '@/components/custom/Dashboard/DateRangePicker.vue'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
+import CustomAreaChart from '@/components/custom/Charts/CustomAreaChart.vue';
+import CustomDonutChart from '@/components/custom/Charts/CustomDonutChart.vue';
+import CustomHorizBarChart from '@/components/custom/Charts/CustomHorizBarChart.vue';
+import CustomTrendChart from '@/components/custom/Charts/CustomTrendChart.vue';
+import DateRangePicker from '@/components/custom/Dashboard/DateRangePicker.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Data Table Imports
-import {
-    useVueTable,
-    getCoreRowModel,
-    getSortedRowModel,
-    getPaginationRowModel,
-    FlexRender,
-    type ColumnDef,
-    type SortingState,
-} from '@tanstack/vue-table'
-import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue'
-import DataTablePagination from '@/components/custom/DataTablePagination.vue'
-import { getSeverityColor } from '@/lib/colors'
+import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue';
+import { getSeverityColor } from '@/lib/colors';
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useVueTable, type ColumnDef, type SortingState } from '@tanstack/vue-table';
 
-import { toast } from 'vue-sonner'
+import { toast } from 'vue-sonner';
 
 // --- PROPS ---
 const props = defineProps<{
-    stats: any;
-    recentScans: any[];
+    stats: {
+        total_scans: number;
+        total_vulns: number;
+        days_analyzed: number;
+        stability_score: number;
+        last_scan: string | null;
+    };
     vulnerabilityDistribution: any[];
     vulnerabilityTimeline: any[];
     topVulnerabilityTypes: any[];
     trendAnalysis: any[];
     availableDomains: string[];
-    filters: {
-        start: string;
-        end: string;
-        target: string;
-    };
-}>()
+    filters: { start: string; end: string; target: string | null };
+}>();
 
 // --- STATE ---
-const loading = ref(false)
-const selectedDomain = ref(props.filters.target || "all")
+const loading = ref(false);
+const selectedDomain = ref(props.filters.target || 'all');
 const dateRange = ref({
     start: props.filters.start,
-    end: props.filters.end
-})
-const sorting = ref<SortingState>([])
+    end: props.filters.end,
+});
+const sorting = ref<SortingState>([]);
 
 // --- RELOAD FUNCTION ---
-const updateDashboard = (newDomain?: string, newDates?: { start: string, end: string }) => {
-    loading.value = true
+const updateDashboard = (newDomain?: string, newDates?: { start: string; end: string }) => {
+    loading.value = true;
 
     // Use arguments if provided, otherwise fallback to current state
-    const target = newDomain !== undefined ? (newDomain === 'all' ? null : newDomain) : (selectedDomain.value === 'all' ? null : selectedDomain.value)
-    const start = newDates ? newDates.start : dateRange.value.start
-    const end = newDates ? newDates.end : dateRange.value.end
+    const target = newDomain !== undefined ? (newDomain === 'all' ? null : newDomain) : selectedDomain.value === 'all' ? null : selectedDomain.value;
+    const start = newDates ? newDates.start : dateRange.value.start;
+    const end = newDates ? newDates.end : dateRange.value.end;
 
-    console.log('Updating dashboard with:', { target, start, end })
+    console.log('Updating dashboard with:', { target, start, end });
 
-    router.get(route('dashboard'), {
-        target: target,
-        start: start,
-        end: end
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        only: ['stats', 'recentScans', 'vulnerabilityDistribution', 'vulnerabilityTimeline', 'topVulnerabilityTypes', 'trendAnalysis', 'filters'],
-        onSuccess: (page) => {
-            console.log('Dashboard updated successfully', page.props)
-            loading.value = false
+    router.get(
+        route('dashboard'),
+        {
+            target: target,
+            start: start,
+            end: end,
         },
-        onError: (errors) => {
-            console.error('Dashboard update failed:', errors)
-            toast.error('Failed to load dashboard data')
-            loading.value = false
+        {
+            preserveState: true,
+            preserveScroll: true,
+            only: [
+                'stats',
+                'recentScans',
+                'vulnerabilityDistribution',
+                'vulnerabilityTimeline',
+                'topVulnerabilityTypes',
+                'trendAnalysis',
+                'availableDomains',
+                'filters',
+            ],
+            onSuccess: (page) => {
+                console.log('Dashboard updated successfully', page.props);
+                loading.value = false;
+            },
+            onError: (errors) => {
+                console.error('Dashboard update failed:', errors);
+                toast.error('Failed to load dashboard data');
+                loading.value = false;
+            },
+            onFinish: () => {
+                loading.value = false;
+            },
         },
-        onFinish: () => {
-            loading.value = false
-        }
-    })
-}
+    );
+};
 
 // --- HANDLERS ---
 
 // 1. Explicit Domain Handler (Replaces v-model watcher)
 const handleDomainUpdate = (val: string) => {
-    selectedDomain.value = val
-    console.log("Domain changed manually:", val)
-    updateDashboard(val, undefined) // Pass new value directly to ensure sync
-}
+    selectedDomain.value = val;
+    console.log('Domain changed manually:', val);
+    updateDashboard(val, undefined); // Pass new value directly to ensure sync
+};
 
 // 2. Explicit Date Handler
 const handleDateUpdate = (range: any) => {
     if (range?.start && range?.end) {
         // Format dates in LOCAL timezone, avoiding toISOString() which converts to UTC
         const formatLocalDate = (date: Date): string => {
-            const year = date.getFullYear()
-            const month = String(date.getMonth() + 1).padStart(2, '0')
-            const day = String(date.getDate()).padStart(2, '0')
-            return `${year}-${month}-${day}`
-        }
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
 
-        const start = range.start instanceof Date ? formatLocalDate(range.start) : range.start
-        const end = range.end instanceof Date ? formatLocalDate(range.end) : range.end
+        const start = range.start instanceof Date ? formatLocalDate(range.start) : range.start;
+        const end = range.end instanceof Date ? formatLocalDate(range.end) : range.end;
 
-        dateRange.value = { start, end }
-        console.log("Date changed manually:", start, end)
-        updateDashboard(undefined, { start, end })
+        dateRange.value = { start, end };
+        console.log('Date changed manually:', start, end);
+        updateDashboard(undefined, { start, end });
     }
-}
+};
 // 3. Sync from Backend (e.g. Back Button)
-watch(() => props.filters, (newFilters) => {
-    console.log('Props filters changed:', newFilters)
-    selectedDomain.value = newFilters.target || "all"
-    dateRange.value = { start: newFilters.start, end: newFilters.end }
-}, { deep: true })
+watch(
+    () => props.filters,
+    (newFilters) => {
+        console.log('Props filters changed:', newFilters);
+        selectedDomain.value = newFilters.target || 'all';
+        dateRange.value = { start: newFilters.start, end: newFilters.end };
+    },
+    { deep: true },
+);
 
 const resetFilters = () => {
-    selectedDomain.value = "all"
-    dateRange.value = { start: props.filters.start, end: props.filters.end }
-    updateDashboard("all", { start: props.filters.start, end: props.filters.end })
-}
+    selectedDomain.value = 'all';
+    dateRange.value = { start: props.filters.start, end: props.filters.end };
+    updateDashboard('all', { start: props.filters.start, end: props.filters.end });
+};
 
 // --- COMPUTED DATA ---
 const analyticsData = computed(() => {
@@ -149,48 +155,53 @@ const analyticsData = computed(() => {
             daysDiff = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
         }
     }
-    const finalDays = daysDiff > 0 ? daysDiff : 30;
+    const finalDays = daysDiff > 0 ? daysDiff : 30; // ← must be here, before return
 
     return {
         kpi: {
             target: selectedDomain.value === 'all' ? 'All Targets' : selectedDomain.value,
-            total_scans: props.stats.totalScans,
-            total_vulns: props.stats.totalVulns,
-            total_vulns_all_time: props.stats.totalVulns,
+            // new API uses snake_case; camelCase fallback keeps old DB branch working
+            total_scans: props.stats.total_scans ?? props.stats.totalScans ?? 0,
+            total_vulns: props.stats.total_vulns ?? props.stats.totalVulns ?? 0,
+            total_vulns_all_time: props.stats.total_vulns_all_time ?? props.stats.totalVulns ?? 0,
             days_analyzed: finalDays,
-            stability_score: props.stats.stabilityScore,
-            last_scan: props.recentScans.length > 0 ? new Date(props.recentScans[0].date).toLocaleDateString() : 'N/A'
+            stability_score: props.stats.stability_score ?? props.stats.stabilityScore ?? 0,
+            // last_scan now comes from the KPI payload; recentScans is [] in new API
+            last_scan: props.stats.last_scan ?? (props.recentScans?.length > 0 ? new Date(props.recentScans[0].date).toLocaleDateString() : 'N/A'),
         },
         charts: {
             history: props.vulnerabilityTimeline,
             distribution: props.vulnerabilityDistribution,
-            types: props.topVulnerabilityTypes.map(t => ({
+            types: props.topVulnerabilityTypes.map((t) => ({
                 name: t.name,
                 total: Number(t.count ?? t.value ?? t.total ?? 0),
-                color: t.color
+                color: t.color,
             })),
-            trend: props.trendAnalysis
-        }
-    }
-})
+            trend: props.trendAnalysis,
+        },
+    };
+});
 
 // Check if we have any data
 const hasData = computed(() => {
-    return props.stats && (props.stats.totalScans > 0 || props.stats.totalVulns > 0)
-})
+    if (!props.stats) return false;
+    const scans = props.stats.total_scans ?? props.stats.totalScans ?? 0;
+    const vulns = props.stats.total_vulns ?? props.stats.totalVulns ?? 0;
+    return scans > 0 || vulns > 0;
+});
 
 // --- TABLE CONFIG ---
-const getSeverityStyle = (sev: string) => ({ backgroundColor: getSeverityColor(sev), color: '#ffffff', border: 'none' })
+const getSeverityStyle = (sev: string) => ({ backgroundColor: getSeverityColor(sev), color: '#ffffff', border: 'none' });
 
 const columns: ColumnDef<any>[] = [
     {
         accessorKey: 'status',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Status' }),
         cell: ({ row }) => {
-            const crit = row.original.criticalHigh as number
-            const label = crit > 0 ? 'Critical Issues' : 'Completed'
-            const color = crit > 0 ? 'critical' : 'low'
-            return h(Badge, { style: getSeverityStyle(color) }, () => label)
+            const crit = row.original.criticalHigh as number;
+            const label = crit > 0 ? 'Critical Issues' : 'Completed';
+            const color = crit > 0 ? 'critical' : 'low';
+            return h(Badge, { style: getSeverityStyle(color) }, () => label);
         },
     },
     {
@@ -213,25 +224,31 @@ const columns: ColumnDef<any>[] = [
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Date' }),
         cell: ({ row }) => h('div', { class: 'text-right' }, new Date(row.getValue('date')).toLocaleDateString()),
     },
-]
+];
 
 const table = useVueTable({
-    get data() { return props.recentScans },
+    get data() {
+        return props.recentScans;
+    },
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: (updaterOrValue) => sorting.value = typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue,
-    state: { get sorting() { return sorting.value } },
-})
+    onSortingChange: (updaterOrValue) => (sorting.value = typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue),
+    state: {
+        get sorting() {
+            return sorting.value;
+        },
+    },
+});
 </script>
 
 <template>
     <Head title="Analytics Dashboard" />
 
     <AppLayout>
-        <div class="p-6 space-y-6">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-6 p-6">
+            <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div class="flex flex-col gap-2">
                     <h1 class="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
                     <p class="text-muted-foreground">
@@ -239,12 +256,8 @@ const table = useVueTable({
                     </p>
                 </div>
 
-                <div class="flex flex-col sm:flex-row items-center gap-2">
-
-                    <Select
-                        :model-value="selectedDomain"
-                        @update:model-value="handleDomainUpdate"
-                    >
+                <div class="flex flex-col items-center gap-2 sm:flex-row">
+                    <Select :model-value="selectedDomain" @update:model-value="handleDomainUpdate">
                         <SelectTrigger class="w-[200px]">
                             <SelectValue placeholder="Select Target" />
                         </SelectTrigger>
@@ -256,11 +269,7 @@ const table = useVueTable({
                         </SelectContent>
                     </Select>
 
-                    <DateRangePicker
-                        :start-date="dateRange.start"
-                        :end-date="dateRange.end"
-                        @update="handleDateUpdate"
-                    />
+                    <DateRangePicker :start-date="dateRange.start" :end-date="dateRange.end" @update="handleDateUpdate" />
 
                     <Button variant="outline" size="icon" @click="resetFilters" title="Reset Filters">
                         <RotateCcw class="h-4 w-4" />
@@ -270,7 +279,7 @@ const table = useVueTable({
 
             <!-- Loading State -->
             <div v-if="loading" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                     <Card v-for="i in 6" :key="i">
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                             <Skeleton class="h-4 w-20" />
@@ -284,15 +293,15 @@ const table = useVueTable({
             </div>
 
             <!-- Data State -->
-            <div v-else-if="hasData" class="space-y-6 animate-fadein">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div v-else-if="hasData" class="animate-fadein space-y-6">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle class="text-sm font-medium">Target</CardTitle>
-                            <Target class="h-4 w-4 text-muted-foreground" />
+                            <Target class="text-muted-foreground h-4 w-4" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-base font-bold truncate" :title="analyticsData.kpi.target">
+                            <div class="truncate text-base font-bold" :title="analyticsData.kpi.target">
                                 {{ analyticsData.kpi.target }}
                             </div>
                         </CardContent>
@@ -301,7 +310,7 @@ const table = useVueTable({
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle class="text-sm font-medium">Total Scans</CardTitle>
-                            <Activity class="h-4 w-4 text-muted-foreground" />
+                            <Activity class="text-muted-foreground h-4 w-4" />
                         </CardHeader>
                         <CardContent>
                             <div class="text-2xl font-bold">{{ analyticsData.kpi.total_scans }}</div>
@@ -311,7 +320,7 @@ const table = useVueTable({
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle class="text-sm font-medium">Vulnerabilities</CardTitle>
-                            <AlertTriangle class="h-4 w-4 text-destructive" />
+                            <AlertTriangle class="text-destructive h-4 w-4" />
                         </CardHeader>
                         <CardContent>
                             <div class="text-2xl font-bold">{{ analyticsData.kpi.total_vulns }}</div>
@@ -321,12 +330,12 @@ const table = useVueTable({
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle class="text-sm font-medium">Time Period</CardTitle>
-                            <Calendar class="h-4 w-4 text-muted-foreground" />
+                            <Calendar class="text-muted-foreground h-4 w-4" />
                         </CardHeader>
                         <CardContent>
                             <div class="text-2xl font-bold">
                                 {{ analyticsData.kpi.days_analyzed }}
-                                <span class="text-xs font-normal text-muted-foreground">Days</span>
+                                <span class="text-muted-foreground text-xs font-normal">Days</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -334,7 +343,7 @@ const table = useVueTable({
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle class="text-sm font-medium">Stability</CardTitle>
-                            <ShieldCheck class="h-4 w-4 text-muted-foreground" />
+                            <ShieldCheck class="text-muted-foreground h-4 w-4" />
                         </CardHeader>
                         <CardContent>
                             <div class="text-2xl font-bold" :class="analyticsData.kpi.stability_score > 80 ? 'text-green-600' : 'text-yellow-600'">
@@ -346,15 +355,15 @@ const table = useVueTable({
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle class="text-sm font-medium">Last Scan</CardTitle>
-                            <Activity class="h-4 w-4 text-muted-foreground" />
+                            <Activity class="text-muted-foreground h-4 w-4" />
                         </CardHeader>
                         <CardContent>
-                            <div class="text-lg font-bold truncate">{{ analyticsData.kpi.last_scan }}</div>
+                            <div class="truncate text-lg font-bold">{{ analyticsData.kpi.last_scan }}</div>
                         </CardContent>
                     </Card>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                     <Card class="lg:col-span-2">
                         <CardHeader><CardTitle>Vulnerabilities Over Time</CardTitle></CardHeader>
                         <CardContent>
@@ -380,16 +389,15 @@ const table = useVueTable({
                         </CardContent>
                     </Card>
                 </div>
-
             </div>
 
             <!-- Empty State -->
-            <div v-else class="flex flex-col items-center justify-center h-96 text-muted-foreground">
-                <AlertTriangle class="h-12 w-12 mb-4 opacity-50" />
-                <p class="text-lg font-medium mb-2">No data available for the selected date range</p>
-                <p class="text-sm mb-4">Try selecting a different date range or target</p>
+            <div v-else class="text-muted-foreground flex h-96 flex-col items-center justify-center">
+                <AlertTriangle class="mb-4 h-12 w-12 opacity-50" />
+                <p class="mb-2 text-lg font-medium">No data available for the selected date range</p>
+                <p class="mb-4 text-sm">Try selecting a different date range or target</p>
                 <Button @click="resetFilters" variant="outline">
-                    <RotateCcw class="h-4 w-4 mr-2" />
+                    <RotateCcw class="mr-2 h-4 w-4" />
                     Reset Filters
                 </Button>
             </div>
@@ -402,7 +410,13 @@ const table = useVueTable({
     animation: fadein 0.5s ease-out;
 }
 @keyframes fadein {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 </style>

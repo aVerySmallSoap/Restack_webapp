@@ -15,23 +15,21 @@ class HistoryController extends Controller
         $scans = $this->scanService->getAllResults();
 
         $history = collect($scans)
-            ->map(fn($scan) => ScanTransformer::transform($scan))
             ->map(fn($scan) => [
-                'id'            => $scan['id'],
-                'target'        => $scan['target'],
-                'scanType'      => $scan['scan_type'],
-                'totalFindings' => $scan['report']['total_vulnerabilities'] ?? 0,
-                'criticalHigh'  => $scan['report']['critical_count'] ?? 0,
-                'date'          => $scan['scan_date'],
+                'id'            => (string) ($scan['id'] ?? ''),
+                'target'        => $scan['target_url'] ?? '',
+                'scanType'      => $scan['scan_type'] ?? '',
+                'totalFindings' => (int) ($scan['total_vulnerabilities'] ?? 0),
+                'criticalHigh'  => (int) ($scan['critical_count'] ?? 0),
+                'date'          => $scan['scan_date'] ?? null,
                 'status'        => 'Completed',
-                'isAutomated'   => $scan['is_automated'],
+                'isAutomated'   => $scan['is_automated'] ?? false,
             ])
             ->sortByDesc('date')
             ->values();
 
         return Inertia::render('History', ['history' => $history]);
     }
-
     public function show(string $id)
     {
         try {

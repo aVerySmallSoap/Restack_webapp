@@ -16,7 +16,7 @@ const props = defineProps<{
 
 <template>
     <AppLayout>
-        <div class="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
+        <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
 
             <div class="flex items-center gap-3">
                 <Button variant="ghost" size="sm" as-child>
@@ -36,7 +36,7 @@ const props = defineProps<{
 
             <div
                 v-else
-                class="rounded-lg border border-dashed p-16 text-center text-muted-foreground"
+                class="rounded-lg border border-dashed p-12 text-center text-muted-foreground"
             >
                 <p>Report not found.</p>
             </div>

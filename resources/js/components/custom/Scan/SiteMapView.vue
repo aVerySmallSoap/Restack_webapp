@@ -54,8 +54,15 @@ function buildTree(map: Record<string, any>, parentPath = ''): TreeNode[] {
 
 const treeNodes = computed<TreeNode[]>(() => {
     if (!props.siteMap) return []
-    const root = props.siteMap['/'] ?? props.siteMap
-    return buildTree(root, '/')
+    const rootValue = props.siteMap['/']
+    // if root exists but is empty, there are no children — that's fine
+    if (rootValue !== undefined) {
+        return typeof rootValue === 'object' && Object.keys(rootValue).length > 0
+            ? buildTree(rootValue, '/')
+            : []
+    }
+    // no "/" key, treat the whole map as the tree
+    return buildTree(props.siteMap, '/')
 })
 
 const expandedPaths = ref<Set<string>>(new Set(['/']))
@@ -139,12 +146,7 @@ const stats = computed(() => ({
         </div>
 
         <div v-if="activeTab === 'tree'" class="space-y-2">
-            <div class="flex gap-2">
-                <Button variant="ghost" size="sm" class="h-7 text-xs" @click="expandAll(treeNodes)">Expand all</Button>
-                <Button variant="ghost" size="sm" class="h-7 text-xs" @click="collapseAll">Collapse all</Button>
-            </div>
-
-            <div v-if="!treeNodes.length" class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+            <div v-if="!siteMap || Object.keys(siteMap).length === 0" class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
                 <Globe class="h-8 w-8 mx-auto mb-2 opacity-30" />
                 <p class="text-sm">No site map data available.</p>
             </div>
@@ -162,7 +164,10 @@ const stats = computed(() => ({
                     :expanded-paths="expandedPaths"
                     :depth="1"
                     @toggle="toggle"
-                />
+                 site-map=""/>
+                <div v-if="!treeNodes.length" class="pl-4 py-1 text-xs text-muted-foreground">
+                    No sub-paths discovered.
+                </div>
             </div>
         </div>
 

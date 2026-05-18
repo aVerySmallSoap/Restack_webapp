@@ -41,7 +41,7 @@ class ScanService
 
     public function deleteScan(string $sessionId): void
     {
-        $response = $this->api->delete("/v1/history/{$sessionId}");
+        $response = $this->api->delete("/v1/scan/{$sessionId}");
         $this->api->unwrap($response);
     }
 }

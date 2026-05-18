@@ -38,16 +38,15 @@ class AnalyticsTransformer
     private static function kpi(array $raw): array
     {
         return [
-            'target'               => $raw['target']               ?? 'All Targets',
-            'total_scans'          => self::safeInt($raw['total_scans']),
-            'total_vulns'          => self::safeInt($raw['total_vulns']),
-            'total_vulns_all_time' => self::safeInt($raw['total_vulns_all_time']),
-            'days_analyzed'        => self::safeInt($raw['days_analyzed'], 30),
-            'stability_score'      => self::safeInt($raw['stability_score']),
+            'target'               => $raw['target']                ?? 'All Targets',
+            'total_scans'          => self::safeInt($raw['total_scans']          ?? null),
+            'total_vulns'          => self::safeInt($raw['total_vulns']          ?? null),
+            'total_vulns_all_time' => self::safeInt($raw['total_vulns_all_time'] ?? null),
+            'days_analyzed'        => self::safeInt($raw['days_analyzed']        ?? null, 30),
+            'stability_score'      => self::safeInt($raw['stability_score']      ?? null),
             'last_scan'            => $raw['last_scan'] ?? null,
         ];
     }
-
     private static function charts(array $raw): array
     {
         return [

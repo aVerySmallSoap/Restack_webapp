@@ -48,7 +48,7 @@ const data = computed(() => ({
                     url: '/dashboard',
                 },
                 {
-                    title: 'Previous Scans',
+                    title: 'Reports',
                     url: '/history',
                 },
             ],

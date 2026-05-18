@@ -50,6 +50,17 @@ const parsed = computed<Record<string, any> | null>(() => {
     return inner && inner.server_scan_results ? inner : null
 })
 
+const connectivityError = computed(() => {
+    const result = parsed.value?.server_scan_results?.[0]
+    if (!result) return null
+    if (result.scan_status === 'ERROR_NO_CONNECTIVITY') {
+        const host = result.server_location?.hostname
+        const port = result.server_location?.port
+        return `Could not establish a TLS connection to ${host}:${port}. The server may not support TLS on this port.`
+    }
+    return null
+})
+
 const scanResult = computed(() => parsed.value?.server_scan_results?.[0]?.scan_result ?? null)
 const serverLocation = computed(() => parsed.value?.server_scan_results?.[0]?.server_location ?? null)
 
@@ -188,7 +199,13 @@ const riskMeta = computed(() => {
 </script>
 
 <template>
-    <div v-if="!scanResult" class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+    <div v-if="connectivityError" class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+        <Lock class="h-8 w-8 mx-auto mb-2 opacity-30" />
+        <p class="text-sm font-medium">SSL/TLS scan failed</p>
+        <p class="text-xs mt-1">{{ connectivityError }}</p>
+    </div>
+
+    <div v-else-if="!scanResult" class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
         <Lock class="h-8 w-8 mx-auto mb-2 opacity-30" />
         <p class="text-sm">No SSL/TLS data available for this scan.</p>
     </div>

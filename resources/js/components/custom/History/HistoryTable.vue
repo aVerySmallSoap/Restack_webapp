@@ -74,11 +74,11 @@ const columns: ColumnDef<ScanHistory>[] = [
             return value.includes(row.getValue(id))
         },
     },
-    {
-        accessorKey: 'totalFindings',
-        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Findings' }),
-        cell: ({ row }) => h('div', { class: 'text-center' }, row.getValue('totalFindings')),
-    },
+    // {
+    //     accessorKey: 'totalFindings',
+    //     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Findings' }),
+    //     cell: ({ row }) => h('div', { class: 'text-center' }, row.getValue('totalFindings')),
+    // },
     {
         accessorKey: 'criticalHigh',
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Crit/High' }),

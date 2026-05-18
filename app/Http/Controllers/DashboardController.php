@@ -14,7 +14,6 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-
     private function sanitizeFloats(mixed $data): mixed
     {
         if (is_array($data)) {
@@ -25,6 +24,7 @@ class DashboardController extends Controller
         }
         return $data;
     }
+
     public function index(Request $request)
     {
         $user      = auth()->user();
@@ -36,23 +36,39 @@ class DashboardController extends Controller
 
         $analytics = $analyticsService->getGeneralAnalytics(
             targetDomain: $target,
-            startDate: $startDate,
-            endDate: $endDate,
-            userId: $user->is_admin ? null : $user->id,
+            startDate:    $startDate,
+            endDate:      $endDate,
+            userId:       $user->is_admin ? null : $user->id,
         );
 
-        $domains = $analyticsService->getTargetDomains(
+        // API returns { domains: string[], count: int } — unwrap to a flat array
+        $domainsRaw = $analyticsService->getTargetDomains(
             userId: $user->is_admin ? null : $user->id
         );
+        $domains = $domainsRaw['domains'] ?? (array_is_list($domainsRaw ?? []) ? $domainsRaw : []);
 
         return Inertia::render('Dashboard', $this->sanitizeFloats([
-            'stats'                   => $analytics['kpi'],
-            'vulnerabilityTimeline'   => $analytics['charts']['history'],
+            // Keys must match what Dashboard.vue destructures from props.stats
+            // The new backend already returns snake_case that matches analytics['kpi']
+            'stats'                     => $analytics['kpi'],
+
+            // New API doesn't expose a recent-scans list yet; pass an empty array
+            // so the Vue prop is always defined. The KPI last_scan comes from stats.
+            'recentScans'               => [],
+
+            'vulnerabilityTimeline'     => $analytics['charts']['history'],
             'vulnerabilityDistribution' => $analytics['charts']['distribution'],
-            'topVulnerabilityTypes'   => $analytics['charts']['types'],
-            'trendAnalysis'           => $analytics['charts']['trend'],
-            'availableDomains'        => $domains,
-            'filters'                 => compact('startDate', 'endDate', 'target'),
+            'topVulnerabilityTypes'     => $analytics['charts']['types'],
+            'trendAnalysis'             => $analytics['charts']['trend'],
+            'availableDomains'          => $domains,
+
+            // Vue DateRangePicker + watchers expect keys 'start', 'end', 'target'
+            // compact('startDate','endDate','target') would produce the WRONG keys
+            'filters'                   => [
+                'start'  => $startDate,
+                'end'    => $endDate,
+                'target' => $target,
+            ],
         ]));
     }
 }
