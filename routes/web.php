@@ -103,11 +103,9 @@ Route::middleware(['auth:web', 'verified'])->group(function () {
         Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
     });
 
-    Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
-
-    Route::get('/logs', [HistoryController::class, 'index'])->name('history.index');
-    Route::get('/logs/{id}', [HistoryController::class, 'show'])->name('history.show');
-    Route::delete('/logs/{id}', [HistoryController::class, 'destroy'])->name('history.destroy');
+    Route::get('/history', [HistoryController::class, 'index'])->name('history.index');
+    Route::get('/history/{id}', [HistoryController::class, 'show'])->name('history.show');
+    Route::delete('/history/{id}', [HistoryController::class, 'destroy'])->name('history.destroy');
 
 // -- Settings --
 //    Route::get('/settings/scanner', function(){

@@ -9,15 +9,18 @@ import vueDevTools from 'vite-plugin-vue-devtools';
 
 export default defineConfig({
     server: {
-        host: true,
+        host: '127.0.0.1', // local-only; change to true if you want LAN access
         port: 5174,
         strictPort: true,
+
+        // For local dev, don't force HMR to use your remote domain or port 443.
         hmr: {
-            clientPort: 443,
+            host: '127.0.0.1',
             port: 5174,
-            host: "dev.restack.bar",
+            protocol: 'ws',
         },
     },
+
     plugins: [
         laravel({
             input: ['resources/js/app.ts', 'resources/css/app.css'],
@@ -34,12 +37,15 @@ export default defineConfig({
             },
         }),
         vueDevTools({
-            appendTo: 'app.ts',
+            // This should generally be a file path, not just 'app.ts'
+            // If you intended to append to your entry file, use the full path:
+            appendTo: 'resources/js/app.ts',
         }),
         Icons({
-            autoInstall: true, // optional: auto-installs icon sets
+            autoInstall: true,
         }),
     ],
+
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './resources/js'),

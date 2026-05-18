@@ -46,4 +46,10 @@ return [
         'socket_url' => env('API_SOCKET_URL', 'ws://api.restack.bar'),
     ],
 
+    'restack_api' => [
+        'url'          => env('RESTACK_API_URL', 'http://localhost:8000'),
+        'timeout'      => env('RESTACK_API_TIMEOUT', 30),
+        'internal_key' => env('RESTACK_API_INTERNAL_KEY'),
+    ],
+
 ];

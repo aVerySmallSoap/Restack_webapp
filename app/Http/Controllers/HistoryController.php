@@ -2,77 +2,71 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Report;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use App\Services\Api\ScanService;
+use App\Transformers\ScanTransformer;
 use Inertia\Inertia;
 
 class HistoryController extends Controller
 {
+    public function __construct(private ScanService $scanService) {}
+
     public function index()
     {
-        $query = Report::with(['scans', 'vulnerabilities']);
+        $scans = $this->scanService->getAllResults();
 
+        $history = collect($scans)
+            ->map(fn($scan) => [
+                'id'            => (string) ($scan['id'] ?? ''),
+                'target'        => $scan['target_url'] ?? '',
+                'scanType'      => $scan['scan_type'] ?? '',
+                'totalFindings' => (int) ($scan['total_vulnerabilities'] ?? 0),
+                'criticalHigh'  => (int) ($scan['critical_count'] ?? 0),
+                'date'          => $scan['scan_date'] ?? null,
+                'status'        => 'Completed',
+                'isAutomated'   => $scan['is_automated'] ?? false,
+            ])
+            ->sortByDesc('date')
+            ->values();
 
-        if (!auth()->user()->is_admin) {
-            $query->whereHas('scans', function ($q) {
-                $q->where('user_id', auth()->id());
-            });
-        }
-
-        $history = $query->orderBy('scan_date', 'desc')
-            ->get()
-            ->map(function ($report) {
-                $scan = $report->scans->first();
-                return [
-                    'id' => $report->id,
-                    'target' => $scan->target_url ?? 'Unknown Target',
-                    'scanType' => $this->formatScanType($report->scan_type),
-                    'totalFindings' => $report->total_vulnerabilities,
-                    'criticalHigh' => $report->critical_count,
-                    'date' => $report->scan_date->toISOString(),
-                    'duration' => $scan->scan_duration ?? 0,
-                    'status' => 'Completed',
-                    'owner' => $scan->user->name ?? 'Unknown',
-                    'isAutomated' => $scan->is_automated ?? false,
-                ];
-            });
-
-        return Inertia::render('History', [
-            'history' => $history,
-        ]);
+        return Inertia::render('History', ['history' => $history]);
     }
     public function show(string $id)
     {
-        $report = Report::with(['vulnerabilities', 'techDiscoveries', 'scans'])->findOrFail($id);
+        try {
+            $data = $this->scanService->getResult($id);
 
-        return Inertia::render('history/Show', [
-            'report' => $report
-        ]);
+            if (!$data || !is_array($data)) {
+                return Inertia::render('history/Show', [
+                    'report' => null,
+                    'error'  => 'The scan service returned an invalid or empty dataset.'
+                ]);
+            }
+
+            $transformed = ScanTransformer::transform($data);
+
+            array_walk_recursive($transformed, function (&$value) {
+                if (is_string($value)) {
+                    $value = iconv('UTF-8', 'UTF-8//IGNORE', $value);
+                } elseif (is_float($value) && (is_infinite($value) || is_nan($value))) {
+                    $value = null;
+                }
+            });
+
+            return Inertia::render('history/Show', [
+                'report' => $transformed
+            ]);
+
+        } catch (\Exception $e) {
+            return Inertia::render('history/Show', [
+                'report' => null,
+                'error'  => 'Transformer or parsing runtime exception: ' . $e->getMessage()
+            ]);
+        }
     }
 
     public function destroy(string $id)
     {
-        $apiUrl = config('api.API_BASE_URL');
-        try {
-            $response = Http::delete("{$apiUrl}/v1/history/{$id}");
-
-            if ($response->successful()) {
-                return to_route('history.index');
-            }
-
-            return back()->with('error', 'Failed to delete report from analysis engine.');
-
-        } catch (\Exception $e) {
-            return back()->with('error', 'Could not connect to analysis engine.');
-        }
-    }
-
-    private function formatScanType($type)
-    {
-        $t = strtolower($type);
-        if (str_contains($t, 'wapiti')) return 'Basic';
-        if (str_contains($t, 'full') || str_contains($t, 'zap')) return 'Full';
-        return ucfirst($type);
+        $this->scanService->deleteScan($id);
+        return to_route('history.index');
     }
 }

@@ -97,6 +97,19 @@ return [
             'sslmode' => 'prefer',
         ],
 
+        'pgsql_api' => [
+            'driver' => 'pgsql',
+            'host' => env('API_DB_HOST', '127.0.0.1'),
+            'port' => env('API_DB_PORT', '5432'),
+            'database' => env('API_DB_DATABASE', 'restack_api'),
+            'username' => env('API_DB_USERNAME', 'postgres'),
+            'password' => env('API_DB_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'schema' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
@@ -147,7 +160,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
+            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 

@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Report extends Model
 {
     use HasUuids;
 
+
+    protected $connection = 'pgsql_api';
     protected $table = 'reports';
     protected $guarded = [];
 
@@ -19,18 +22,17 @@ class Report extends Model
         'confidence_rate' => 'float',
     ];
 
-    public function scans(): HasMany
+    public function scan(): BelongsTo
     {
-        return $this->hasMany(Scan::class, 'report_id');
+        return $this->belongsTo(Scan::class, 'scan_id');
+    }
+    public function vulnerabilities()
+    {
+        return $this->hasMany(Vulnerability::class, 'scan_id', 'scan_id');
     }
 
-    public function techDiscoveries(): HasMany
+    public function techDiscoveries()
     {
-        return $this->hasMany(TechDiscovery::class, 'report_id');
-    }
-
-    public function vulnerabilities(): HasMany
-    {
-        return $this->hasMany(Vulnerability::class, 'report_id');
+        return $this->hasMany(TechDiscovery::class, 'scan_id', 'scan_id');
     }
 }

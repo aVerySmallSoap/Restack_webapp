@@ -104,7 +104,7 @@ const handleResetPassword = () => {
 }
 
 const submitResetPassword = () => {
-    passwordForm.put(route('users.reset-password', props.rowData.id), {
+    passwordForm.put(route('admin.users.update', props.rowData.id), {
         preserveScroll: true,
         onSuccess: () => {
             feedback.showSuccess('Password reset successfully')

@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\Api\AnalyticsService;
+use App\Services\Api\RestackApiClient;
+use App\Services\Api\ScanService;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate; // Import the Gate facade
@@ -15,7 +18,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(RestackApiClient::class);
+        $this->app->singleton(AnalyticsService::class);
+        $this->app->singleton(ScanService::class);
     }
 
     /**
