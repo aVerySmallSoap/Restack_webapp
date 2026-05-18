@@ -95,7 +95,7 @@ function downloadReport(format: 'excel' | 'pdf') {
         toast.error('Report ID missing — cannot export.')
         return
     }
-    window.open(`${API_BASE_URL}/api/v1/report/${reportId}/export/${format}`, '_blank')
+    window.open(`${API_BASE_URL}/v1/report/${reportId}/export/${format}`, '_blank')
     toast.info(`Generating ${format.toUpperCase()} report…`)
 }
 

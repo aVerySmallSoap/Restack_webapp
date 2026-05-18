@@ -4,7 +4,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { DefineComponent} from 'vue';
 import { createApp, h } from 'vue';
-import { ZiggyVue } from 'ziggy-js';                             
+import { ZiggyVue } from 'ziggy-js';
 import { initializeTheme, setupInertiaThemeSync } from './composables/useAppearance';
 import RootLayout from '@/layouts/RootLayout.vue';
 

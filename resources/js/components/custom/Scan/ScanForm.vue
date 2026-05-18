@@ -28,7 +28,7 @@ const useZap = ref(true)
 
 const previewUrl = computed(() => {
     if (!url.value) return ''
-    return /^https?:\/\//i.test(url.value) ? url.value : `http://${url.value}`
+    return /^https?:\/\//i.test(url.value) ? url.value : `https://${url.value}`
 })
 
 // Helper to get badge variant based on status
