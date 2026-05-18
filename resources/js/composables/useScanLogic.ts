@@ -20,7 +20,7 @@ export function useScanLogic() {
         let url = raw.trim();
         if (!url) return '';
         url = url.replace(/localhost|127\.0\.0\.1/g, 'host.docker.internal');
-        if (!/^https?:\/\//i.test(url)) url = 'http://' + url;
+        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
         if (url.includes('host.docker.internal') && url.startsWith('https://')) url = url.replace('https://', 'http://');
         return url;
     }
