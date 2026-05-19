@@ -47,7 +47,7 @@ return [
     ],
 
     'restack_api' => [
-        'url'          => env('RESTACK_API_URL', 'http://localhost:8000'),
+        'url'          => env('RESTACK_API_URL', 'http://localhost:25565'),
         'timeout'      => env('RESTACK_API_TIMEOUT', 30),
         'internal_key' => env('RESTACK_API_INTERNAL_KEY'),
     ],

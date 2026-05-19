@@ -31,6 +31,11 @@ class RestackApiClient
         return $this->client->get($path, $query);
     }
 
+    public function put(string $path, array $body = []): Response
+    {
+        return $this->client->put($path, $body);
+    }
+
     public function post(string $path, array $body = []): Response
     {
         return $this->client->post($path, $body);

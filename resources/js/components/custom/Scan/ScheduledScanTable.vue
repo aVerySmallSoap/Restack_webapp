@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, h } from 'vue'
-import type { PropType } from 'vue'
+import { ref, computed, h } from 'vue';
+import type { PropType } from 'vue';
 import {
     useVueTable,
     getCoreRowModel,
@@ -13,13 +13,13 @@ import {
     type ColumnDef,
     type SortingState,
     type ColumnFiltersState,
-} from '@tanstack/vue-table'
-import { MoreHorizontal, Trash2, Calendar, Clock, Edit, Copy } from 'lucide-vue-next'
+} from '@tanstack/vue-table';
+import { MoreHorizontal, Trash2, Calendar, Clock, Edit, Copy } from 'lucide-vue-next';
 
 // Components
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -27,34 +27,34 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Card, CardContent, CardFooter } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue'
-import DataTablePagination from '@/components/custom/DataTablePagination.vue'
-import FacetedFilter from '@/components/custom/FacetedFilter.vue'
-import { usePage } from '@inertiajs/vue3'
+} from '@/components/ui/dropdown-menu';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import DataTableColumnHeader from '@/components/custom/DataTableColumnHeader.vue';
+import DataTablePagination from '@/components/custom/DataTablePagination.vue';
+import FacetedFilter from '@/components/custom/FacetedFilter.vue';
+import { usePage } from '@inertiajs/vue3';
 
 // Types
-import type { ScheduledScan } from '@/lib/restack/restack.types'
+import type { ScheduledScan } from '@/lib/restack/restack.types';
 
 const props = defineProps({
     data: { type: Array as PropType<ScheduledScan[]>, required: true },
-    users: { type: Array as PropType<{ label: string; value: string }[]>, default: () => [] }
-})
+    users: { type: Array as PropType<{ label: string; value: string }[]>, default: () => [] },
+});
 
-const page = usePage()
-const isAdmin = page.props.auth.user.is_admin
+const page = usePage();
+const isAdmin = page.props.auth.user.is_admin;
 
 const emit = defineEmits<{
-    (e: 'delete', id: string): void
-    (e: 'edit', scan: ScheduledScan): void
-}>()
+    (e: 'delete', id: string): void;
+    (e: 'edit', scan: ScheduledScan): void;
+}>();
 
 // --- State ---
-const sorting = ref<SortingState>([])
-const columnFilters = ref<ColumnFiltersState>([])
-const globalFilter = ref('')
+const sorting = ref<SortingState>([]);
+const columnFilters = ref<ColumnFiltersState>([]);
+const globalFilter = ref('');
 
 // --- Helpers ---
 const getFrequencyLabel = (type: string) => {
@@ -63,62 +63,62 @@ const getFrequencyLabel = (type: string) => {
         weekly: 'Weekly',
         monthly: 'Monthly',
         interval: 'Interval',
-        cron: 'Scheduled'
-    }
-    return map[type] || type
-}
+        cron: 'Scheduled',
+    };
+    return map[type] || type;
+};
 
 // Filter options for job types
 const job_typeOptions = [
     { label: 'Interval', value: 'interval' },
     { label: 'Scheduled (Cron)', value: 'cron' },
-]
+];
 
 // Improved configuration formatter
 const formatConfiguration = (config: any, job_type: string) => {
     try {
         if (!config || typeof config !== 'object') {
-            return 'No configuration'
+            return 'No configuration';
         }
 
         if (job_type === 'interval') {
-            const parts = []
-            if (config.weeks) parts.push(`${config.weeks}w`)
-            if (config.days) parts.push(`${config.days}d`)
-            if (config.hours) parts.push(`${config.hours}h`)
-            if (config.minutes) parts.push(`${config.minutes}m`)
-            if (config.seconds) parts.push(`${config.seconds}s`)
+            const parts = [];
+            if (config.weeks) parts.push(`${config.weeks}w`);
+            if (config.days) parts.push(`${config.days}d`);
+            if (config.hours) parts.push(`${config.hours}h`);
+            if (config.minutes) parts.push(`${config.minutes}m`);
+            if (config.seconds) parts.push(`${config.seconds}s`);
 
-            return parts.length > 0 ? `Every ${parts.join(' ')}` : 'Not configured'
+            return parts.length > 0 ? `Every ${parts.join(' ')}` : 'Not configured';
         } else if (job_type === 'cron') {
-            const month = config.month !== '*' ? String(config.month).padStart(2, '0') : 'XX'
-            const day = config.day !== '*' ? String(config.day).padStart(2, '0') : 'XX'
-            const year = config.year !== '*' ? config.year : 'XXXX'
-            const hour = String(config.hour || '0').padStart(2, '0')
-            const minute = String(config.minute || '0').padStart(2, '0')
-            const second = String(config.second || '0').padStart(2, '0')
+            const month = config.month !== '*' ? String(config.month).padStart(2, '0') : 'XX';
+            const day = config.day !== '*' ? String(config.day).padStart(2, '0') : 'XX';
+            const year = config.year !== '*' ? config.year : 'XXXX';
+            const hour = String(config.hour || '0').padStart(2, '0');
+            const minute = String(config.minute || '0').padStart(2, '0');
+            const second = String(config.second || '0').padStart(2, '0');
 
-            const isRecurring = config.month === '*' && config.year === '*'
+            const isRecurring = config.month === '*' && config.year === '*';
 
             if (isRecurring) {
-                return `Every month on day ${day} at ${hour}:${minute}:${second}`
+                return `Every month on day ${day} at ${hour}:${minute}:${second}`;
             } else {
-                const dateStr = `${month}/${day}/${year}`
-                const timeStr = `${hour}:${minute}:${second}`
-                return `${dateStr} ${timeStr}`
+                const dateStr = `${month}/${day}/${year}`;
+                const timeStr = `${hour}:${minute}:${second}`;
+                return `${dateStr} ${timeStr}`;
             }
         }
 
-        return 'Unknown schedule type'
+        return 'Unknown schedule type';
     } catch (e) {
-        console.error('Error formatting configuration:', e)
-        return 'Invalid configuration'
+        console.error('Error formatting configuration:', e);
+        return 'Invalid configuration';
     }
-}
+};
 
 const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-}
+    navigator.clipboard.writeText(text);
+};
 
 // --- Columns Definition ---
 const columns: ColumnDef<ScheduledScan>[] = [
@@ -137,7 +137,7 @@ const columns: ColumnDef<ScheduledScan>[] = [
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Type' }),
         cell: ({ row }) => row.getValue('job_type'),
         filterFn: (row, id, value) => {
-            return value.includes(row.getValue(id))
+            return value.includes(row.getValue(id));
         },
     },
     {
@@ -145,30 +145,32 @@ const columns: ColumnDef<ScheduledScan>[] = [
         header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Schedule' }),
         cell: ({ row }) => row.getValue('configuration'),
     },
-    ...(isAdmin ? [{
-        accessorKey: 'user_id',
-        header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Owner' }),
-        cell: ({ row }) => {
-            const user = row.original.user
-            return h('div', { class: 'flex items-center gap-2' }, [
-                // Optional: Add Avatar here if you have it
-                h('span', { class: 'font-medium' }, user ? user.name : 'Unknown')
-            ])
-        },
-        filterFn: (row, id, value) => {
-            return value.includes(String(row.getValue(id)))
-        },
-    }] : []),
+    // ...(isAdmin
+    //     ? [
+    //           {
+    //               accessorKey: 'user_id',
+    //               header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Owner' }),
+    //               cell: ({ row }) => {
+    //                   return h('span', { class: 'font-medium' }, row.getValue('user_id') ?? 'N/A');
+    //               },
+    //               filterFn: (row, id, value) => {
+    //                   return value.includes(String(row.getValue(id)));
+    //               },
+    //           },
+    //       ]
+    //     : []),
     {
         id: 'actions',
         enableHiding: false,
         cell: ({ row }) => row.original,
     },
-]
+];
 
 // --- Table Initialization ---
 const table = useVueTable({
-    get data() { return props.data },
+    get data() {
+        return props.data;
+    },
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -177,19 +179,25 @@ const table = useVueTable({
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     state: {
-        get sorting() { return sorting.value },
-        get columnFilters() { return columnFilters.value },
-        get globalFilter() { return globalFilter.value },
+        get sorting() {
+            return sorting.value;
+        },
+        get columnFilters() {
+            return columnFilters.value;
+        },
+        get globalFilter() {
+            return globalFilter.value;
+        },
     },
-    onSortingChange: (updater) => sorting.value = typeof updater === 'function' ? updater(sorting.value) : updater,
-    onColumnFiltersChange: (updater) => columnFilters.value = typeof updater === 'function' ? updater(columnFilters.value) : updater,
-    onGlobalFilterChange: (updater) => globalFilter.value = typeof updater === 'function' ? updater(globalFilter.value) : updater,
-})
+    onSortingChange: (updater) => (sorting.value = typeof updater === 'function' ? updater(sorting.value) : updater),
+    onColumnFiltersChange: (updater) => (columnFilters.value = typeof updater === 'function' ? updater(columnFilters.value) : updater),
+    onGlobalFilterChange: (updater) => (globalFilter.value = typeof updater === 'function' ? updater(globalFilter.value) : updater),
+});
 
-const isFiltered = computed(() => columnFilters.value.length > 0)
+const isFiltered = computed(() => columnFilters.value.length > 0);
 
 function resetFilters() {
-    table.resetColumnFilters()
+    table.resetColumnFilters();
 }
 </script>
 
@@ -209,20 +217,13 @@ function resetFilters() {
                     title="Schedule Type"
                     :options="job_typeOptions"
                 />
-                <FacetedFilter
-                    v-if="isAdmin && table.getColumn('user_id')"
-                    :column="table.getColumn('user_id')"
-                    title="Owner"
-                    :options="props.users"
-                />
-                <Button
-                    v-if="isFiltered"
-                    variant="ghost"
-                    @click="resetFilters"
-                    class="h-8 px-2 lg:px-3"
-                >
-                    Reset
-                </Button>
+<!--                <FacetedFilter-->
+<!--                    v-if="isAdmin && table.getColumn('user_id')"-->
+<!--                    :column="table.getColumn('user_id')"-->
+<!--                    title="Owner"-->
+<!--                    :options="props.users"-->
+<!--                />-->
+                <Button v-if="isFiltered" variant="ghost" @click="resetFilters" class="h-8 px-2 lg:px-3"> Reset </Button>
             </div>
 
             <div class="rounded-md border">
@@ -230,11 +231,7 @@ function resetFilters() {
                     <TableHeader>
                         <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
                             <TableHead v-for="header in headerGroup.headers" :key="header.id">
-                                <FlexRender
-                                    v-if="!header.isPlaceholder"
-                                    :render="header.column.columnDef.header"
-                                    :props="header.getContext()"
-                                />
+                                <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()" />
                             </TableHead>
                         </TableRow>
                     </TableHeader>
@@ -249,17 +246,14 @@ function resetFilters() {
                                     <!-- Name Column -->
                                     <template v-if="cell.column.id === 'codename'">
                                         <div class="flex items-center gap-2 font-medium">
-                                            <Calendar class="h-4 w-4 text-muted-foreground" />
+                                            <Calendar class="text-muted-foreground h-4 w-4" />
                                             {{ cell.getValue() }}
                                         </div>
                                     </template>
 
                                     <!-- URL Column -->
                                     <template v-else-if="cell.column.id === 'url'">
-                                        <a :href="cell.getValue() as string"
-                                           target="_blank"
-                                           class="text-muted-foreground hover:underline text-sm"
-                                        >
+                                        <a :href="cell.getValue() as string" target="_blank" class="text-muted-foreground text-sm hover:underline">
                                             {{ cell.getValue() }}
                                         </a>
                                     </template>
@@ -267,7 +261,7 @@ function resetFilters() {
                                     <!-- Job Type Column -->
                                     <template v-else-if="cell.column.id === 'job_type'">
                                         <div class="flex items-center gap-2">
-                                            <Clock class="h-3 w-3 text-muted-foreground" />
+                                            <Clock class="text-muted-foreground h-3 w-3" />
                                             <Badge variant="secondary" class="capitalize">
                                                 {{ getFrequencyLabel(cell.getValue() as string) }}
                                             </Badge>
@@ -277,7 +271,7 @@ function resetFilters() {
                                     <!-- Configuration Column -->
                                     <template v-else-if="cell.column.id === 'configuration'">
                                         <div class="flex items-center gap-2">
-                                            <span class="text-sm text-foreground">
+                                            <span class="text-foreground text-sm">
                                                 {{ formatConfiguration(cell.getValue(), row.original.job_type) }}
                                             </span>
                                         </div>
@@ -316,10 +310,7 @@ function resetFilters() {
 
                                     <!-- Default fallback -->
                                     <template v-else>
-                                        <FlexRender
-                                            :render="cell.column.columnDef.cell"
-                                            :props="cell.getContext()"
-                                        />
+                                        <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
                                     </template>
                                 </TableCell>
                             </TableRow>
@@ -327,7 +318,7 @@ function resetFilters() {
                         <template v-else>
                             <TableRow>
                                 <TableCell :colSpan="columns.length" class="h-24 text-center">
-                                    <div class="flex flex-col items-center gap-2 text-muted-foreground">
+                                    <div class="text-muted-foreground flex flex-col items-center gap-2">
                                         <Calendar class="h-8 w-8 opacity-50" />
                                         <p>No scheduled scans found.</p>
                                     </div>
